@@ -18,7 +18,8 @@ import {
   FileDown,
   FileSpreadsheet,
   FileText as FilePdf,
-  ChevronDown
+  ChevronDown,
+  ClipboardList
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -250,7 +251,7 @@ export default function ClassesPage() {
     }, 2000)
   }
 
-  const handleExportClass = async (cls: Classroom, format: 'excel' | 'pdf') => {
+  const handleExportClass = async (cls: Classroom, format: 'excel' | 'pdf' | 'attendance') => {
     if (!applicants) return
     setIsExporting(true)
     const students = getStudentsInClass(cls.students)
@@ -268,7 +269,7 @@ export default function ClassesPage() {
         const workbook = XLSX.utils.book_new()
         XLSX.utils.book_append_sheet(workbook, worksheet, `Kelas ${cls.name}`)
         XLSX.writeFile(workbook, `Daftar_Murid_Kelas_${cls.name}.xlsx`)
-      } else {
+      } else if (format === 'pdf') {
         const { default: jsPDF } = await import('jspdf')
         const { default: autoTable } = await import('jspdf-autotable')
         const doc = new jsPDF()
@@ -287,6 +288,40 @@ export default function ClassesPage() {
           headStyles: { fillColor: [67, 97, 238] }
         })
         doc.save(`Daftar_Murid_Kelas_${cls.name}.pdf`)
+      } else if (format === 'attendance') {
+        const { default: jsPDF } = await import('jspdf')
+        const { default: autoTable } = await import('jspdf-autotable')
+        const doc = new jsPDF()
+        doc.setFontSize(16)
+        doc.setTextColor(67, 97, 238)
+        doc.text(`DAFTAR HADIR MURID BARU - KELAS ${cls.name}`, 14, 15)
+        doc.setFontSize(10)
+        doc.setTextColor(100)
+        doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'} | Tahun Pelajaran 2024/2025`, 14, 22)
+        
+        const body = students.map((s, idx) => [
+          idx + 1, 
+          s.fullName, 
+          s.NISN, 
+          s.gender === 'Laki-laki' ? 'L' : 'P',
+          idx % 2 === 0 ? `${idx + 1}. ....................` : '',
+          idx % 2 !== 0 ? `${idx + 1}. ....................` : ''
+        ])
+        
+        autoTable(doc, {
+          head: [['No.', 'Nama Lengkap', 'NISN', 'L/P', 'Tanda Tangan', '']],
+          body: body,
+          startY: 30,
+          headStyles: { fillColor: [67, 97, 238], halign: 'center' },
+          columnStyles: {
+            0: { cellWidth: 10, halign: 'center' },
+            3: { cellWidth: 15, halign: 'center' },
+            4: { cellWidth: 35 },
+            5: { cellWidth: 35 }
+          },
+          styles: { minCellHeight: 12, verticalAlign: 'middle' }
+        })
+        doc.save(`Daftar_Hadir_Kelas_${cls.name}.pdf`)
       }
       toast({ title: "Ekspor Berhasil", description: `Data kelas ${cls.name} telah diunduh.` })
     } catch (err) {
@@ -296,7 +331,7 @@ export default function ClassesPage() {
     }
   }
 
-  const handleExportAllClasses = async (format: 'excel' | 'pdf') => {
+  const handleExportAllClasses = async (format: 'excel' | 'pdf' | 'attendance') => {
     if (!classes || !applicants) return
     setIsExporting(true)
 
@@ -324,22 +359,55 @@ export default function ClassesPage() {
         classes.forEach((cls, idx) => {
           if (idx > 0) doc.addPage()
           const students = getStudentsInClass(cls.students)
-          doc.setFontSize(16)
-          doc.setTextColor(67, 97, 238)
-          doc.text(`Daftar Murid Kelas ${cls.name}`, 14, 15)
-          doc.setFontSize(10)
-          doc.setTextColor(100)
-          doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'} | Total: ${students.length} Murid`, 14, 22)
           
-          const body = students.map((s, idx) => [idx + 1, s.fullName, s.NISN, s.gender, s.originSchool])
-          autoTable(doc, {
-            head: [['No.', 'Nama Lengkap', 'NISN', 'Jenis Kelamin', 'Sekolah Asal']],
-            body: body,
-            startY: 30,
-            headStyles: { fillColor: [67, 97, 238] }
-          })
+          if (format === 'pdf') {
+            doc.setFontSize(16)
+            doc.setTextColor(67, 97, 238)
+            doc.text(`Daftar Murid Kelas ${cls.name}`, 14, 15)
+            doc.setFontSize(10)
+            doc.setTextColor(100)
+            doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'} | Total: ${students.length} Murid`, 14, 22)
+            
+            const body = students.map((s, idx) => [idx + 1, s.fullName, s.NISN, s.gender, s.originSchool])
+            autoTable(doc, {
+              head: [['No.', 'Nama Lengkap', 'NISN', 'Jenis Kelamin', 'Sekolah Asal']],
+              body: body,
+              startY: 30,
+              headStyles: { fillColor: [67, 97, 238] }
+            })
+          } else if (format === 'attendance') {
+            doc.setFontSize(16)
+            doc.setTextColor(67, 97, 238)
+            doc.text(`DAFTAR HADIR MURID BARU - KELAS ${cls.name}`, 14, 15)
+            doc.setFontSize(10)
+            doc.setTextColor(100)
+            doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'} | Tahun Pelajaran 2024/2025`, 14, 22)
+            
+            const body = students.map((s, studentIdx) => [
+              studentIdx + 1, 
+              s.fullName, 
+              s.NISN, 
+              s.gender === 'Laki-laki' ? 'L' : 'P',
+              studentIdx % 2 === 0 ? `${studentIdx + 1}. ....................` : '',
+              studentIdx % 2 !== 0 ? `${studentIdx + 1}. ....................` : ''
+            ])
+            
+            autoTable(doc, {
+              head: [['No.', 'Nama Lengkap', 'NISN', 'L/P', 'Tanda Tangan', '']],
+              body: body,
+              startY: 30,
+              headStyles: { fillColor: [67, 97, 238], halign: 'center' },
+              columnStyles: {
+                0: { cellWidth: 10, halign: 'center' },
+                3: { cellWidth: 15, halign: 'center' },
+                4: { cellWidth: 35 },
+                5: { cellWidth: 35 }
+              },
+              styles: { minCellHeight: 12, verticalAlign: 'middle' }
+            })
+          }
         })
-        doc.save(`Rekap_Semua_Kelas_PPDB.pdf`)
+        doc.save(format === 'attendance' ? `Semua_Daftar_Hadir_Kelas.pdf` : `Rekap_Semua_Kelas_PPDB.pdf`)
       }
       toast({ title: "Ekspor Berhasil", description: "Laporan gabungan seluruh kelas telah diunduh." })
     } catch (err) {
@@ -368,11 +436,14 @@ export default function ClassesPage() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="border-border/50">
+              <DropdownMenuItem onClick={() => handleExportAllClasses('attendance')} className="cursor-pointer gap-2">
+                <ClipboardList className="w-4 h-4 text-primary" /> Daftar Hadir Semua Kelas (.pdf)
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleExportAllClasses('excel')} className="cursor-pointer gap-2">
-                <FileSpreadsheet className="w-4 h-4 text-green-500" /> Format Excel (.xlsx)
+                <FileSpreadsheet className="w-4 h-4 text-green-500" /> Rekap Excel Semua Kelas (.xlsx)
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleExportAllClasses('pdf')} className="cursor-pointer gap-2">
-                <FilePdf className="w-4 h-4 text-destructive" /> Format PDF (.pdf)
+                <FilePdf className="w-4 h-4 text-destructive" /> Rekap PDF Semua Kelas (.pdf)
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -572,10 +643,16 @@ export default function ClassesPage() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" className="gap-2">
-                      <Printer className="w-4 h-4" /> Cetak
+                      <FileDown className="w-4 h-4" /> Unduh
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="border-border/50">
+                    <DropdownMenuItem 
+                      onClick={() => selectedClassForView && handleExportClass(selectedClassForView, 'attendance')} 
+                      className="cursor-pointer gap-2"
+                    >
+                      <ClipboardList className="w-4 h-4 text-primary" /> Daftar Hadir (.pdf)
+                    </DropdownMenuItem>
                     <DropdownMenuItem 
                       onClick={() => selectedClassForView && handleExportClass(selectedClassForView, 'excel')} 
                       className="cursor-pointer gap-2"
