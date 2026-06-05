@@ -12,7 +12,10 @@ import {
   BarChart3,
   PieChart as PieIcon,
   Download,
-  Loader2
+  Loader2,
+  FileSpreadsheet,
+  FileText as FilePdf,
+  FileCode
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -28,10 +31,19 @@ import {
   Pie, 
   Cell
 } from "recharts"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
-import { collection, query, orderBy, limit } from "firebase/firestore"
+import { collection, query, orderBy } from "firebase/firestore"
 import { Applicant } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
+import * as XLSX from 'xlsx'
+import jsPDF from 'jspdf'
+import 'jspdf-autotable'
 
 const COLORS = ['#4361EE', '#4CC9F0', '#F72585', '#7209B7', '#3A0CA3']
 
@@ -47,16 +59,15 @@ export default function ReportsPage() {
 
   const { data: applicants, loading } = useCollection<Applicant>(applicantsQuery)
 
-  // Statistik Real-time
   const stats = useMemo(() => {
-    if (!applicants) return { total: 0, avgScore: 0, remainingQuota: 0 }
+    if (!applicants) return { total: 0, avgScore: 0, remainingQuota: 0, acceptedCount: 0, totalQuota: 250 }
     const total = applicants.length
     const prestasiApplicants = applicants.filter(a => a.applicationPath === 'Prestasi' && a.academicScore)
     const avgScore = prestasiApplicants.length 
       ? (prestasiApplicants.reduce((acc, curr) => acc + (curr.academicScore || 0), 0) / prestasiApplicants.length).toFixed(1)
       : 0
     const acceptedCount = applicants.filter(a => a.admissionStatus === 'accepted').length
-    const totalQuota = 250 // Sesuai setting default
+    const totalQuota = 250
     const remainingQuota = Math.max(0, totalQuota - acceptedCount)
     
     return { total, avgScore, remainingQuota, acceptedCount, totalQuota }
@@ -88,64 +99,92 @@ export default function ReportsPage() {
     }))
   }, [applicants])
 
-  const handleExportCSV = () => {
-    if (!applicants || applicants.length === 0) {
-      toast({
-        variant: "destructive",
-        title: "Ekspor Gagal",
-        description: "Tidak ada data untuk diekspor.",
-      })
-      return
-    }
+  const getExportData = () => {
+    if (!applicants) return []
+    return applicants.map(a => ({
+      "No. Registrasi": a.registrationNumber,
+      "NISN": a.NISN,
+      "NIK": a.NIK,
+      "Nama Lengkap": a.fullName,
+      "Gender": a.gender,
+      "Asal Sekolah": a.originSchool,
+      "Jalur": a.applicationPath,
+      "Skor Akademik": a.academicScore || 0,
+      "Jarak (Km)": a.distanceToSchoolKm || 0,
+      "Status Verifikasi": a.verificationStatus,
+      "Status Seleksi": a.admissionStatus,
+      "Wali Murid": a.parentName,
+      "No. Telepon": a.parentPhone
+    }))
+  }
 
+  const handleExportCSV = () => {
+    if (!applicants?.length) return
     setIsExporting(true)
     try {
-      const headers = [
-        "No. Registrasi", "NISN", "NIK", "Nama Lengkap", "Gender", 
-        "Asal Sekolah", "Jalur", "Nilai", "Jarak (km)", "Status Verifikasi", "Status Seleksi"
-      ]
-      
-      const rows = applicants.map(a => [
-        a.registrationNumber,
-        a.NISN,
-        `'${a.NIK}`, // Prefix ' agar tidak diringkas Excel
-        a.fullName,
-        a.gender,
-        a.originSchool,
-        a.applicationPath,
-        a.academicScore || 0,
-        a.distanceToSchoolKm || 0,
-        a.verificationStatus,
-        a.admissionStatus
-      ])
-
+      const data = getExportData()
+      const headers = Object.keys(data[0])
       const csvContent = [
         headers.join(","),
-        ...rows.map(row => row.join(","))
+        ...data.map(row => Object.values(row).map(v => `"${v}"`).join(","))
       ].join("\n")
 
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
       const url = URL.createObjectURL(blob)
       const link = document.createElement("a")
-      const timestamp = new Date().toISOString().split('T')[0]
-      
       link.setAttribute("href", url)
-      link.setAttribute("download", `Laporan_Pendaftaran_${timestamp}.csv`)
-      link.style.visibility = 'hidden'
-      document.body.appendChild(link)
+      link.setAttribute("download", `Laporan_Pendaftaran_${new Date().toISOString().split('T')[0]}.csv`)
       link.click()
-      document.body.removeChild(link)
-
-      toast({
-        title: "Ekspor Berhasil",
-        description: "File laporan telah diunduh.",
-      })
+      toast({ title: "CSV Berhasil", description: "Laporan CSV telah diunduh." })
     } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Terjadi Kesalahan",
-        description: "Gagal mengonversi data ke CSV.",
+      toast({ variant: "destructive", title: "Error", description: "Gagal ekspor CSV." })
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const handleExportExcel = () => {
+    if (!applicants?.length) return
+    setIsExporting(true)
+    try {
+      const data = getExportData()
+      const worksheet = XLSX.utils.json_to_sheet(data)
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Pendaftar")
+      XLSX.writeFile(workbook, `Laporan_Pendaftaran_${new Date().toISOString().split('T')[0]}.xlsx`)
+      toast({ title: "Excel Berhasil", description: "Laporan Excel telah diunduh." })
+    } catch (error) {
+      toast({ variant: "destructive", title: "Error", description: "Gagal ekspor Excel." })
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const handleExportPDF = () => {
+    if (!applicants?.length) return
+    setIsExporting(true)
+    try {
+      const doc = new jsPDF('landscape')
+      const data = getExportData()
+      const headers = [Object.keys(data[0])]
+      const body = data.map(item => Object.values(item))
+
+      doc.text("Laporan Penerimaan Peserta Didik Baru (PPDB)", 14, 15)
+      doc.setFontSize(10)
+      doc.text(`Tanggal Cetak: ${new Date().toLocaleString()}`, 14, 22)
+      
+      ;(doc as any).autoTable({
+        head: headers,
+        body: body,
+        startY: 30,
+        styles: { fontSize: 8 },
+        headStyles: { fillStyle: 'F', fillColor: [67, 97, 238] }
       })
+
+      doc.save(`Laporan_Pendaftaran_${new Date().toISOString().split('T')[0]}.pdf`)
+      toast({ title: "PDF Berhasil", description: "Laporan PDF telah diunduh." })
+    } catch (error) {
+      toast({ variant: "destructive", title: "Error", description: "Gagal ekspor PDF." })
     } finally {
       setIsExporting(false)
     }
@@ -162,14 +201,26 @@ export default function ReportsPage() {
           <Button variant="outline" className="gap-2">
             <Filter className="w-4 h-4" /> Filter Periode
           </Button>
-          <Button 
-            onClick={handleExportCSV}
-            disabled={isExporting || loading}
-            className="gap-2 bg-primary hover:bg-primary/90"
-          >
-            {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
-            Export Laporan CSV
-          </Button>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button disabled={isExporting || loading} className="gap-2 bg-primary hover:bg-primary/90">
+                {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+                Download Laporan
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={handleExportCSV} className="gap-2 cursor-pointer">
+                <FileCode className="w-4 h-4" /> Export CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportExcel} className="gap-2 cursor-pointer">
+                <FileSpreadsheet className="w-4 h-4" /> Export Excel
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportPDF} className="gap-2 cursor-pointer">
+                <FilePdf className="w-4 h-4" /> Export PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -315,8 +366,8 @@ export default function ReportsPage() {
         <CardContent>
           <div className="space-y-4">
             {[
-              { label: 'Data Master Pendaftar.csv', date: 'Real-time Live', user: 'Admin Pusat' },
-              { label: 'Rekapitulasi Verifikasi.csv', date: 'Real-time Live', user: 'Operator 01' },
+              { label: 'Laporan Master Pendaftar', type: 'Excel', date: 'Real-time Live', user: 'Admin Pusat' },
+              { label: 'Rekapitulasi Verifikasi', type: 'PDF', date: 'Real-time Live', user: 'Operator 01' },
             ].map((file) => (
               <div key={file.label} className="flex items-center justify-between p-4 rounded-xl border border-border hover:bg-muted/30 transition-colors">
                 <div className="flex items-center gap-4">
@@ -324,19 +375,30 @@ export default function ReportsPage() {
                     <Download className="w-5 h-5 text-muted-foreground" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold">{file.label}</p>
+                    <p className="text-sm font-bold">{file.label} ({file.type})</p>
                     <p className="text-xs text-muted-foreground">Oleh {file.user} • {file.date}</p>
                   </div>
                 </div>
-                <Button 
-                  onClick={handleExportCSV}
-                  disabled={isExporting || loading}
-                  variant="ghost" 
-                  size="sm" 
-                  className="text-primary font-bold"
-                >
-                  {isExporting ? "Processing..." : "Re-download"}
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={handleExportExcel}
+                    disabled={isExporting || loading}
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-primary font-bold gap-2"
+                  >
+                    <FileSpreadsheet className="w-3 h-3" /> Excel
+                  </Button>
+                  <Button 
+                    onClick={handleExportPDF}
+                    disabled={isExporting || loading}
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-primary font-bold gap-2"
+                  >
+                    <FilePdf className="w-3 h-3" /> PDF
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
