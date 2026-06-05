@@ -42,8 +42,8 @@ import { collection, query, orderBy } from "firebase/firestore"
 import { Applicant } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
 import * as XLSX from 'xlsx'
-import jsPDF from 'jspdf'
-import 'jspdf-autotable'
+import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 const COLORS = ['#4361EE', '#4CC9F0', '#F72585', '#7209B7', '#3A0CA3']
 
@@ -173,12 +173,12 @@ export default function ReportsPage() {
       doc.setFontSize(10)
       doc.text(`Tanggal Cetak: ${new Date().toLocaleString()}`, 14, 22)
       
-      ;(doc as any).autoTable({
+      autoTable(doc, {
         head: headers,
         body: body,
         startY: 30,
         styles: { fontSize: 8 },
-        headStyles: { fillStyle: 'F', fillColor: [67, 97, 238] }
+        headStyles: { fillColor: [67, 97, 238] }
       })
 
       doc.save(`Laporan_Pendaftaran_${new Date().toISOString().split('T')[0]}.pdf`)
