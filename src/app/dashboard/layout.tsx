@@ -80,9 +80,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <SidebarFooter className="p-4 mt-auto border-t border-border">
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton className="h-11">
-                  <Settings className="w-5 h-5" />
-                  <span className="font-medium">Settings</span>
+                <SidebarMenuButton 
+                  asChild 
+                  isActive={pathname === '/dashboard/settings'}
+                  className="h-11"
+                >
+                  <Link href="/dashboard/settings" className="flex items-center gap-3 w-full">
+                    <Settings className="w-5 h-5" />
+                    <span className="font-medium">Settings</span>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
