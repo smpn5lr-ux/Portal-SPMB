@@ -1,0 +1,59 @@
+
+{
+  "entities": {
+    "Applicant": {
+      "title": "Applicant",
+      "description": "Information about a student applying for admission.",
+      "type": "object",
+      "properties": {
+        "registrationNumber": { "type": "string" },
+        "NISN": { "type": "string" },
+        "NIK": { "type": "string" },
+        "fullName": { "type": "string" },
+        "birthPlace": { "type": "string" },
+        "birthDate": { "type": "string" },
+        "gender": { "type": "string", "enum": ["Laki-laki", "Perempuan"] },
+        "religion": { "type": "string" },
+        "address": { "type": "string" },
+        "parentName": { "type": "string" },
+        "parentPhone": { "type": "string" },
+        "originSchool": { "type": "string" },
+        "familyCardNumber": { "type": "string" },
+        "applicationPath": { "type": "string", "enum": ["Zonasi", "Prestasi", "Afirmasi", "Perpindahan Orang Tua"] },
+        "verificationStatus": { "type": "string", "enum": ["Belum Diverifikasi", "Lengkap", "Perlu Perbaikan", "Ditolak"] },
+        "academicScore": { "type": "number" },
+        "distanceToSchoolKm": { "type": "number" },
+        "ageYears": { "type": "number" },
+        "admissionStatus": { "type": "string", "enum": ["accepted", "waitlisted", "rejected", "pending"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["NISN", "fullName", "applicationPath"]
+    },
+    "Classroom": {
+      "title": "Classroom",
+      "description": "Information about a class group (rombongan belajar).",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "gradeLevel": { "type": "number" },
+        "homeroomTeacher": { "type": "string" },
+        "capacity": { "type": "number" },
+        "currentEnrollment": { "type": "number" },
+        "students": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  },
+  "auth": {
+    "providers": ["google.com", "password"]
+  },
+  "firestore": {
+    "/applicants/{applicantId}": {
+      "schema": "Applicant",
+      "description": "Collection of student applications."
+    },
+    "/classes/{classId}": {
+      "schema": "Classroom",
+      "description": "Collection of class groups."
+    }
+  }
+}

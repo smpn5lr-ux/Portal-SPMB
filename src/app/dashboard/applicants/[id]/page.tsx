@@ -1,6 +1,7 @@
+
 "use client"
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import { 
   ArrowLeft, 
@@ -14,26 +15,53 @@ import {
   AlertCircle,
   Sparkles,
   Printer,
-  Calendar
+  Calendar,
+  Loader2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
-import { mockApplicants } from "@/lib/mock-data"
 import Link from 'next/link'
 import { generateAdmissionJustification, AdmissionJustificationOutput } from '@/ai/flows/generate-admission-justification'
+import { useDoc, useFirestore } from '@/firebase'
+import { doc, updateDoc } from 'firebase/firestore'
+import { Applicant } from '@/lib/types'
+import { errorEmitter } from '@/firebase/error-emitter'
+import { FirestorePermissionError } from '@/firebase/errors'
 
 export default function ApplicantDetailPage() {
   const { id } = useParams()
-  const applicant = mockApplicants.find(a => a.id === id)
+  const db = useFirestore()
+  
+  const applicantRef = useMemo(() => {
+    if (!db || !id) return null
+    return doc(db, 'applicants', id as string)
+  }, [db, id])
+
+  const { data: applicant, loading } = useDoc<Applicant>(applicantRef)
+  
   const [justification, setJustification] = useState<AdmissionJustificationOutput | null>(null)
   const [loadingAI, setLoadingAI] = useState(false)
+  const [notes, setNotes] = useState('')
 
-  if (!applicant) return <div>Pendaftar tidak ditemukan.</div>
+  const handleUpdateStatus = (status: string) => {
+    if (!applicantRef) return
+
+    updateDoc(applicantRef, { verificationStatus: status, verificationNotes: notes })
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: applicantRef.path,
+          operation: 'update',
+          requestResourceData: { verificationStatus: status, verificationNotes: notes }
+        })
+        errorEmitter.emit('permission-error', permissionError)
+      })
+  }
 
   const handleGenerateAI = async () => {
+    if (!applicant) return
     setLoadingAI(true)
     try {
       const result = await generateAdmissionJustification({
@@ -76,6 +104,15 @@ export default function ApplicantDetailPage() {
       setLoadingAI(false)
     }
   }
+
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center h-64 gap-2">
+      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <p className="text-muted-foreground">Memuat data pendaftar...</p>
+    </div>
+  )
+
+  if (!applicant) return <div className="text-center py-12">Pendaftar tidak ditemukan.</div>
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -226,19 +263,36 @@ export default function ApplicantDetailPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-2">
-                <Button variant="outline" className="gap-2 border-green-500/20 text-green-500 hover:bg-green-500/5">
+                <Button 
+                  onClick={() => handleUpdateStatus('Lengkap')}
+                  variant="outline" 
+                  className="gap-2 border-green-500/20 text-green-500 hover:bg-green-500/5"
+                >
                   <CheckCircle2 className="w-4 h-4" /> Lengkap
                 </Button>
-                <Button variant="outline" className="gap-2 border-destructive/20 text-destructive hover:bg-destructive/5">
+                <Button 
+                  onClick={() => handleUpdateStatus('Ditolak')}
+                  variant="outline" 
+                  className="gap-2 border-destructive/20 text-destructive hover:bg-destructive/5"
+                >
                   <XCircle className="w-4 h-4" /> Ditolak
                 </Button>
               </div>
-              <Button variant="outline" className="w-full gap-2 border-amber-500/20 text-amber-500 hover:bg-amber-500/5">
+              <Button 
+                onClick={() => handleUpdateStatus('Perlu Perbaikan')}
+                variant="outline" 
+                className="w-full gap-2 border-amber-500/20 text-amber-500 hover:bg-amber-500/5"
+              >
                 <AlertCircle className="w-4 h-4" /> Perlu Perbaikan
               </Button>
               <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Catatan Verifikator</label>
-                <Textarea placeholder="Tambahkan catatan khusus verifikasi di sini..." className="h-24" />
+                <Textarea 
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Tambahkan catatan khusus verifikasi di sini..." 
+                  className="h-24" 
+                />
               </div>
             </CardContent>
           </Card>

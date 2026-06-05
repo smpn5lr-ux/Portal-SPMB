@@ -1,6 +1,7 @@
+
 "use client"
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { 
   Search, 
   FileDown, 
@@ -10,7 +11,8 @@ import {
   MoreHorizontal, 
   Eye, 
   CheckCircle,
-  FileText
+  FileText,
+  Loader2
 } from "lucide-react"
 import { 
   Table, 
@@ -29,17 +31,19 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu"
-import { mockApplicants } from "@/lib/mock-data"
 import Link from 'next/link'
+import { useCollection, useFirestore } from '@/firebase'
+import { collection, query, orderBy } from 'firebase/firestore'
+import { Applicant } from '@/lib/types'
 
-const statusColorMap = {
+const statusColorMap: Record<string, string> = {
   'Belum Diverifikasi': 'bg-slate-500/10 text-slate-400 border-slate-500/20',
   'Lengkap': 'bg-green-500/10 text-green-500 border-green-500/20',
   'Perlu Perbaikan': 'bg-amber-500/10 text-amber-500 border-amber-500/20',
   'Ditolak': 'bg-destructive/10 text-destructive border-destructive/20',
 }
 
-const pathColorMap = {
+const pathColorMap: Record<string, string> = {
   'Zonasi': 'text-primary border-primary/20',
   'Prestasi': 'text-cyan-500 border-cyan-500/20',
   'Afirmasi': 'text-pink-500 border-pink-500/20',
@@ -48,11 +52,22 @@ const pathColorMap = {
 
 export default function ApplicantsPage() {
   const [searchTerm, setSearchTerm] = useState('')
+  const db = useFirestore()
 
-  const filteredApplicants = mockApplicants.filter(a => 
-    a.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    a.NISN.includes(searchTerm)
-  )
+  const applicantsQuery = useMemo(() => {
+    if (!db) return null
+    return query(collection(db, 'applicants'), orderBy('createdAt', 'desc'))
+  }, [db])
+
+  const { data: applicants, loading } = useCollection<Applicant>(applicantsQuery)
+
+  const filteredApplicants = useMemo(() => {
+    if (!applicants) return []
+    return applicants.filter(a => 
+      a.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      a.NISN.includes(searchTerm)
+    )
+  }, [applicants, searchTerm])
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -92,7 +107,11 @@ export default function ApplicantsPage() {
             <Filter className="w-4 h-4" />
           </Button>
           <div className="text-xs font-medium text-muted-foreground whitespace-nowrap">
-            Menampilkan <span className="text-foreground font-bold">{filteredApplicants.length}</span> pendaftar
+            {loading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <>Menampilkan <span className="text-foreground font-bold">{filteredApplicants.length}</span> pendaftar</>
+            )}
           </div>
         </div>
       </div>
@@ -110,58 +129,75 @@ export default function ApplicantsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredApplicants.map((applicant) => (
-              <TableRow key={applicant.id} className="hover:bg-muted/20 transition-colors">
-                <TableCell>
-                  <div className="flex flex-col">
-                    <span className="font-mono font-medium text-primary text-sm">{applicant.NISN}</span>
-                    <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">
-                      {applicant.registrationNumber}
-                    </span>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={6} className="h-32 text-center">
+                  <div className="flex justify-center items-center gap-2 text-muted-foreground">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Memuat data...
                   </div>
                 </TableCell>
-                <TableCell>
-                  <div className="font-medium text-foreground">{applicant.fullName}</div>
-                  <div className="text-[10px] text-muted-foreground uppercase">{applicant.gender}</div>
-                </TableCell>
-                <TableCell className="text-muted-foreground text-sm">{applicant.originSchool}</TableCell>
-                <TableCell>
-                  <Badge variant="outline" className={`${pathColorMap[applicant.applicationPath]} font-bold text-[10px]`}>
-                    {applicant.applicationPath}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline" className={`${statusColorMap[applicant.verificationStatus]} font-bold text-[10px]`}>
-                    {applicant.verificationStatus}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuItem asChild>
-                        <Link href={`/dashboard/applicants/${applicant.id}`} className="flex items-center gap-2 cursor-pointer">
-                          <Eye className="w-4 h-4" />
-                          Lihat Detail
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="flex items-center gap-2 cursor-pointer">
-                        <CheckCircle className="w-4 h-4 text-green-500" />
-                        Verifikasi Langsung
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="flex items-center gap-2 cursor-pointer">
-                        <FileText className="w-4 h-4" />
-                        Cetak Bukti
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+              </TableRow>
+            ) : filteredApplicants.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                  Tidak ada pendaftar ditemukan.
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              filteredApplicants.map((applicant) => (
+                <TableRow key={applicant.id} className="hover:bg-muted/20 transition-colors">
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span className="font-mono font-medium text-primary text-sm">{applicant.NISN}</span>
+                      <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">
+                        {applicant.registrationNumber}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-medium text-foreground">{applicant.fullName}</div>
+                    <div className="text-[10px] text-muted-foreground uppercase">{applicant.gender}</div>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-sm">{applicant.originSchool}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className={`${pathColorMap[applicant.applicationPath] || ''} font-bold text-[10px]`}>
+                      {applicant.applicationPath}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className={`${statusColorMap[applicant.verificationStatus] || ''} font-bold text-[10px]`}>
+                      {applicant.verificationStatus}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem asChild>
+                          <Link href={`/dashboard/applicants/${applicant.id}`} className="flex items-center gap-2 cursor-pointer">
+                            <Eye className="w-4 h-4" />
+                            Lihat Detail
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="flex items-center gap-2 cursor-pointer">
+                          <CheckCircle className="w-4 h-4 text-green-500" />
+                          Verifikasi Langsung
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="flex items-center gap-2 cursor-pointer">
+                          <FileText className="w-4 h-4" />
+                          Cetak Bukti
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
