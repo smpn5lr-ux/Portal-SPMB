@@ -44,8 +44,8 @@ import {
 } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
-import { collection, query, orderBy } from "firebase/firestore"
+import { useCollection, useFirestore, useMemoFirebase, useDoc } from "@/firebase"
+import { collection, query, orderBy, doc } from "firebase/firestore"
 import { Applicant } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
 import * as XLSX from 'xlsx'
@@ -84,21 +84,27 @@ export default function ReportsPage() {
     return query(collection(db, 'applicants'), orderBy('registrationSequence', 'asc'))
   }, [db])
 
+  const settingsRef = useMemoFirebase(() => {
+    if (!db) return null
+    return doc(db, 'settings', 'system')
+  }, [db])
+
   const { data: applicants, loading } = useCollection<Applicant>(applicantsQuery)
+  const { data: systemSettings } = useDoc<any>(settingsRef)
 
   const stats = useMemo(() => {
-    if (!applicants) return { total: 0, avgScore: 0, remainingQuota: 0, acceptedCount: 0, totalQuota: 250 }
+    if (!applicants) return { total: 0, avgScore: 0, remainingQuota: 0, acceptedCount: 0, totalQuota: systemSettings?.totalQuota || 250 }
     const total = applicants.length
     const prestasiApplicants = applicants.filter(a => a.applicationPath === 'Prestasi' && a.academicScore)
     const avgScore = prestasiApplicants.length 
       ? (prestasiApplicants.reduce((acc, curr) => acc + (curr.academicScore || 0), 0) / prestasiApplicants.length).toFixed(1)
       : 0
     const acceptedCount = applicants.filter(a => a.admissionStatus === 'accepted').length
-    const totalQuota = 250
+    const totalQuota = systemSettings?.totalQuota || 250
     const remainingQuota = Math.max(0, totalQuota - acceptedCount)
     
     return { total, avgScore, remainingQuota, acceptedCount, totalQuota }
-  }, [applicants])
+  }, [applicants, systemSettings])
 
   const schoolData = useMemo(() => {
     if (!applicants) return []
@@ -197,11 +203,11 @@ export default function ReportsPage() {
 
       doc.setFontSize(18)
       doc.setTextColor(67, 97, 238)
-      doc.text("Laporan Penerimaan Murid Baru (PPDB)", 14, 15)
+      doc.text(`Laporan Penerimaan Murid Baru (${systemSettings?.schoolName || 'Portal SPMB'})`, 14, 15)
       
       doc.setFontSize(10)
       doc.setTextColor(100)
-      doc.text(`Dicetak pada: ${new Date().toLocaleString('id-ID')}`, 14, 22)
+      doc.text(`Tahun Ajaran: ${systemSettings?.academicYear || '2024/2025'} | Dicetak pada: ${new Date().toLocaleString('id-ID')}`, 14, 22)
       
       autoTable(doc, {
         head: headers,
@@ -243,13 +249,9 @@ export default function ReportsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline font-bold">Laporan & Analitik</h1>
-          <p className="text-muted-foreground mt-1">Visualisasi data pendaftaran murid dan statistik kelulusan secara real-time.</p>
+          <p className="text-muted-foreground mt-1">Visualisasi data pendaftaran murid secara real-time dari Firestore.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
-            <Filter className="w-4 h-4" /> Filter Periode
-          </Button>
-          
           <Dialog open={isDownloadDialogOpen} onOpenChange={setIsDownloadDialogOpen}>
             <DialogTrigger asChild>
               <Button disabled={loading} className="gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20">
@@ -264,7 +266,7 @@ export default function ReportsPage() {
                   Kustomisasi Ekspor Laporan
                 </DialogTitle>
                 <DialogDescription>
-                  Pilih kolom data yang ingin Anda sertakan dalam dokumen ekspor.
+                  Pilih kolom data murid yang ingin Anda sertakan dalam dokumen ekspor.
                 </DialogDescription>
               </DialogHeader>
               
@@ -287,7 +289,7 @@ export default function ReportsPage() {
                       />
                       <Label 
                         htmlFor={`col-${col.id}`}
-                        className="text-xs font-medium cursor-pointer leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        className="text-xs font-medium cursor-pointer leading-none"
                       >
                         {col.label}
                       </Label>
@@ -301,29 +303,15 @@ export default function ReportsPage() {
                   * Laporan akan disusun secara profesional dalam Bahasa Indonesia.
                 </div>
                 <div className="flex gap-2">
-                  <Button 
-                    onClick={handleExportCSV} 
-                    disabled={isExporting || selectedColumns.length === 0} 
-                    variant="outline" 
-                    className="gap-2 border-primary/20 text-primary hover:bg-primary/5"
-                  >
+                  <Button onClick={handleExportCSV} disabled={isExporting || selectedColumns.length === 0} variant="outline" className="gap-2">
                     {isExporting ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileCode className="w-3 h-3" />}
                     CSV
                   </Button>
-                  <Button 
-                    onClick={handleExportExcel} 
-                    disabled={isExporting || selectedColumns.length === 0} 
-                    variant="outline" 
-                    className="gap-2 border-green-500/20 text-green-500 hover:bg-green-500/5"
-                  >
+                  <Button onClick={handleExportExcel} disabled={isExporting || selectedColumns.length === 0} variant="outline" className="gap-2 border-green-500/20 text-green-500">
                     {isExporting ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileSpreadsheet className="w-3 h-3" />}
                     Excel
                   </Button>
-                  <Button 
-                    onClick={handleExportPDF} 
-                    disabled={isExporting || selectedColumns.length === 0} 
-                    className="gap-2 bg-primary hover:bg-primary/90"
-                  >
+                  <Button onClick={handleExportPDF} disabled={isExporting || selectedColumns.length === 0} className="gap-2">
                     {isExporting ? <Loader2 className="w-3 h-3 animate-spin" /> : <FilePdf className="w-3 h-3" />}
                     PDF
                   </Button>
@@ -338,13 +326,13 @@ export default function ReportsPage() {
         <Card className="border-border/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-              <Users className="w-4 h-4 text-primary" /> Total Pendaftar
+              <Users className="w-4 h-4 text-primary" /> Total Murid Pendaftar
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-4xl font-bold">{loading ? "..." : stats.total}</div>
             <p className="text-xs text-green-500 mt-1 font-bold flex items-center gap-1">
-              <TrendingUp className="w-3 h-3" /> Data Real-time Live
+              <TrendingUp className="w-3 h-3" /> Sinkron Firestore Live
             </p>
           </CardContent>
         </Card>
@@ -352,19 +340,19 @@ export default function ReportsPage() {
         <Card className="border-border/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-              <School className="w-4 h-4 text-accent" /> Rata-rata Skor
+              <School className="w-4 h-4 text-accent" /> Rata-rata Skor Murid
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-4xl font-bold">{loading ? "..." : stats.avgScore}</div>
-            <p className="text-xs text-muted-foreground mt-1">Berdasarkan pendaftar jalur prestasi</p>
+            <p className="text-xs text-muted-foreground mt-1">Berdasarkan pendaftar Jalur Prestasi</p>
           </CardContent>
         </Card>
 
         <Card className="border-border/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-pink-500" /> Sisa Kuota
+              <Calendar className="w-4 h-4 text-pink-500" /> Sisa Kuota Sekolah
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -381,8 +369,8 @@ export default function ReportsPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="font-headline text-lg">Asal Sekolah Terbanyak</CardTitle>
-                <CardDescription>Penyebaran murid berdasarkan sekolah dasar asal.</CardDescription>
+                <CardTitle className="font-headline text-lg">Asal Sekolah Dasar Terbanyak</CardTitle>
+                <CardDescription>Penyebaran murid berdasarkan sekolah dasar asal mereka.</CardDescription>
               </div>
               <BarChart3 className="w-5 h-5 text-muted-foreground/50" />
             </div>
@@ -422,8 +410,8 @@ export default function ReportsPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="font-headline text-lg">Demografi Usia</CardTitle>
-                <CardDescription>Distribusi umur calon murid baru.</CardDescription>
+                <CardTitle className="font-headline text-lg">Demografi Usia Murid</CardTitle>
+                <CardDescription>Distribusi umur calon murid baru berdasarkan data kelahiran.</CardDescription>
               </div>
               <PieIcon className="w-5 h-5 text-muted-foreground/50" />
             </div>
@@ -454,7 +442,7 @@ export default function ReportsPage() {
                 <div className="space-y-4 pr-8">
                   {ageData.map((age, i) => (
                     <div key={age.name} className="flex items-center gap-3">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i] }} />
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
                       <div>
                         <p className="text-xs font-bold whitespace-nowrap">{age.name}</p>
                         <p className="text-[10px] text-muted-foreground">{age.value}%</p>
@@ -470,36 +458,25 @@ export default function ReportsPage() {
 
       <Card className="border-border/50">
         <CardHeader>
-          <CardTitle className="font-headline text-lg">Log Ekspor Data</CardTitle>
-          <CardDescription>Riwayat pengunduhan laporan data murid.</CardDescription>
+          <CardTitle className="font-headline text-lg">Histori Ekspor Data</CardTitle>
+          <CardDescription>Daftar riwayat unduhan laporan pendaftaran murid.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {[
-              { label: 'Laporan Master Murid', type: 'Excel', date: 'Real-time Live', user: 'Admin Pusat' },
-              { label: 'Rekapitulasi Verifikasi', type: 'PDF', date: 'Real-time Live', user: 'Operator 01' },
-            ].map((file) => (
-              <div key={file.label} className="flex items-center justify-between p-4 rounded-xl border border-border hover:bg-muted/30 transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                    <Download className="w-5 h-5 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold">{file.label} ({file.type})</p>
-                    <p className="text-xs text-muted-foreground">Oleh {file.user} • {file.date}</p>
-                  </div>
+            <div className="flex items-center justify-between p-4 rounded-xl border border-border hover:bg-muted/30 transition-colors">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                  <Download className="w-5 h-5 text-muted-foreground" />
                 </div>
-                <Button 
-                  onClick={() => setIsDownloadDialogOpen(true)}
-                  disabled={loading}
-                  variant="ghost" 
-                  size="sm" 
-                  className="text-primary font-bold gap-2"
-                >
-                  <FileSpreadsheet className="w-3 h-3" /> Unduh Ulang
-                </Button>
+                <div>
+                  <p className="text-sm font-bold">Laporan Master Murid PPDB</p>
+                  <p className="text-xs text-muted-foreground">Oleh Sistem • Sinkron Firestore Real-time</p>
+                </div>
               </div>
-            ))}
+              <Button onClick={() => setIsDownloadDialogOpen(true)} variant="ghost" size="sm" className="text-primary font-bold">
+                Unduh Sekarang
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

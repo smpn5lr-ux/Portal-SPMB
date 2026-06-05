@@ -10,7 +10,6 @@ import {
   School, 
   BarChart3, 
   Settings,
-  Menu,
   Bell,
   Search,
   UserCircle,
@@ -30,7 +29,6 @@ import {
   SidebarTrigger 
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useAuth, useUser } from "@/firebase"
@@ -146,7 +144,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <div className="hidden md:flex items-center bg-muted/30 px-3 py-1.5 rounded-full border border-border/50 w-80">
                 <Search className="w-4 h-4 text-muted-foreground mr-2" />
                 <input 
-                  placeholder="Cari NISN atau Nama..." 
+                  placeholder="Cari NISN atau Nama Murid..." 
                   className="bg-transparent border-none text-sm focus:outline-none w-full placeholder:text-muted-foreground/50"
                 />
               </div>
