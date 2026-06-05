@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Applicant": {
@@ -30,9 +31,13 @@
         "hobbies": { "type": "string" },
         "registrantRelationship": { "type": "string" },
         "fatherName": { "type": "string" },
+        "fatherNIK": { "type": "string" },
         "fatherOccupation": { "type": "string" },
         "motherName": { "type": "string" },
-        "motherOccupation": { "type": "string" }
+        "motherNIK": { "type": "string" },
+        "motherOccupation": { "type": "string" },
+        "numberOfSiblings": { "type": "number" },
+        "childOrder": { "type": "number" }
       },
       "required": ["NISN", "fullName", "applicationPath"]
     },

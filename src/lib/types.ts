@@ -1,3 +1,4 @@
+
 export type AdmissionPath = 'Zonasi' | 'Prestasi' | 'Afirmasi' | 'Perpindahan Orang Tua';
 
 export type VerificationStatus = 'Belum Diverifikasi' | 'Lengkap' | 'Perlu Perbaikan' | 'Ditolak';
@@ -38,16 +39,20 @@ export interface Applicant {
   createdAt: string;
   
   // Additional Dapodik Fields
-  livingWith?: string; // e.g., Bersama Orang Tua, Wali, Kost
+  livingWith?: string;
   transportation?: string;
   hobbies?: string;
   specialNeeds?: string;
-  registrantRelationship?: string; // Hubungan pendaftar dengan calon siswa
+  registrantRelationship?: string;
+  numberOfSiblings?: number;
+  childOrder?: number;
   
   // Detailed Parent Info
   fatherName?: string;
+  fatherNIK?: string;
   fatherOccupation?: string;
   motherName?: string;
+  motherNIK?: string;
   motherOccupation?: string;
   parentIncomeRange?: string;
 }
@@ -59,7 +64,7 @@ export interface Classroom {
   homeroomTeacher: string;
   capacity: number;
   currentEnrollment: number;
-  students: string[]; // List of applicant IDs
+  students: string[];
 }
 
 export interface SelectionSettings {
