@@ -266,7 +266,11 @@ export default function ApplicantsPage() {
       doc.setFontSize(10)
       doc.text("Gunakan kolom-kolom berikut dalam file CSV atau Excel Anda:", 14, 22)
       
-      const tableBody = TEMPLATE_COLUMNS.map(col => [col, "Teks/Angka", "Wajib" if ["fullName", "NISN", "NIK", "birthDate"].includes(col) else "Opsional"])
+      const tableBody = TEMPLATE_COLUMNS.map(col => [
+        col, 
+        "Teks/Angka", 
+        ["fullName", "NISN", "NIK", "birthDate"].includes(col) ? "Wajib" : "Opsional"
+      ])
       
       autoTable(doc, {
         head: [['Nama Kolom', 'Tipe Data', 'Status']],
