@@ -1,23 +1,23 @@
+
 "use client"
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { 
   Target, 
   Settings2, 
   Play, 
   ShieldCheck, 
-  Info,
   Trophy,
   MapPin,
   Heart,
   Truck,
   ArrowUpDown,
-  History
+  History,
+  Loader2
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
@@ -29,7 +29,11 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table"
-import { mockApplicants } from "@/lib/mock-data"
+import { useCollection, useFirestore } from '@/firebase'
+import { collection, query, doc, updateDoc } from 'firebase/firestore'
+import { Applicant } from '@/lib/types'
+import { errorEmitter } from '@/firebase/error-emitter'
+import { FirestorePermissionError } from '@/firebase/errors'
 
 export default function SelectionPage() {
   const [isProcessing, setIsProcessing] = useState(false)
@@ -40,26 +44,59 @@ export default function SelectionPage() {
     priorityAge: true
   })
 
+  const db = useFirestore()
+  const { data: applicants, loading } = useCollection<Applicant>(db ? collection(db, 'applicants') : null)
+
   const handleRunSelection = () => {
+    if (!applicants || !db) return
     setIsProcessing(true)
+    
+    // Simulate selection logic
     setTimeout(() => {
+      applicants.forEach((a, index) => {
+        let status: 'accepted' | 'waitlisted' | 'rejected' = 'rejected'
+        
+        if (a.verificationStatus !== 'Lengkap') {
+          status = 'rejected'
+        } else if (a.applicationPath === 'Zonasi' && (a.distanceToSchoolKm || 0) <= selectionParams.maxDistance) {
+          status = 'accepted'
+        } else if (a.applicationPath === 'Prestasi' && (a.academicScore || 0) >= selectionParams.minScore) {
+          status = 'accepted'
+        } else if (a.applicationPath === 'Afirmasi' || a.applicationPath === 'Perpindahan Orang Tua') {
+          status = 'accepted'
+        }
+
+        const docRef = doc(db, 'applicants', a.id)
+        updateDoc(docRef, { 
+          admissionStatus: status,
+          rankingInPath: index + 1 // Mock ranking
+        }).catch(err => {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'update',
+          }))
+        })
+      })
+
       setIsProcessing(false)
       setShowRankings(true)
-    }, 2500)
+    }, 2000)
   }
 
-  const sortedApplicants = [...mockApplicants].sort((a, b) => {
-    // Basic sorting logic for mock UI
-    if (a.applicationPath === 'Prestasi') return (b.academicScore || 0) - (a.academicScore || 0)
-    return (a.distanceToSchoolKm || 0) - (b.distanceToSchoolKm || 0)
-  }).slice(0, 15)
+  const sortedApplicants = useMemo(() => {
+    if (!applicants) return []
+    return [...applicants].sort((a, b) => {
+      if (a.applicationPath === 'Prestasi') return (b.academicScore || 0) - (a.academicScore || 0)
+      return (a.distanceToSchoolKm || 0) - (b.distanceToSchoolKm || 0)
+    }).slice(0, 15)
+  }, [applicants])
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline font-bold">Sistem Seleksi</h1>
-          <p className="text-muted-foreground mt-1">Konfigurasi algoritma dan eksekusi kelulusan siswa.</p>
+          <p className="text-muted-foreground mt-1">Konfigurasi algoritma dan eksekusi kelulusan siswa secara real-time.</p>
         </div>
         <Button variant="outline" className="gap-2">
           <History className="w-4 h-4" />
@@ -119,11 +156,11 @@ export default function SelectionPage() {
 
               <Button 
                 onClick={handleRunSelection}
-                disabled={isProcessing}
+                disabled={isProcessing || loading}
                 className="w-full bg-primary hover:bg-primary/90 h-11 gap-2 shadow-lg shadow-primary/20"
               >
                 {isProcessing ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <Play className="w-4 h-4" />
                 )}
@@ -139,7 +176,7 @@ export default function SelectionPage() {
                 <div>
                   <h4 className="font-bold text-sm">Integritas Data Seleksi</h4>
                   <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    Sistem memastikan tidak ada data ganda dan seluruh pendaftar telah diverifikasi dokumennya sebelum proses seleksi dijalankan.
+                    Sistem memastikan seluruh pendaftar telah diverifikasi dokumennya sebelum proses seleksi dijalankan.
                   </p>
                 </div>
               </div>
@@ -153,7 +190,7 @@ export default function SelectionPage() {
               <Target className="w-16 h-16 text-muted-foreground/20 mb-4" />
               <h3 className="text-xl font-bold">Siap Menjalankan Seleksi</h3>
               <p className="text-muted-foreground max-w-sm mt-2">
-                Atur parameter di panel kiri dan klik Eksekusi untuk melihat simulasi hasil kelulusan sementara.
+                Atur parameter di panel kiri dan klik Eksekusi untuk memproses status kelulusan di database.
               </p>
             </div>
           ) : isProcessing ? (
@@ -162,35 +199,15 @@ export default function SelectionPage() {
                 <Play className="w-8 h-8 text-primary animate-ping" />
               </div>
               <h3 className="text-xl font-bold">Memproses Data Pendaftar...</h3>
-              <p className="text-muted-foreground mt-2">Melakukan kalkulasi jarak dan pembobotan nilai akademik.</p>
+              <p className="text-muted-foreground mt-2">Melakukan kalkulasi status penerimaan berdasarkan kriteria.</p>
             </div>
           ) : (
             <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {[
-                  { label: 'Zonasi', value: '112/125', icon: MapPin, color: 'text-blue-500' },
-                  { label: 'Prestasi', value: '68/75', icon: Trophy, color: 'text-amber-500' },
-                  { label: 'Afirmasi', value: '30/38', icon: Heart, color: 'text-pink-500' },
-                  { label: 'Pindahan', value: '12/12', icon: Truck, color: 'text-purple-500' },
-                ].map((s) => (
-                  <Card key={s.label} className="border-border/50 p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <s.icon className={`w-3 h-3 ${s.color}`} />
-                      <span className="text-[10px] font-bold uppercase tracking-tighter text-muted-foreground">{s.label}</span>
-                    </div>
-                    <div className="text-lg font-bold">{s.value}</div>
-                    <div className="w-full bg-muted h-1 mt-2 rounded-full overflow-hidden">
-                      <div className={`h-full bg-primary`} style={{ width: '85%' }}></div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-
               <Card className="border-border/50">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <div>
                     <CardTitle className="font-headline text-lg">Pratinjau Hasil Kelulusan</CardTitle>
-                    <CardDescription>Peringkat sementara berdasarkan parameter aktif.</CardDescription>
+                    <CardDescription>Peringkat terbaru dari database.</CardDescription>
                   </div>
                   <Button variant="outline" size="sm" className="gap-2">
                     <ArrowUpDown className="w-3 h-3" /> Urutkan
@@ -224,15 +241,18 @@ export default function SelectionPage() {
                             </span>
                           </TableCell>
                           <TableCell className="text-right">
-                            <Badge className="bg-green-500/10 text-green-500 border-green-500/20 text-[9px] uppercase font-bold">LULUS</Badge>
+                            <Badge className={`${
+                              a.admissionStatus === 'accepted' ? 'bg-green-500/10 text-green-500 border-green-500/20' :
+                              a.admissionStatus === 'waitlisted' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
+                              'bg-destructive/10 text-destructive border-destructive/20'
+                            } text-[9px] uppercase font-bold`}>
+                              {a.admissionStatus}
+                            </Badge>
                           </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
-                  <div className="p-4 bg-muted/30 border-t border-border/50 text-center">
-                    <Button variant="link" className="text-xs text-primary font-bold">Lihat Seluruh Peringkat (1.284 Pendaftar)</Button>
-                  </div>
                 </CardContent>
               </Card>
             </div>

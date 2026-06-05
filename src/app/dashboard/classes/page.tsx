@@ -1,9 +1,9 @@
+
 "use client"
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { 
   Users, 
-  UserPlus, 
   Trash2, 
   Printer, 
   Shuffle, 
@@ -11,13 +11,15 @@ import {
   Save,
   RotateCcw,
   LayoutGrid,
-  Settings2
+  Settings2,
+  Loader2
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { mockClasses, mockApplicants } from "@/lib/mock-data"
+import { useCollection, useFirestore } from '@/firebase'
+import { collection, doc, updateDoc, writeBatch } from 'firebase/firestore'
+import { Applicant, Classroom } from '@/lib/types'
 import { 
   Dialog, 
   DialogContent, 
@@ -27,37 +29,56 @@ import {
   DialogTitle, 
   DialogTrigger 
 } from "@/components/ui/dialog"
+import { errorEmitter } from '@/firebase/error-emitter'
+import { FirestorePermissionError } from '@/firebase/errors'
 
 export default function ClassesPage() {
   const [isShuffling, setIsShuffling] = useState(false)
-  const [shuffledResult, setShuffledResult] = useState<any[]>(mockClasses)
+  const db = useFirestore()
+
+  const { data: classes, loading: loadingClasses } = useCollection<Classroom>(db ? collection(db, 'classes') : null)
+  const { data: applicants } = useCollection<Applicant>(db ? collection(db, 'applicants') : null)
 
   const handleShuffle = () => {
+    if (!applicants || !classes || !db) return
     setIsShuffling(true)
-    setTimeout(() => {
-      // Logic for balancing class distribution
-      const acceptedStudents = mockApplicants.filter(a => a.admissionStatus === 'accepted')
-      const distributedClasses = mockClasses.map((cls, idx) => {
-        // Mock distribution
-        const perClass = Math.ceil(acceptedStudents.length / mockClasses.length)
+    
+    setTimeout(async () => {
+      const acceptedStudents = applicants.filter(a => a.admissionStatus === 'accepted')
+      const batch = writeBatch(db)
+      
+      classes.forEach((cls, idx) => {
+        const perClass = Math.ceil(acceptedStudents.length / classes.length)
         const classStudents = acceptedStudents.slice(idx * perClass, (idx + 1) * perClass)
-        return {
-          ...cls,
-          currentEnrollment: classStudents.length,
-          students: classStudents.map(s => s.id)
-        }
+        const studentIds = classStudents.map(s => s.id)
+        
+        const classRef = doc(db, 'classes', cls.id)
+        batch.update(classRef, {
+          currentEnrollment: studentIds.length,
+          students: studentIds
+        })
       })
-      setShuffledResult(distributedClasses)
+
+      try {
+        await batch.commit()
+      } catch (err) {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: 'classes',
+          operation: 'update'
+        }))
+      }
       setIsShuffling(false)
     }, 2000)
   }
+
+  if (loadingClasses) return <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin" /></div>
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline font-bold">Manajemen Kelas</h1>
-          <p className="text-muted-foreground mt-1">Distribusi dan pengacakan rombongan belajar otomatis.</p>
+          <p className="text-muted-foreground mt-1">Distribusi rombongan belajar otomatis menggunakan data real-time.</p>
         </div>
         <div className="flex gap-2">
           <Dialog>
@@ -71,7 +92,7 @@ export default function ClassesPage() {
               <DialogHeader>
                 <DialogTitle className="font-headline">Pengaturan Distribusi Otomatis</DialogTitle>
                 <DialogDescription>
-                  Sistem akan mendistribusikan siswa yang diterima secara seimbang.
+                  Sistem akan mendistribusikan siswa yang diterima secara seimbang ke seluruh rombel.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
@@ -79,7 +100,6 @@ export default function ClassesPage() {
                   {[
                     'Keseimbangan Jenis Kelamin',
                     'Distribusi Nilai Akademik Seimbang',
-                    'Penyebaran Asal Sekolah',
                     'Kapasitas Maksimal Kelas'
                   ].map((pref) => (
                     <div key={pref} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border">
@@ -94,7 +114,7 @@ export default function ClassesPage() {
               <DialogFooter>
                 <Button variant="outline">Batal</Button>
                 <Button onClick={handleShuffle} disabled={isShuffling} className="bg-primary hover:bg-primary/90">
-                  {isShuffling ? 'Proses Mengacak...' : 'Mulai Distribusi'}
+                  {isShuffling ? 'Proses...' : 'Mulai Distribusi'}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -107,7 +127,7 @@ export default function ClassesPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {shuffledResult.map((cls) => (
+        {classes?.map((cls) => (
           <Card key={cls.id} className="border-border/50 hover:border-primary/30 transition-all duration-300">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
@@ -138,9 +158,6 @@ export default function ClassesPage() {
                   <Button variant="outline" size="sm" className="flex-1 h-8 text-xs gap-1">
                     <Settings2 className="w-3 h-3" /> Edit
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -157,38 +174,10 @@ export default function ClassesPage() {
             </div>
             <div>
               <h2 className="text-2xl font-headline font-bold">Mengacak Distribusi Kelas...</h2>
-              <p className="text-muted-foreground mt-2">Menyeimbangkan gender dan asal sekolah pendaftar.</p>
+              <p className="text-muted-foreground mt-2">Menyeimbangkan data siswa yang diterima di database.</p>
             </div>
           </div>
         </div>
-      )}
-
-      {shuffledResult[0].students.length > 0 && !isShuffling && (
-        <Card className="border-border/50 border-primary/20 bg-primary/5 animate-in slide-in-from-top-4 duration-500">
-          <CardContent className="p-6">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary">
-                  <CheckCircle2 className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold">Hasil Distribusi Tersedia</h3>
-                  <p className="text-sm text-muted-foreground">Preview hasil pengacakan sebelum disimpan permanen ke database.</p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setShuffledResult(mockClasses)} className="gap-2 border-primary/20 text-primary">
-                  <RotateCcw className="w-4 h-4" />
-                  Acak Ulang
-                </Button>
-                <Button className="gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20">
-                  <Save className="w-4 h-4" />
-                  Simpan Hasil
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       )}
     </div>
   )

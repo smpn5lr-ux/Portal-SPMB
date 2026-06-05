@@ -1,17 +1,17 @@
+
 "use client"
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { 
   CheckCircle2, 
   XCircle, 
-  AlertCircle, 
   FileText, 
   Search, 
   Eye,
-  Filter,
-  Check
+  Check,
+  Loader2
 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -24,30 +24,55 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table"
-import { mockApplicants } from "@/lib/mock-data"
 import Link from 'next/link'
+import { useCollection, useFirestore } from '@/firebase'
+import { collection, query, orderBy, doc, updateDoc } from 'firebase/firestore'
+import { Applicant } from '@/lib/types'
+import { errorEmitter } from '@/firebase/error-emitter'
+import { FirestorePermissionError } from '@/firebase/errors'
 
 export default function VerificationPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [activeTab, setActiveTab] = useState('pending')
+  const db = useFirestore()
 
-  const filteredByStatus = mockApplicants.filter(a => {
-    if (activeTab === 'pending') return a.verificationStatus === 'Belum Diverifikasi'
-    if (activeTab === 'revision') return a.verificationStatus === 'Perlu Perbaikan'
-    if (activeTab === 'completed') return a.verificationStatus === 'Lengkap' || a.verificationStatus === 'Ditolak'
-    return true
-  })
+  const applicantsQuery = useMemo(() => {
+    if (!db) return null
+    return query(collection(db, 'applicants'), orderBy('createdAt', 'desc'))
+  }, [db])
 
-  const filteredApplicants = filteredByStatus.filter(a => 
-    a.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    a.NISN.includes(searchTerm)
-  )
+  const { data: applicants, loading } = useCollection<Applicant>(applicantsQuery)
+
+  const filteredApplicants = useMemo(() => {
+    if (!applicants) return []
+    return applicants.filter(a => {
+      const matchesSearch = a.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || a.NISN.includes(searchTerm)
+      if (activeTab === 'pending') return matchesSearch && a.verificationStatus === 'Belum Diverifikasi'
+      if (activeTab === 'revision') return matchesSearch && a.verificationStatus === 'Perlu Perbaikan'
+      if (activeTab === 'completed') return matchesSearch && (a.verificationStatus === 'Lengkap' || a.verificationStatus === 'Ditolak')
+      return matchesSearch
+    })
+  }, [applicants, searchTerm, activeTab])
+
+  const handleQuickVerify = (id: string, status: string) => {
+    if (!db) return
+    const docRef = doc(db, 'applicants', id)
+    updateDoc(docRef, { verificationStatus: status })
+      .catch(async () => {
+        const permissionError = new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'update',
+          requestResourceData: { verificationStatus: status }
+        })
+        errorEmitter.emit('permission-error', permissionError)
+      })
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div>
         <h1 className="text-3xl font-headline font-bold">Verifikasi Berkas</h1>
-        <p className="text-muted-foreground mt-1">Validasi dokumen persyaratan calon siswa baru.</p>
+        <p className="text-muted-foreground mt-1">Validasi dokumen persyaratan calon siswa baru dari database.</p>
       </div>
 
       <Tabs defaultValue="pending" onValueChange={setActiveTab} className="w-full">
@@ -56,7 +81,7 @@ export default function VerificationPage() {
             <TabsTrigger value="pending" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               Belum Diperiksa
               <Badge variant="secondary" className="bg-primary/20 text-primary-foreground/90 border-none h-5 px-1.5 min-w-[1.25rem]">
-                {mockApplicants.filter(a => a.verificationStatus === 'Belum Diverifikasi').length}
+                {applicants?.filter(a => a.verificationStatus === 'Belum Diverifikasi').length || 0}
               </Badge>
             </TabsTrigger>
             <TabsTrigger value="revision" className="gap-2">
@@ -86,13 +111,21 @@ export default function VerificationPage() {
                   <TableHead>No. Registrasi</TableHead>
                   <TableHead>Nama Calon Siswa</TableHead>
                   <TableHead>Jalur</TableHead>
-                  <TableHead>Dokumen</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredApplicants.length > 0 ? (
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="h-64 text-center">
+                      <div className="flex justify-center items-center gap-2 text-muted-foreground">
+                        <Loader2 className="w-6 h-6 animate-spin" />
+                        Memuat data...
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : filteredApplicants.length > 0 ? (
                   filteredApplicants.map((applicant) => (
                     <TableRow key={applicant.id} className="hover:bg-muted/20 transition-colors">
                       <TableCell className="font-mono text-xs font-bold text-primary">
@@ -106,19 +139,6 @@ export default function VerificationPage() {
                         <Badge variant="outline" className="text-[10px] font-bold">
                           {applicant.applicationPath}
                         </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <div className="w-6 h-6 rounded bg-green-500/10 flex items-center justify-center text-green-500" title="KK: Verified">
-                            <Check className="w-3 h-3" />
-                          </div>
-                          <div className="w-6 h-6 rounded bg-green-500/10 flex items-center justify-center text-green-500" title="Ijazah: Verified">
-                            <Check className="w-3 h-3" />
-                          </div>
-                          <div className="w-6 h-6 rounded bg-amber-500/10 flex items-center justify-center text-amber-500" title="Akte: Pending">
-                            <FileText className="w-3 h-3" />
-                          </div>
-                        </div>
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={`text-[10px] font-bold ${
@@ -139,10 +159,16 @@ export default function VerificationPage() {
                           </Button>
                           {activeTab === 'pending' && (
                             <>
-                              <Button variant="outline" size="icon" className="h-8 w-8 text-green-500 border-green-500/20 hover:bg-green-500/5">
+                              <Button 
+                                onClick={() => handleQuickVerify(applicant.id, 'Lengkap')}
+                                variant="outline" size="icon" className="h-8 w-8 text-green-500 border-green-500/20 hover:bg-green-500/5"
+                              >
                                 <CheckCircle2 className="w-4 h-4" />
                               </Button>
-                              <Button variant="outline" size="icon" className="h-8 w-8 text-destructive border-destructive/20 hover:bg-destructive/5">
+                              <Button 
+                                onClick={() => handleQuickVerify(applicant.id, 'Ditolak')}
+                                variant="outline" size="icon" className="h-8 w-8 text-destructive border-destructive/20 hover:bg-destructive/5"
+                              >
                                 <XCircle className="w-4 h-4" />
                               </Button>
                             </>
@@ -153,7 +179,7 @@ export default function VerificationPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-64 text-center">
+                    <TableCell colSpan={5} className="h-64 text-center">
                       <div className="flex flex-col items-center justify-center text-muted-foreground">
                         <FileText className="w-12 h-12 opacity-20 mb-4" />
                         <p>Tidak ada data pendaftar untuk kriteria ini.</p>
