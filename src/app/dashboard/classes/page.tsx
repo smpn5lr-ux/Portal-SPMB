@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo } from 'react'
@@ -24,7 +25,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase'
+import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase'
 import { collection, doc, updateDoc, writeBatch, addDoc, query, orderBy } from 'firebase/firestore'
 import { Applicant, Classroom } from '@/lib/types'
 import { 
@@ -97,8 +98,16 @@ export default function ClassesPage() {
     return collection(db, 'applicants')
   }, [db])
 
+  const settingsRef = useMemoFirebase(() => {
+    if (!db) return null
+    return doc(db, 'settings', 'system')
+  }, [db])
+
   const { data: classes, loading: loadingClasses } = useCollection<Classroom>(classesQuery)
   const { data: applicants } = useCollection<Applicant>(applicantsQuery)
+  const { data: systemSettings } = useDoc<any>(settingsRef)
+
+  const academicYear = systemSettings?.academicYear || "2024/2025"
 
   const form = useForm<z.infer<typeof classFormSchema>>({
     resolver: zodResolver(classFormSchema),
@@ -297,7 +306,7 @@ export default function ClassesPage() {
         doc.text(`DAFTAR HADIR MURID BARU - KELAS ${cls.name}`, 14, 15)
         doc.setFontSize(10)
         doc.setTextColor(100)
-        doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'} | Tahun Pelajaran 2024/2025`, 14, 22)
+        doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'} | Tahun Ajaran ${academicYear}`, 14, 22)
         
         const body = students.map((s, idx) => [
           idx + 1, 
@@ -381,7 +390,7 @@ export default function ClassesPage() {
             doc.text(`DAFTAR HADIR MURID BARU - KELAS ${cls.name}`, 14, 15)
             doc.setFontSize(10)
             doc.setTextColor(100)
-            doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'} | Tahun Pelajaran 2024/2025`, 14, 22)
+            doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'} | Tahun Ajaran ${academicYear}`, 14, 22)
             
             const body = students.map((s, studentIdx) => [
               studentIdx + 1, 
@@ -467,7 +476,7 @@ export default function ClassesPage() {
                   {[
                     'Keseimbangan Jenis Kelamin',
                     'Distribusi Nilai Akademik Seimbang',
-                    'Distribusi Sekolah Asal Seimbang',
+                    'Distribusi Murid Sekolah Asal Seimbang',
                     'Kapasitas Maksimal Kelas'
                   ].map((pref) => (
                     <div key={pref} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border">

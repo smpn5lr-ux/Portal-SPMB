@@ -15,7 +15,8 @@ import {
   Trophy, 
   Loader2,
   Plus,
-  Trash2
+  Trash2,
+  CalendarDays
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -51,6 +52,7 @@ export default function SettingsPage() {
   const [localConfig, setLocalConfig] = useState<any>({
     schoolName: "SMP Negeri 1 Jakarta",
     npsn: "20123456",
+    academicYear: "2024/2025",
     totalQuota: 250,
     quotaZonasi: 50,
     quotaPrestasi: 30,
@@ -64,7 +66,11 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (config) {
-      setLocalConfig(config)
+      setLocalConfig({
+        ...localConfig,
+        ...config,
+        academicYear: config.academicYear || "2024/2025"
+      })
     }
   }, [config])
 
@@ -171,6 +177,16 @@ export default function SettingsPage() {
                     value={localConfig.npsn}
                     onChange={(e) => setLocalConfig({...localConfig, npsn: e.target.value})}
                     placeholder="Contoh: 20123456" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1">
+                    <CalendarDays className="w-3 h-3" /> Tahun Ajaran
+                  </label>
+                  <Input 
+                    value={localConfig.academicYear}
+                    onChange={(e) => setLocalConfig({...localConfig, academicYear: e.target.value})}
+                    placeholder="Contoh: 2024/2025" 
                   />
                 </div>
               </div>
