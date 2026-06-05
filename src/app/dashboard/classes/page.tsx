@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from 'react'
@@ -104,7 +103,40 @@ export default function ClassesPage() {
   }, [editingClass, form])
 
   const onClassSubmit = (values: z.infer<typeof classFormSchema>) => {
-    if (!db || submitting) return
+    if (!db || submitting || !classes) return
+
+    // Validasi Duplikasi Nama Kelas
+    const isDuplicateName = classes.some(cls => 
+      cls.name.toLowerCase() === values.name.toLowerCase() && 
+      (!editingClass || cls.id !== editingClass.id)
+    )
+
+    if (isDuplicateName) {
+      toast({
+        variant: "destructive",
+        title: "Nama Kelas Duplikat",
+        description: `Kelas dengan nama "${values.name}" sudah ada di sistem.`,
+      })
+      return
+    }
+
+    // Validasi Duplikasi Wali Kelas (jika diisi)
+    if (values.homeroomTeacher && values.homeroomTeacher.trim() !== "") {
+      const isDuplicateTeacher = classes.some(cls => 
+        cls.homeroomTeacher?.toLowerCase() === values.homeroomTeacher?.toLowerCase() && 
+        (!editingClass || cls.id !== editingClass.id)
+      )
+
+      if (isDuplicateTeacher) {
+        toast({
+          variant: "destructive",
+          title: "Wali Kelas Sudah Terdaftar",
+          description: `Guru "${values.homeroomTeacher}" sudah menjadi wali kelas di rombel lain.`,
+        })
+        return
+      }
+    }
+
     setSubmitting(true)
 
     const classData = {
