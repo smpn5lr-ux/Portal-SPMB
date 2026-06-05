@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState } from 'react'
@@ -157,8 +156,8 @@ export default function ApplicantDetailPage() {
           <Card className="border-border/50 shadow-sm overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between pb-4 border-b bg-muted/20">
               <div>
-                <CardTitle className="font-headline text-lg">Informasi Profil Siswa</CardTitle>
-                <CardDescription>Data lengkap calon siswa sesuai standar Dapodik.</CardDescription>
+                <CardTitle className="font-headline text-lg">Informasi Profil Murid</CardTitle>
+                <CardDescription>Data lengkap calon murid sesuai standar Dapodik.</CardDescription>
               </div>
               <Badge className={`${
                 applicant.verificationStatus === 'Lengkap' ? 'bg-green-500/10 text-green-500' :
@@ -181,7 +180,7 @@ export default function ApplicantDetailPage() {
                         <span className="text-sm font-mono font-bold">{applicant.NISN}</span>
                       </div>
                       <div className="flex justify-between items-center py-1">
-                        <span className="text-xs text-muted-foreground">NIK Siswa</span>
+                        <span className="text-xs text-muted-foreground">NIK Murid</span>
                         <span className="text-sm font-mono">{applicant.NIK}</span>
                       </div>
                       <div className="flex justify-between items-center py-1">
@@ -367,7 +366,7 @@ export default function ApplicantDetailPage() {
                     <FileText className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                     <span className="text-sm font-medium">{docName}</span>
                   </div>
-                  <Badge variant="outline" className="bg-green-500/10 text-green-500 text-[10px] border-none">VERIFIED</Badge>
+                  <Badge variant="outline" className="bg-green-500/10 text-green-500 text-[10px] border-none">TERVERIFIKASI</Badge>
                 </div>
               ))}
             </CardContent>

@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo } from 'react'
@@ -75,7 +74,7 @@ export default function VerificationPage() {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div>
         <h1 className="text-3xl font-headline font-bold">Verifikasi Berkas</h1>
-        <p className="text-muted-foreground mt-1">Validasi dokumen pendaftar (Dibatasi 100 data terbaru).</p>
+        <p className="text-muted-foreground mt-1">Validasi dokumen murid (Dibatasi 100 data terbaru).</p>
       </div>
 
       <Tabs defaultValue="pending" onValueChange={setActiveTab} className="w-full">
@@ -110,8 +109,8 @@ export default function VerificationPage() {
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="font-bold w-[60px] text-primary">No.</TableHead>
                   <TableHead className="font-bold text-primary">No. Registrasi</TableHead>
-                  <TableHead className="font-bold text-primary">Nama Calon Siswa</TableHead>
-                  <TableHead className="font-bold text-primary">Jalur</TableHead>
+                  <TableHead className="font-bold text-primary">Nama Calon Murid</TableHead>
+                  <TableHead className="font-bold text-primary">Jalur Masuk</TableHead>
                   <TableHead className="font-bold text-primary">Status</TableHead>
                   <TableHead className="font-bold text-right text-primary">Aksi</TableHead>
                 </TableRow>
@@ -184,7 +183,7 @@ export default function VerificationPage() {
                     <TableCell colSpan={6} className="h-64 text-center">
                       <div className="flex flex-col items-center justify-center text-muted-foreground">
                         <FileText className="w-12 h-12 opacity-20 mb-4" />
-                        <p>Tidak ada data pendaftar untuk kriteria ini.</p>
+                        <p>Tidak ada data pendaftar murid untuk kriteria ini.</p>
                       </div>
                     </TableCell>
                   </TableRow>

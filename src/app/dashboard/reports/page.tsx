@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo } from "react"
@@ -154,9 +153,9 @@ export default function ReportsPage() {
       const url = URL.createObjectURL(blob)
       const link = document.createElement("a")
       link.setAttribute("href", url)
-      link.setAttribute("download", `Laporan_Siswa_PPDB_${new Date().toISOString().split('T')[0]}.csv`)
+      link.setAttribute("download", `Laporan_Murid_PPDB_${new Date().toISOString().split('T')[0]}.csv`)
       link.click()
-      toast({ title: "CSV Berhasil", description: "Laporan dalam format CSV telah diunduh." })
+      toast({ title: "Ekspor Berhasil", description: "Laporan CSV telah diunduh." })
       setIsDownloadDialogOpen(false)
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "Gagal ekspor CSV." })
@@ -172,9 +171,9 @@ export default function ReportsPage() {
       const data = getExportData()
       const worksheet = XLSX.utils.json_to_sheet(data)
       const workbook = XLSX.utils.book_new()
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Pendaftar")
-      XLSX.writeFile(workbook, `Laporan_Siswa_PPDB_${new Date().toISOString().split('T')[0]}.xlsx`)
-      toast({ title: "Excel Berhasil", description: "Laporan dalam format Excel (.xlsx) telah diunduh." })
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Murid")
+      XLSX.writeFile(workbook, `Laporan_Murid_PPDB_${new Date().toISOString().split('T')[0]}.xlsx`)
+      toast({ title: "Ekspor Berhasil", description: "Laporan Excel telah diunduh." })
       setIsDownloadDialogOpen(false)
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "Gagal ekspor Excel." })
@@ -197,7 +196,7 @@ export default function ReportsPage() {
 
       doc.setFontSize(18)
       doc.setTextColor(67, 97, 238)
-      doc.text("Laporan Penerimaan Peserta Didik Baru (PPDB)", 14, 15)
+      doc.text("Laporan Penerimaan Murid Baru (PPDB)", 14, 15)
       
       doc.setFontSize(10)
       doc.setTextColor(100)
@@ -218,8 +217,8 @@ export default function ReportsPage() {
         alternateRowStyles: { fillColor: [245, 247, 255] }
       })
 
-      doc.save(`Laporan_Siswa_PPDB_${new Date().toISOString().split('T')[0]}.pdf`)
-      toast({ title: "PDF Berhasil", description: "Laporan dalam format PDF telah diunduh." })
+      doc.save(`Laporan_Murid_PPDB_${new Date().toISOString().split('T')[0]}.pdf`)
+      toast({ title: "Ekspor Berhasil", description: "Laporan PDF telah diunduh." })
       setIsDownloadDialogOpen(false)
     } catch (error) {
       console.error(error)
@@ -243,7 +242,7 @@ export default function ReportsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline font-bold">Laporan & Analitik</h1>
-          <p className="text-muted-foreground mt-1">Visualisasi data pendaftaran dan statistik kelulusan secara real-time.</p>
+          <p className="text-muted-foreground mt-1">Visualisasi data pendaftaran murid dan statistik kelulusan secara real-time.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" className="gap-2">
@@ -254,7 +253,7 @@ export default function ReportsPage() {
             <DialogTrigger asChild>
               <Button disabled={loading} className="gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20">
                 <FileDown className="w-4 h-4" />
-                Download Laporan
+                Unduh Laporan
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[650px] border-border/50 bg-card">
@@ -264,7 +263,7 @@ export default function ReportsPage() {
                   Kustomisasi Ekspor Laporan
                 </DialogTitle>
                 <DialogDescription>
-                  Pilih kolom data yang ingin Anda sertakan dalam dokumen ekspor (Excel/PDF/CSV).
+                  Pilih kolom data yang ingin Anda sertakan dalam dokumen ekspor.
                 </DialogDescription>
               </DialogHeader>
               
@@ -298,7 +297,7 @@ export default function ReportsPage() {
 
               <DialogFooter className="flex-col sm:flex-row gap-2 border-t pt-6">
                 <div className="flex-1 text-[10px] text-muted-foreground italic flex items-center">
-                  * Format PDF menggunakan warna biru pada header tabel untuk tampilan profesional.
+                  * Laporan akan disusun secara profesional dalam Bahasa Indonesia.
                 </div>
                 <div className="flex gap-2">
                   <Button 
@@ -382,7 +381,7 @@ export default function ReportsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="font-headline text-lg">Asal Sekolah Terbanyak</CardTitle>
-                <CardDescription>Penyebaran pendaftar berdasarkan sekolah dasar asal.</CardDescription>
+                <CardDescription>Penyebaran murid berdasarkan sekolah dasar asal.</CardDescription>
               </div>
               <BarChart3 className="w-5 h-5 text-muted-foreground/50" />
             </div>
@@ -423,7 +422,7 @@ export default function ReportsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="font-headline text-lg">Demografi Usia</CardTitle>
-                <CardDescription>Distribusi umur calon siswa baru.</CardDescription>
+                <CardDescription>Distribusi umur calon murid baru.</CardDescription>
               </div>
               <PieIcon className="w-5 h-5 text-muted-foreground/50" />
             </div>
@@ -471,12 +470,12 @@ export default function ReportsPage() {
       <Card className="border-border/50">
         <CardHeader>
           <CardTitle className="font-headline text-lg">Log Ekspor Data</CardTitle>
-          <CardDescription>Riwayat pengunduhan data untuk laporan dinas (Live Database).</CardDescription>
+          <CardDescription>Riwayat pengunduhan laporan data murid.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {[
-              { label: 'Laporan Master Pendaftar', type: 'Excel', date: 'Real-time Live', user: 'Admin Pusat' },
+              { label: 'Laporan Master Murid', type: 'Excel', date: 'Real-time Live', user: 'Admin Pusat' },
               { label: 'Rekapitulasi Verifikasi', type: 'PDF', date: 'Real-time Live', user: 'Operator 01' },
             ].map((file) => (
               <div key={file.label} className="flex items-center justify-between p-4 rounded-xl border border-border hover:bg-muted/30 transition-colors">

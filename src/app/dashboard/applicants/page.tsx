@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo, useRef } from 'react'
@@ -172,17 +171,7 @@ export default function ApplicantsPage() {
     )
   }, [db])
 
-  const schoolsRef = useMemoFirebase(() => {
-    if (!db) return null
-    return doc(db, 'settings', 'schools')
-  }, [db])
-
   const { data: applicants, loading } = useCollection<Applicant>(applicantsQuery)
-  const { data: schoolsData } = useDoc<any>(schoolsRef)
-
-  const schoolSuggestions = useMemo(() => {
-    return schoolsData?.list || []
-  }, [schoolsData])
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -282,7 +271,7 @@ export default function ApplicantsPage() {
       const url = URL.createObjectURL(blob)
       const link = document.createElement("a")
       link.setAttribute("href", url)
-      link.setAttribute("download", "Templat_Impor_Siswa.csv")
+      link.setAttribute("download", "Templat_Impor_Murid.csv")
       link.click()
     } else if (format === 'excel') {
       const mappedData = sampleData.map((row, idx) => {
@@ -295,7 +284,7 @@ export default function ApplicantsPage() {
       const worksheet = XLSX.utils.json_to_sheet(mappedData, { header: headers })
       const workbook = XLSX.utils.book_new()
       XLSX.utils.book_append_sheet(workbook, worksheet, "Templat Impor")
-      XLSX.writeFile(workbook, "Templat_Impor_Siswa.xlsx")
+      XLSX.writeFile(workbook, "Templat_Impor_Murid.xlsx")
     } else if (format === 'pdf') {
       const { default: jsPDF } = await import('jspdf')
       const { default: autoTable } = await import('jspdf-autotable')
@@ -309,14 +298,11 @@ export default function ApplicantsPage() {
       doc.setTextColor(100)
       doc.text("Gunakan kolom-kolom berikut dalam file CSV atau Excel Anda agar sistem dapat membaca data dengan baik.", 14, 22)
       
-      const tableBody = [
-        ["No.", "Angka", "Wajib"],
-        ...TEMPLATE_KEYS.map(key => [
-          COLUMN_MAPPING[key], 
-          "Teks/Angka", 
-          ["fullName", "NISN", "NIK", "birthDate"].includes(key) ? "Wajib" : "Opsional"
-        ])
-      ]
+      const tableBody = TEMPLATE_KEYS.map(col => [
+        COLUMN_MAPPING[col], 
+        "Teks/Angka", 
+        ["fullName", "NISN", "NIK", "birthDate"].includes(col) ? "Wajib" : "Opsional"
+      ])
       
       autoTable(doc, {
         head: [['Nama Kolom', 'Tipe Data', 'Status']],
@@ -329,7 +315,7 @@ export default function ApplicantsPage() {
           fontStyle: 'bold'
         }
       })
-      doc.save("Panduan_Templat_Impor_Siswa.pdf")
+      doc.save("Panduan_Templat_Impor_Murid.pdf")
     }
     
     toast({
@@ -429,7 +415,7 @@ export default function ApplicantsPage() {
 
       toast({
         title: "Impor Selesai",
-        description: `Berhasil mengimpor ${successCount} siswa. Gagal: ${errorCount}.`,
+        description: `Berhasil mengimpor ${successCount} murid. Gagal: ${errorCount}.`,
       })
       setIsImporting(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -478,7 +464,7 @@ export default function ApplicantsPage() {
       form.reset()
       toast({
         title: "Data Disimpan",
-        description: `Siswa ${values.fullName} berhasil didaftarkan dengan nomor urut #${nextSequence}.`,
+        description: `Murid ${values.fullName} berhasil didaftarkan dengan nomor urut #${nextSequence}.`,
       })
     } catch (error: any) {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
@@ -542,13 +528,13 @@ export default function ApplicantsPage() {
           }}>
             <DialogTrigger asChild>
               <Button className="gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20">
-                <Plus className="w-4 h-4" /> Tambah Siswa
+                <Plus className="w-4 h-4" /> Tambah Murid
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[850px] h-[95vh] p-0 overflow-hidden border-border/50 bg-card flex flex-col">
               <DialogHeader className="p-6 pb-2 border-b bg-muted/20">
-                <DialogTitle className="font-headline text-2xl">Formulir Pendaftaran Siswa</DialogTitle>
-                <DialogDescription>Input data lengkap calon siswa baru sesuai dokumen resmi Dapodik.</DialogDescription>
+                <DialogTitle className="font-headline text-2xl">Formulir Pendaftaran Murid</DialogTitle>
+                <DialogDescription>Input data lengkap calon murid baru sesuai dokumen resmi Dapodik.</DialogDescription>
               </DialogHeader>
               
               <Form {...form}>
@@ -932,7 +918,7 @@ export default function ApplicantsPage() {
                                       </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                      {['Ayah', 'Ibu', 'Wali', 'Calon Siswa', 'Lainnya'].map(v => (
+                                      {['Ayah', 'Ibu', 'Wali', 'Calon Murid', 'Lainnya'].map(v => (
                                         <SelectItem key={v} value={v}>{v}</SelectItem>
                                       ))}
                                     </SelectContent>
@@ -974,19 +960,11 @@ export default function ApplicantsPage() {
                                 <FormItem>
                                   <FormLabel>Asal Sekolah (SD/MI)</FormLabel>
                                   <FormControl>
-                                    <div className="relative">
-                                      <Input 
-                                        placeholder="Ketik atau pilih sekolah asal..." 
-                                        {...field} 
-                                        list="school-suggestions"
-                                        disabled={submitting} 
-                                      />
-                                      <datalist id="school-suggestions">
-                                        {schoolSuggestions.map((school: string) => (
-                                          <option key={school} value={school} />
-                                        ))}
-                                      </datalist>
-                                    </div>
+                                    <Input 
+                                      placeholder="Ketik sekolah asal..." 
+                                      {...field} 
+                                      disabled={submitting} 
+                                    />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
@@ -1073,7 +1051,7 @@ export default function ApplicantsPage() {
               <TableHead className="font-bold text-primary">NISN / No. Reg</TableHead>
               <TableHead className="font-bold text-primary">Nama Lengkap</TableHead>
               <TableHead className="font-bold text-primary">Asal Sekolah</TableHead>
-              <TableHead className="font-bold text-primary">Jalur</TableHead>
+              <TableHead className="font-bold text-primary">Jalur Masuk</TableHead>
               <TableHead className="font-bold text-primary">Status</TableHead>
               <TableHead className="font-bold text-right text-primary">Aksi</TableHead>
             </TableRow>

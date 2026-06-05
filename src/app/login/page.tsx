@@ -41,7 +41,7 @@ export default function LoginPage() {
         await signInWithEmailAndPassword(auth, email, password)
         toast({
           title: "Berhasil Masuk",
-          description: "Selamat datang kembali di Portal Admin.",
+          description: "Selamat datang kembali di Portal Administrator.",
         })
       } else {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password)
@@ -55,12 +55,12 @@ export default function LoginPage() {
     } catch (error: any) {
       let message = "Terjadi kesalahan. Silakan coba lagi."
       if (error.code === 'auth/email-already-in-use') message = "Email sudah terdaftar."
-      if (error.code === 'auth/invalid-credential') message = "Email atau password salah."
-      if (error.code === 'auth/weak-password') message = "Password minimal 6 karakter."
+      if (error.code === 'auth/invalid-credential') message = "Email atau sandi salah."
+      if (error.code === 'auth/weak-password') message = "Sandi minimal 6 karakter."
       
       toast({
         variant: "destructive",
-        title: isLogin ? "Login Gagal" : "Pendaftaran Gagal",
+        title: isLogin ? "Masuk Gagal" : "Pendaftaran Gagal",
         description: message,
       })
     } finally {
@@ -72,7 +72,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-background/50 relative overflow-hidden p-4">
-      {/* Background Decor */}
+      {/* Latar Belakang Dekoratif */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/10 rounded-full blur-[120px]"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-accent/10 rounded-full blur-[120px]"></div>
 
@@ -83,10 +83,10 @@ export default function LoginPage() {
           </div>
           <div>
             <CardTitle className="font-headline text-2xl font-bold tracking-tight">
-              {isLogin ? "Admin Portal" : "Daftar Admin"}
+              {isLogin ? "Portal Admin" : "Daftar Admin Baru"}
             </CardTitle>
             <CardDescription>
-              {isLogin ? "Masuk untuk mengelola pendaftaran siswa baru." : "Buat akun admin baru untuk mengelola sistem."}
+              {isLogin ? "Masuk untuk mengelola pendaftaran murid baru." : "Buat akun administrator baru untuk mengelola sistem."}
             </CardDescription>
           </div>
         </CardHeader>
@@ -100,7 +100,7 @@ export default function LoginPage() {
                   <Input 
                     id="fullName"
                     type="text" 
-                    placeholder="Nama Lengkap Admin" 
+                    placeholder="Nama Lengkap Administrator" 
                     className="pl-10"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
@@ -125,7 +125,7 @@ export default function LoginPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">Kata Sandi</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input 
@@ -155,7 +155,7 @@ export default function LoginPage() {
               onClick={() => setIsLogin(!isLogin)}
               className="text-sm text-primary hover:underline font-medium"
             >
-              {isLogin ? "Belum punya akun? Daftar di sini" : "Sudah punya akun? Login di sini"}
+              {isLogin ? "Belum punya akun? Daftar di sini" : "Sudah punya akun? Masuk di sini"}
             </button>
           </div>
         </CardContent>

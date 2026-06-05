@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo } from 'react'
@@ -121,7 +120,7 @@ export default function SelectionPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline font-bold">Sistem Seleksi</h1>
-          <p className="text-muted-foreground mt-1">Konfigurasi algoritma dan eksekusi kelulusan siswa secara real-time.</p>
+          <p className="text-muted-foreground mt-1">Konfigurasi algoritma dan eksekusi kelulusan murid secara real-time.</p>
         </div>
         <Button variant="outline" className="gap-2">
           <History className="w-4 h-4" />
@@ -215,7 +214,7 @@ export default function SelectionPage() {
               <Target className="w-16 h-16 text-muted-foreground/20 mb-4" />
               <h3 className="text-xl font-bold">Siap Menjalankan Seleksi</h3>
               <p className="text-muted-foreground max-w-sm mt-2">
-                Atur parameter di panel kiri dan klik Eksekusi untuk memproses status kelulusan di database.
+                Atur parameter di panel kiri dan klik Eksekusi untuk memproses status kelulusan murid di database.
               </p>
             </div>
           ) : isProcessing ? (
@@ -224,14 +223,14 @@ export default function SelectionPage() {
                 <Play className="w-8 h-8 text-primary animate-ping" />
               </div>
               <h3 className="text-xl font-bold">Memproses Data Pendaftar...</h3>
-              <p className="text-muted-foreground mt-2">Melakukan kalkulasi status penerimaan berdasarkan kriteria.</p>
+              <p className="text-muted-foreground mt-2">Melakukan kalkulasi status penerimaan murid berdasarkan kriteria.</p>
             </div>
           ) : (
             <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
               <Card className="border-border/50">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <div>
-                    <CardTitle className="font-headline text-lg">Pratinjau Hasil Kelulusan</CardTitle>
+                    <CardTitle className="font-headline text-lg">Pratinjau Hasil Seleksi Murid</CardTitle>
                     <CardDescription>Peringkat terbaru dari database.</CardDescription>
                   </div>
                   <Button variant="outline" size="sm" className="gap-2">
@@ -244,7 +243,7 @@ export default function SelectionPage() {
                       <TableRow>
                         <TableHead className="w-[60px]">No.</TableHead>
                         <TableHead className="w-[80px]">Rank</TableHead>
-                        <TableHead>Nama Calon Siswa</TableHead>
+                        <TableHead>Nama Calon Murid</TableHead>
                         <TableHead>Jalur</TableHead>
                         <TableHead>Skor/Jarak</TableHead>
                         <TableHead className="text-right">Status</TableHead>
@@ -273,7 +272,7 @@ export default function SelectionPage() {
                               a.admissionStatus === 'waitlisted' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
                               'bg-destructive/10 text-destructive border-destructive/20'
                             } text-[9px] uppercase font-bold`}>
-                              {a.admissionStatus}
+                              {a.admissionStatus === 'accepted' ? 'DITERIMA' : a.admissionStatus === 'waitlisted' ? 'CADANGAN' : 'DITOLAK'}
                             </Badge>
                           </TableCell>
                         </TableRow>

@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -87,7 +86,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
               <div className="flex flex-col">
                 <span className="font-headline font-bold text-lg tracking-tight">EduEnroll Pro</span>
-                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">SPMB Portal</span>
+                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Portal PPDB</span>
               </div>
             </div>
           </SidebarHeader>
@@ -120,7 +119,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 >
                   <Link href="/dashboard/settings" className="flex items-center gap-3 w-full">
                     <Settings className="w-5 h-5" />
-                    <span className="font-medium">Settings</span>
+                    <span className="font-medium">Pengaturan</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -131,7 +130,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 >
                   <div className="flex items-center gap-3 w-full">
                     <LogOut className="w-5 h-5" />
-                    <span className="font-medium">Logout</span>
+                    <span className="font-medium">Keluar</span>
                   </div>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -161,11 +160,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <div className="flex items-center gap-3 pl-2">
                 <div className="flex flex-col items-end hidden sm:flex">
                   <span className="text-sm font-semibold">{user?.displayName || 'Admin'}</span>
-                  <span className="text-[10px] text-primary font-bold uppercase tracking-widest">Super Admin</span>
+                  <span className="text-[10px] text-primary font-bold uppercase tracking-widest">Administrator</span>
                 </div>
                 <div className="w-9 h-9 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary overflow-hidden">
                   {user?.photoURL ? (
-                    <img src={user.photoURL} alt="profile" className="w-full h-full object-cover" />
+                    <img src={user.photoURL} alt="profil" className="w-full h-full object-cover" />
                   ) : (
                     <UserCircle className="w-6 h-6" />
                   )}

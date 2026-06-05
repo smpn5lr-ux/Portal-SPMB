@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useMemo } from "react"
@@ -34,8 +33,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 export default function OverviewPage() {
   const db = useFirestore()
   
-  // Limit reading for summary. 
-  // For large scale accurate stats, a dedicated metadata doc is recommended.
   const applicantsQuery = useMemoFirebase(() => {
     if (!db) return null
     return query(collection(db, 'applicants'), limit(500))
@@ -51,8 +48,8 @@ export default function OverviewPage() {
     const rejected = applicants.filter(a => a.verificationStatus === 'Ditolak').length
 
     return [
-      { name: 'Pendaftar Terbaru', value: total.toLocaleString(), icon: Users, color: 'text-primary', bg: 'bg-primary/10' },
-      { name: 'Siswa Diterima', value: accepted.toLocaleString(), icon: CheckCircle2, color: 'text-green-500', bg: 'bg-green-500/10' },
+      { name: 'Total Pendaftar', value: total.toLocaleString(), icon: Users, color: 'text-primary', bg: 'bg-primary/10' },
+      { name: 'Murid Diterima', value: accepted.toLocaleString(), icon: CheckCircle2, color: 'text-green-500', bg: 'bg-green-500/10' },
       { name: 'Menunggu Verifikasi', value: pending.toLocaleString(), icon: Clock, color: 'text-amber-500', bg: 'bg-amber-500/10' },
       { name: 'Pendaftaran Ditolak', value: rejected.toLocaleString(), icon: AlertCircle, color: 'text-destructive', bg: 'bg-destructive/10' },
     ]
@@ -98,11 +95,11 @@ export default function OverviewPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline font-bold">Ringkasan Sistem</h1>
-          <p className="text-muted-foreground mt-1">Status penerimaan (Dianalisis dari 500 pendaftar terbaru).</p>
+          <p className="text-muted-foreground mt-1">Status penerimaan murid (Dianalisis dari 500 pendaftar terbaru).</p>
         </div>
         <div className="flex items-center gap-2 bg-card p-1.5 rounded-lg border border-border">
-          <span className="px-3 py-1 text-xs font-bold uppercase tracking-widest text-primary bg-primary/10 rounded-md">Spark Plan</span>
-          <span className="text-[10px] text-muted-foreground mr-2 font-mono uppercase tracking-tighter">Firestore Optimized</span>
+          <span className="px-3 py-1 text-xs font-bold uppercase tracking-widest text-primary bg-primary/10 rounded-md">Live Database</span>
+          <span className="text-[10px] text-muted-foreground mr-2 font-mono uppercase tracking-tighter">Sinkronisasi Real-time</span>
         </div>
       </div>
 
@@ -144,7 +141,7 @@ export default function OverviewPage() {
         <Card className="lg:col-span-2 border-border/50 bg-card overflow-hidden">
           <CardHeader>
             <CardTitle className="font-headline text-lg">Statistik Pendaftaran Harian</CardTitle>
-            <CardDescription>Tren pendaftaran selama 7 hari terakhir.</CardDescription>
+            <CardDescription>Tren pendaftaran murid selama 7 hari terakhir.</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px]">
             {loading ? (
@@ -236,7 +233,7 @@ export default function OverviewPage() {
               <CardTitle className="font-headline text-lg flex items-center gap-2">
                 <User className="w-4 h-4 text-primary" /> Distribusi Gender
               </CardTitle>
-              <CardDescription className="text-xs">Perbandingan Laki-laki & Perempuan.</CardDescription>
+              <CardDescription className="text-xs">Perbandingan murid Laki-laki & Perempuan.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="h-[100px] flex items-center justify-center">
@@ -265,7 +262,7 @@ export default function OverviewPage() {
                 {genderStats.map((stat) => (
                   <div key={stat.name} className="bg-muted/30 p-2 rounded-lg border border-border/50">
                     <p className="text-[10px] font-bold text-muted-foreground uppercase">{stat.name}</p>
-                    <p className="text-sm font-bold">{stat.value} <span className="text-[8px] font-normal">Siswa</span></p>
+                    <p className="text-sm font-bold">{stat.value} <span className="text-[8px] font-normal">Murid</span></p>
                   </div>
                 ))}
               </div>

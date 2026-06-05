@@ -4,8 +4,8 @@ import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
-  title: 'EduEnroll Pro | Advanced School Admission System',
-  description: 'A modern, AI-powered system for school student admission (SPMB) based on Dapodik standards.',
+  title: 'EduEnroll Pro | Sistem Pendaftaran Murid Baru Tingkat Lanjut',
+  description: 'Sistem informasi manajemen pendaftaran murid baru (PPDB/SPMB) modern berbasis standar Dapodik.',
 };
 
 export default function RootLayout({
@@ -14,7 +14,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="id" className="dark">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

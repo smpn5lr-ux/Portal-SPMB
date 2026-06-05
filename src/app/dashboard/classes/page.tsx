@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo } from 'react'
@@ -239,7 +238,7 @@ export default function ClassesPage() {
       batch.commit().then(() => {
         toast({
           title: "Distribusi Selesai",
-          description: "Siswa telah berhasil diacak dan didistribusikan ke kelas.",
+          description: "Murid telah berhasil diacak dan didistribusikan ke kelas.",
         })
       }).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
@@ -268,17 +267,17 @@ export default function ClassesPage() {
         const worksheet = XLSX.utils.json_to_sheet(data)
         const workbook = XLSX.utils.book_new()
         XLSX.utils.book_append_sheet(workbook, worksheet, `Kelas ${cls.name}`)
-        XLSX.writeFile(workbook, `Daftar_Siswa_Kelas_${cls.name}.xlsx`)
+        XLSX.writeFile(workbook, `Daftar_Murid_Kelas_${cls.name}.xlsx`)
       } else {
         const { default: jsPDF } = await import('jspdf')
         const { default: autoTable } = await import('jspdf-autotable')
         const doc = new jsPDF()
         doc.setFontSize(16)
         doc.setTextColor(67, 97, 238)
-        doc.text(`Daftar Siswa Kelas ${cls.name}`, 14, 15)
+        doc.text(`Daftar Murid Kelas ${cls.name}`, 14, 15)
         doc.setFontSize(10)
         doc.setTextColor(100)
-        doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'} | Total: ${students.length} Siswa`, 14, 22)
+        doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'} | Total: ${students.length} Murid`, 14, 22)
         
         const body = students.map((s, idx) => [idx + 1, s.fullName, s.NISN, s.gender, s.originSchool])
         autoTable(doc, {
@@ -287,9 +286,9 @@ export default function ClassesPage() {
           startY: 30,
           headStyles: { fillColor: [67, 97, 238] }
         })
-        doc.save(`Daftar_Siswa_Kelas_${cls.name}.pdf`)
+        doc.save(`Daftar_Murid_Kelas_${cls.name}.pdf`)
       }
-      toast({ title: "Export Berhasil", description: `Data kelas ${cls.name} telah diunduh.` })
+      toast({ title: "Ekspor Berhasil", description: `Data kelas ${cls.name} telah diunduh.` })
     } catch (err) {
       toast({ variant: "destructive", title: "Error", description: "Gagal mengekspor data." })
     } finally {
@@ -327,10 +326,10 @@ export default function ClassesPage() {
           const students = getStudentsInClass(cls.students)
           doc.setFontSize(16)
           doc.setTextColor(67, 97, 238)
-          doc.text(`Daftar Siswa Kelas ${cls.name}`, 14, 15)
+          doc.text(`Daftar Murid Kelas ${cls.name}`, 14, 15)
           doc.setFontSize(10)
           doc.setTextColor(100)
-          doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'} | Total: ${students.length} Siswa`, 14, 22)
+          doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'} | Total: ${students.length} Murid`, 14, 22)
           
           const body = students.map((s, idx) => [idx + 1, s.fullName, s.NISN, s.gender, s.originSchool])
           autoTable(doc, {
@@ -342,7 +341,7 @@ export default function ClassesPage() {
         })
         doc.save(`Rekap_Semua_Kelas_PPDB.pdf`)
       }
-      toast({ title: "Export Berhasil", description: "Laporan gabungan seluruh kelas telah diunduh." })
+      toast({ title: "Ekspor Berhasil", description: "Laporan gabungan seluruh kelas telah diunduh." })
     } catch (err) {
       toast({ variant: "destructive", title: "Error", description: "Gagal mengekspor data." })
     } finally {
@@ -364,7 +363,7 @@ export default function ClassesPage() {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="gap-2 border-primary/20 text-primary hover:bg-primary/5">
                 <FileDown className="w-4 h-4" />
-                Download Semua Rombel
+                Unduh Semua Rombel
                 <ChevronDown className="w-3 h-3" />
               </Button>
             </DropdownMenuTrigger>
@@ -389,7 +388,7 @@ export default function ClassesPage() {
               <DialogHeader>
                 <DialogTitle className="font-headline">Pengaturan Distribusi Otomatis</DialogTitle>
                 <DialogDescription>
-                  Sistem akan mendistribusikan siswa yang diterima secara seimbang ke seluruh rombel.
+                  Sistem akan mendistribusikan murid yang diterima secara seimbang ke seluruh rombel.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
@@ -483,7 +482,7 @@ export default function ClassesPage() {
                     name="capacity"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Kapasitas Siswa</FormLabel>
+                        <FormLabel>Kapasitas Murid</FormLabel>
                         <FormControl>
                           <Input type="number" {...field} />
                         </FormControl>
@@ -510,11 +509,11 @@ export default function ClassesPage() {
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="font-headline text-2xl">Kelas {cls.name}</CardTitle>
-                <Badge variant="outline" className="bg-primary/5 text-primary border-primary/10">Grade {cls.gradeLevel}</Badge>
+                <Badge variant="outline" className="bg-primary/5 text-primary border-primary/10">Tingkat {cls.gradeLevel}</Badge>
               </div>
               <CardDescription className="flex items-center gap-2 mt-1">
                 <Users className="w-3 h-3" />
-                {cls.currentEnrollment} / {cls.capacity} Siswa
+                {cls.currentEnrollment} / {cls.capacity} Murid
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -559,15 +558,14 @@ export default function ClassesPage() {
         )}
       </div>
 
-      {/* DIALOG LIHAT DAFTAR SISWA */}
       <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
         <DialogContent className="sm:max-w-[750px] max-h-[90vh] flex flex-col p-0 border-border/50 bg-card">
           <DialogHeader className="p-6 pb-2 border-b bg-muted/20">
             <div className="flex items-center justify-between">
               <div>
-                <DialogTitle className="font-headline text-2xl">Daftar Siswa Kelas {selectedClassForView?.name}</DialogTitle>
+                <DialogTitle className="font-headline text-2xl">Daftar Murid Kelas {selectedClassForView?.name}</DialogTitle>
                 <DialogDescription>
-                  Wali Kelas: {selectedClassForView?.homeroomTeacher || '-'} | Total: {selectedClassForView?.students.length} Siswa
+                  Wali Kelas: {selectedClassForView?.homeroomTeacher || '-'} | Total: {selectedClassForView?.students.length} Murid
                 </DialogDescription>
               </div>
               <div className="flex gap-2">
@@ -620,7 +618,7 @@ export default function ClassesPage() {
                   {selectedClassForView?.students.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={5} className="h-32 text-center text-muted-foreground italic">
-                        Belum ada siswa yang didistribusikan ke kelas ini.
+                        Belum ada murid yang didistribusikan ke kelas ini.
                       </TableCell>
                     </TableRow>
                   )}
@@ -643,7 +641,7 @@ export default function ClassesPage() {
             </div>
             <div>
               <h2 className="text-2xl font-headline font-bold">Mengacak Distribusi Kelas...</h2>
-              <p className="text-muted-foreground mt-2">Menyeimbangkan data siswa yang diterima di database.</p>
+              <p className="text-muted-foreground mt-2">Menyeimbangkan data murid yang diterima di database.</p>
             </div>
           </div>
         </div>
