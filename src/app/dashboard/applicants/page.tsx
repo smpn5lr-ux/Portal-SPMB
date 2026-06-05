@@ -19,7 +19,10 @@ import {
   GraduationCap,
   Sparkles,
   Info,
-  Layers
+  Layers,
+  Heart,
+  Briefcase,
+  Smartphone
 } from "lucide-react"
 import { 
   Table, 
@@ -264,22 +267,25 @@ export default function ApplicantsPage() {
                 <Plus className="w-4 h-4" /> Tambah Pendaftar
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[800px] h-[90vh] p-0 overflow-hidden border-border/50 bg-card flex flex-col">
-              <DialogHeader className="p-6 pb-2">
+            <DialogContent className="sm:max-w-[850px] h-[95vh] p-0 overflow-hidden border-border/50 bg-card flex flex-col">
+              <DialogHeader className="p-6 pb-2 border-b bg-muted/20">
                 <DialogTitle className="font-headline text-2xl">Formulir Pendaftaran Dapodik</DialogTitle>
                 <DialogDescription>Lengkapi seluruh informasi calon siswa sesuai dokumen resmi.</DialogDescription>
               </DialogHeader>
               
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 overflow-hidden">
-                  <ScrollArea className="flex-1 px-6 py-4">
-                    <div className="space-y-8 pb-8">
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-primary border-b border-primary/10 pb-2">
-                          <User className="w-4 h-4" />
-                          <h3 className="font-bold uppercase tracking-widest text-xs">Identitas Pribadi</h3>
+                  <ScrollArea className="flex-1 px-8 py-6">
+                    <div className="space-y-10 pb-10">
+                      {/* SECTION 1: IDENTITAS PRIBADI */}
+                      <div className="space-y-6">
+                        <div className="flex items-center gap-3 text-primary">
+                          <div className="bg-primary/10 p-2 rounded-lg">
+                            <User className="w-5 h-5" />
+                          </div>
+                          <h3 className="font-bold uppercase tracking-widest text-sm">Bagian 1: Identitas Pribadi</h3>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-muted/10 p-5 rounded-2xl border border-border/50">
                           <FormField
                             control={form.control}
                             name="fullName"
@@ -388,15 +394,31 @@ export default function ApplicantsPage() {
                               </FormItem>
                             )}
                           />
+                          <FormField
+                            control={form.control}
+                            name="hobbies"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Hobi / Kegemaran</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Seni, Olahraga, Membaca..." {...field} disabled={submitting} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
                         </div>
                       </div>
 
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-primary border-b border-primary/10 pb-2">
-                          <Layers className="w-4 h-4" />
-                          <h3 className="font-bold uppercase tracking-widest text-xs">Data Keluarga & Urutan</h3>
+                      {/* SECTION 2: DATA KELUARGA */}
+                      <div className="space-y-6">
+                        <div className="flex items-center gap-3 text-cyan-500">
+                          <div className="bg-cyan-500/10 p-2 rounded-lg">
+                            <Layers className="w-5 h-5" />
+                          </div>
+                          <h3 className="font-bold uppercase tracking-widest text-sm">Bagian 2: Data Keluarga & Saudara</h3>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-muted/10 p-5 rounded-2xl border border-border/50">
                           <FormField
                             control={form.control}
                             name="childOrder"
@@ -426,12 +448,15 @@ export default function ApplicantsPage() {
                         </div>
                       </div>
 
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-primary border-b border-primary/10 pb-2">
-                          <Home className="w-4 h-4" />
-                          <h3 className="font-bold uppercase tracking-widest text-xs">Alamat & Domisili</h3>
+                      {/* SECTION 3: DOMISILI */}
+                      <div className="space-y-6">
+                        <div className="flex items-center gap-3 text-amber-500">
+                          <div className="bg-amber-500/10 p-2 rounded-lg">
+                            <Home className="w-5 h-5" />
+                          </div>
+                          <h3 className="font-bold uppercase tracking-widest text-sm">Bagian 3: Alamat & Domisili</h3>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-muted/10 p-5 rounded-2xl border border-border/50">
                           <div className="md:col-span-2">
                             <FormField
                               control={form.control}
@@ -482,25 +507,66 @@ export default function ApplicantsPage() {
                               </FormItem>
                             )}
                           />
+                          <FormField
+                            control={form.control}
+                            name="transportation"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Transportasi ke Sekolah</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={submitting}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Pilih" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {['Jalan Kaki', 'Motor', 'Mobil Pribadi', 'Ojek/Jemputan', 'Kendaraan Umum'].map(v => (
+                                      <SelectItem key={v} value={v}>{v}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="distanceToSchoolKm"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Jarak ke Sekolah (Km)</FormLabel>
+                                <FormControl>
+                                  <Input type="number" step="0.1" placeholder="Contoh: 1.5" {...field} disabled={submitting} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
                         </div>
                       </div>
 
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-primary border-b border-primary/10 pb-2">
-                          <UsersIcon className="w-4 h-4" />
-                          <h3 className="font-bold uppercase tracking-widest text-xs">Data Orang Tua / Wali</h3>
+                      {/* SECTION 4: ORANG TUA */}
+                      <div className="space-y-6">
+                        <div className="flex items-center gap-3 text-pink-500">
+                          <div className="bg-pink-500/10 p-2 rounded-lg">
+                            <UsersIcon className="w-5 h-5" />
+                          </div>
+                          <h3 className="font-bold uppercase tracking-widest text-sm">Bagian 4: Data Orang Tua / Wali</h3>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div className="space-y-4 p-4 border rounded-xl bg-muted/20">
-                            <h4 className="text-xs font-bold uppercase text-muted-foreground">Informasi Ayah</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-muted/10 p-5 rounded-2xl border border-border/50">
+                          {/* Ayah */}
+                          <div className="space-y-5 p-5 border rounded-2xl bg-card/50">
+                            <div className="flex items-center gap-2 border-b pb-2">
+                              <Badge variant="outline" className="text-primary border-primary/20 bg-primary/5">AYAH</Badge>
+                            </div>
                             <FormField
                               control={form.control}
                               name="fatherName"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Nama Ayah</FormLabel>
+                                  <FormLabel>Nama Lengkap Ayah</FormLabel>
                                   <FormControl>
-                                    <Input placeholder="Nama Lengkap" {...field} disabled={submitting} />
+                                    <Input placeholder="Nama Sesuai KTP" {...field} disabled={submitting} />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
@@ -526,7 +592,7 @@ export default function ApplicantsPage() {
                                 <FormItem>
                                   <FormLabel>Pekerjaan Ayah</FormLabel>
                                   <FormControl>
-                                    <Input placeholder="Contoh: PNS, Buruh, dsb" {...field} disabled={submitting} />
+                                    <Input placeholder="Contoh: Karyawan, TNI, Petani..." {...field} disabled={submitting} />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
@@ -534,16 +600,19 @@ export default function ApplicantsPage() {
                             />
                           </div>
 
-                          <div className="space-y-4 p-4 border rounded-xl bg-muted/20">
-                            <h4 className="text-xs font-bold uppercase text-muted-foreground">Informasi Ibu</h4>
+                          {/* Ibu */}
+                          <div className="space-y-5 p-5 border rounded-2xl bg-card/50">
+                            <div className="flex items-center gap-2 border-b pb-2">
+                              <Badge variant="outline" className="text-pink-500 border-pink-500/20 bg-pink-500/5">IBU</Badge>
+                            </div>
                             <FormField
                               control={form.control}
                               name="motherName"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Nama Ibu</FormLabel>
+                                  <FormLabel>Nama Lengkap Ibu</FormLabel>
                                   <FormControl>
-                                    <Input placeholder="Nama Lengkap" {...field} disabled={submitting} />
+                                    <Input placeholder="Nama Sesuai KTP" {...field} disabled={submitting} />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
@@ -569,7 +638,7 @@ export default function ApplicantsPage() {
                                 <FormItem>
                                   <FormLabel>Pekerjaan Ibu</FormLabel>
                                   <FormControl>
-                                    <Input placeholder="Contoh: IRT, Guru, dsb" {...field} disabled={submitting} />
+                                    <Input placeholder="Contoh: IRT, Guru, Perawat..." {...field} disabled={submitting} />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
@@ -577,13 +646,13 @@ export default function ApplicantsPage() {
                             />
                           </div>
 
-                          <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 bg-accent/5 p-4 rounded-xl border border-accent/20">
                             <FormField
                               control={form.control}
                               name="registrantRelationship"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Yang Mendaftarkan</FormLabel>
+                                  <FormLabel className="flex items-center gap-2"><Info className="w-3 h-3" /> Hubungan Pendaftar</FormLabel>
                                   <Select onValueChange={field.onChange} defaultValue={field.value} disabled={submitting}>
                                     <FormControl>
                                       <SelectTrigger>
@@ -605,7 +674,7 @@ export default function ApplicantsPage() {
                               name="parentPhone"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>No. HP Aktif (WA)</FormLabel>
+                                  <FormLabel className="flex items-center gap-2"><Smartphone className="w-3 h-3" /> No. HP Aktif (WhatsApp)</FormLabel>
                                   <FormControl>
                                     <Input placeholder="08..." {...field} disabled={submitting} />
                                   </FormControl>
@@ -617,56 +686,15 @@ export default function ApplicantsPage() {
                         </div>
                       </div>
 
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-primary border-b border-primary/10 pb-2">
-                          <Sparkles className="w-4 h-4" />
-                          <h3 className="font-bold uppercase tracking-widest text-xs">Tambahan & Hobi</h3>
+                      {/* SECTION 5: PENDIDIKAN */}
+                      <div className="space-y-6">
+                        <div className="flex items-center gap-3 text-green-500">
+                          <div className="bg-green-500/10 p-2 rounded-lg">
+                            <GraduationCap className="w-5 h-5" />
+                          </div>
+                          <h3 className="font-bold uppercase tracking-widest text-sm">Bagian 5: Jalur Masuk & Pendidikan</h3>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <FormField
-                            control={form.control}
-                            name="hobbies"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Hobi</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="Seni, Olahraga, dsb" {...field} disabled={submitting} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={form.control}
-                            name="transportation"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Transportasi ke Sekolah</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={submitting}>
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Pilih" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    {['Jalan Kaki', 'Motor', 'Mobil Pribadi', 'Ojek/Jemputan', 'Kendaraan Umum'].map(v => (
-                                      <SelectItem key={v} value={v}>{v}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-primary border-b border-primary/10 pb-2">
-                          <GraduationCap className="w-4 h-4" />
-                          <h3 className="font-bold uppercase tracking-widest text-xs">Pendidikan & Jalur Masuk</h3>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-muted/10 p-5 rounded-2xl border border-border/50">
                           <div className="md:col-span-2">
                             <FormField
                               control={form.control}
@@ -730,31 +758,18 @@ export default function ApplicantsPage() {
                               </FormItem>
                             )}
                           />
-                          <FormField
-                            control={form.control}
-                            name="distanceToSchoolKm"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Jarak ke Sekolah (Km)</FormLabel>
-                                <FormControl>
-                                  <Input type="number" step="0.1" placeholder="Contoh: 1.5" {...field} disabled={submitting} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
                         </div>
                       </div>
                     </div>
                   </ScrollArea>
 
-                  <div className="p-6 border-t bg-card shrink-0 shadow-[0_-4px_10px_rgba(0,0,0,0.1)]">
-                    <DialogFooter className="flex flex-row items-center justify-end gap-2">
+                  <div className="p-6 border-t bg-card shrink-0 shadow-[0_-8px_30px_rgba(0,0,0,0.2)]">
+                    <DialogFooter className="flex flex-row items-center justify-end gap-3">
                       <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={submitting}>
                         Batal
                       </Button>
-                      <Button type="submit" disabled={submitting} className="min-w-[150px] shadow-lg shadow-primary/20">
-                        {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+                      <Button type="submit" disabled={submitting} className="min-w-[180px] shadow-lg shadow-primary/20 h-11 text-base font-bold">
+                        {submitting ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Plus className="w-5 h-5 mr-2" />}
                         Simpan Pendaftar
                       </Button>
                     </DialogFooter>
