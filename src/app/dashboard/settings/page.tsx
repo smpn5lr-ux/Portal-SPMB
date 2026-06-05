@@ -7,16 +7,17 @@ import {
   Target, 
   Users, 
   Save, 
-  ShieldCheck,
-  Building2,
-  Percent,
-  MapPin,
-  Trophy,
-  Loader2
+  ShieldCheck, 
+  Building2, 
+  Percent, 
+  MapPin, 
+  Trophy, 
+  Loader2 
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Slider } from "@/components/ui/slider"
 import { useFirestore, useDoc } from "@/firebase"
