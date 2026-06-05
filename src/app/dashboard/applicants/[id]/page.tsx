@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { useParams } from 'next/navigation'
 import { 
   ArrowLeft, 
@@ -25,7 +25,7 @@ import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import Link from 'next/link'
 import { generateAdmissionJustification, AdmissionJustificationOutput } from '@/ai/flows/generate-admission-justification'
-import { useDoc, useFirestore } from '@/firebase'
+import { useDoc, useFirestore, useMemoFirebase } from '@/firebase'
 import { doc, updateDoc } from 'firebase/firestore'
 import { Applicant } from '@/lib/types'
 import { errorEmitter } from '@/firebase/error-emitter'
@@ -35,7 +35,7 @@ export default function ApplicantDetailPage() {
   const { id } = useParams()
   const db = useFirestore()
   
-  const applicantRef = useMemo(() => {
+  const applicantRef = useMemoFirebase(() => {
     if (!db || !id) return null
     return doc(db, 'applicants', id as string)
   }, [db, id])

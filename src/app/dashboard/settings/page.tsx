@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -20,7 +21,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Slider } from "@/components/ui/slider"
-import { useFirestore, useDoc } from "@/firebase"
+import { useFirestore, useDoc, useMemoFirebase } from "@/firebase"
 import { doc, setDoc } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
 import { errorEmitter } from "@/firebase/error-emitter"
@@ -31,7 +32,11 @@ export default function SettingsPage() {
   const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
   
-  const settingsRef = doc(db, "settings", "system")
+  const settingsRef = useMemoFirebase(() => {
+    if (!db) return null
+    return doc(db, "settings", "system")
+  }, [db])
+
   const { data: config, loading } = useDoc<any>(settingsRef)
 
   const [localConfig, setLocalConfig] = useState<any>({
@@ -53,7 +58,7 @@ export default function SettingsPage() {
   }, [config])
 
   const handleSave = () => {
-    if (!db) return
+    if (!db || !settingsRef) return
     setIsSaving(true)
 
     setDoc(settingsRef, localConfig, { merge: true })

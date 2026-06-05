@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { 
   Users, 
   Trash2, 
@@ -17,7 +17,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { useCollection, useFirestore } from '@/firebase'
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase'
 import { collection, doc, updateDoc, writeBatch } from 'firebase/firestore'
 import { Applicant, Classroom } from '@/lib/types'
 import { 
@@ -36,8 +36,18 @@ export default function ClassesPage() {
   const [isShuffling, setIsShuffling] = useState(false)
   const db = useFirestore()
 
-  const { data: classes, loading: loadingClasses } = useCollection<Classroom>(db ? collection(db, 'classes') : null)
-  const { data: applicants } = useCollection<Applicant>(db ? collection(db, 'applicants') : null)
+  const classesQuery = useMemoFirebase(() => {
+    if (!db) return null
+    return collection(db, 'classes')
+  }, [db])
+
+  const applicantsQuery = useMemoFirebase(() => {
+    if (!db) return null
+    return collection(db, 'applicants')
+  }, [db])
+
+  const { data: classes, loading: loadingClasses } = useCollection<Classroom>(classesQuery)
+  const { data: applicants } = useCollection<Applicant>(applicantsQuery)
 
   const handleShuffle = () => {
     if (!applicants || !classes || !db) return
