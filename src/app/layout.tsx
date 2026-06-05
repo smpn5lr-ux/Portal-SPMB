@@ -1,10 +1,11 @@
+
 import type {Metadata} from 'next';
 import './globals.css';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
-  title: 'EduEnroll Pro | Sistem Pendaftaran Murid Baru Tingkat Lanjut',
+  title: 'Portal SPMB | Sistem Pendaftaran Murid Baru',
   description: 'Sistem informasi manajemen pendaftaran murid baru (PPDB/SPMB) modern berbasis standar Dapodik.',
 };
 

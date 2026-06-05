@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -83,7 +84,7 @@ export default function LoginPage() {
           </div>
           <div>
             <CardTitle className="font-headline text-2xl font-bold tracking-tight">
-              {isLogin ? "Portal Admin" : "Daftar Admin Baru"}
+              {isLogin ? "Portal Admin SPMB" : "Daftar Admin Baru"}
             </CardTitle>
             <CardDescription>
               {isLogin ? "Masuk untuk mengelola pendaftaran murid baru." : "Buat akun administrator baru untuk mengelola sistem."}
@@ -161,7 +162,7 @@ export default function LoginPage() {
         </CardContent>
         <CardFooter className="flex flex-col gap-2">
           <p className="text-[10px] text-center text-muted-foreground uppercase tracking-widest font-bold">
-            EduEnroll Pro • Sistem Informasi Manajemen Sekolah
+            Portal SPMB • Sistem Informasi Manajemen Sekolah
           </p>
         </CardFooter>
       </Card>

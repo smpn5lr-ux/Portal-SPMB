@@ -86,8 +86,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <School className="w-6 h-6 text-primary-foreground" />
               </div>
               <div className="flex flex-col">
-                <span className="font-headline font-bold text-lg tracking-tight">EduEnroll Pro</span>
-                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Portal PPDB</span>
+                <span className="font-headline font-bold text-lg tracking-tight uppercase">Portal SPMB</span>
+                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Admin Panel</span>
               </div>
             </div>
           </SidebarHeader>
