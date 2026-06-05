@@ -4,24 +4,16 @@
 import { useState, useMemo, useRef } from 'react'
 import { 
   Search, 
-  FileDown, 
   FileUp, 
   Plus, 
-  Filter, 
-  MoreHorizontal, 
   Eye, 
-  CheckCircle,
-  FileText,
   Loader2,
   User,
   Home,
   Users as UsersIcon,
   GraduationCap,
-  Sparkles,
   Info,
   Layers,
-  Heart,
-  Briefcase,
   Smartphone
 } from "lucide-react"
 import { 
@@ -35,12 +27,6 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu"
 import {
   Dialog,
   DialogContent,
@@ -66,13 +52,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Separator } from "@/components/ui/separator"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import Link from 'next/link'
 import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase'
-import { collection, query, orderBy, addDoc, serverTimestamp, limit, doc } from 'firebase/firestore'
+import { collection, query, orderBy, addDoc, serverTimestamp, limit, doc, getDocs } from 'firebase/firestore'
 import { Applicant } from '@/lib/types'
 import { errorEmitter } from '@/firebase/error-emitter'
 import { FirestorePermissionError } from '@/firebase/errors'
@@ -240,6 +225,14 @@ export default function ApplicantsPage() {
       let successCount = 0
       let errorCount = 0
 
+      // Get initial sequence for import
+      const q = query(collection(db, 'applicants'), orderBy('registrationSequence', 'desc'), limit(1));
+      const snap = await getDocs(q);
+      let currentMax = 0;
+      if (!snap.empty) {
+        currentMax = snap.docs[0].data().registrationSequence || 0;
+      }
+
       for (const row of rows) {
         const values = row.split(',').map(v => v.trim())
         const data: any = {}
@@ -252,12 +245,14 @@ export default function ApplicantsPage() {
           continue
         }
 
-        const registrationNumber = `REG-2024-${Math.floor(1000 + Math.random() * 9000)}`
+        currentMax++;
+        const registrationNumber = `REG-2024-${currentMax.toString().padStart(4, '0')}`
         const ageYears = calculateAge(data.birthDate)
 
         const newApplicant = {
           ...data,
           registrationNumber,
+          registrationSequence: currentMax,
           ageYears,
           academicScore: data.academicScore ? parseFloat(data.academicScore) : 0,
           distanceToSchoolKm: data.distanceToSchoolKm ? parseFloat(data.distanceToSchoolKm) : 0,
@@ -289,47 +284,57 @@ export default function ApplicantsPage() {
     reader.readAsText(file)
   }
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!db || submitting) return
 
     setSubmitting(true)
-    const registrationNumber = `REG-2024-${Math.floor(1000 + Math.random() * 9000)}`
-    const ageYears = calculateAge(values.birthDate)
     
-    const newApplicant = {
-      ...values,
-      registrationNumber,
-      ageYears,
-      academicScore: values.academicScore ? parseFloat(values.academicScore) : 0,
-      distanceToSchoolKm: values.distanceToSchoolKm ? parseFloat(values.distanceToSchoolKm) : 0,
-      numberOfSiblings: values.numberOfSiblings ? parseInt(values.numberOfSiblings) : 1,
-      childOrder: values.childOrder ? parseInt(values.childOrder) : 1,
-      verificationStatus: 'Belum Diverifikasi',
-      admissionStatus: 'pending',
-      createdAt: new Date().toISOString(),
-      serverCreatedAt: serverTimestamp(),
-      documents: []
-    }
+    try {
+      // Logic for strictly sequential registration numbers
+      const q = query(collection(db, 'applicants'), orderBy('registrationSequence', 'desc'), limit(1));
+      const snap = await getDocs(q);
+      let nextSequence = 1;
+      
+      if (!snap.empty) {
+        const lastDoc = snap.docs[0].data();
+        nextSequence = (lastDoc.registrationSequence || 0) + 1;
+      }
 
-    addDoc(collection(db, 'applicants'), newApplicant)
-      .then(() => {
-        setIsDialogOpen(false)
-        form.reset()
-        toast({
-          title: "Berhasil!",
-          description: `Data ${values.fullName} telah disimpan ke sistem.`,
-        })
+      const registrationNumber = `REG-2024-${nextSequence.toString().padStart(4, '0')}`
+      const ageYears = calculateAge(values.birthDate)
+      
+      const newApplicant = {
+        ...values,
+        registrationNumber,
+        registrationSequence: nextSequence,
+        ageYears,
+        academicScore: values.academicScore ? parseFloat(values.academicScore) : 0,
+        distanceToSchoolKm: values.distanceToSchoolKm ? parseFloat(values.distanceToSchoolKm) : 0,
+        numberOfSiblings: values.numberOfSiblings ? parseInt(values.numberOfSiblings) : 1,
+        childOrder: values.childOrder ? parseInt(values.childOrder) : 1,
+        verificationStatus: 'Belum Diverifikasi',
+        admissionStatus: 'pending',
+        createdAt: new Date().toISOString(),
+        serverCreatedAt: serverTimestamp(),
+        documents: []
+      }
+
+      await addDoc(collection(db, 'applicants'), newApplicant)
+      
+      setIsDialogOpen(false)
+      form.reset()
+      toast({
+        title: "Berhasil!",
+        description: `Data ${values.fullName} telah disimpan dengan nomor urut #${nextSequence}.`,
       })
-      .catch(async (error) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: 'applicants',
-          operation: 'create',
-          requestResourceData: newApplicant
-        }))
-      })
-      .finally(() => {
-        setSubmitting(false)
-      })
+    } catch (error: any) {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: 'applicants',
+        operation: 'create'
+      }))
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -895,6 +900,7 @@ export default function ApplicantsPage() {
         <Table>
           <TableHeader className="bg-muted/30">
             <TableRow>
+              <TableHead className="font-bold w-[100px]">No. Urut</TableHead>
               <TableHead className="font-bold">NISN / No. Reg</TableHead>
               <TableHead className="font-bold">Nama Lengkap</TableHead>
               <TableHead className="font-bold">Asal Sekolah</TableHead>
@@ -906,19 +912,22 @@ export default function ApplicantsPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center">
+                <TableCell colSpan={7} className="h-32 text-center">
                   <Loader2 className="w-4 h-4 animate-spin mx-auto" />
                 </TableCell>
               </TableRow>
             ) : filteredApplicants.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
                   Tidak ada pendaftar ditemukan.
                 </TableCell>
               </TableRow>
             ) : (
               filteredApplicants.map((applicant) => (
                 <TableRow key={applicant.id} className="hover:bg-muted/20 transition-colors">
+                  <TableCell className="font-bold text-muted-foreground">
+                    #{applicant.registrationSequence || '-'}
+                  </TableCell>
                   <TableCell>
                     <div className="flex flex-col">
                       <span className="font-mono font-medium text-primary text-sm">{applicant.NISN}</span>

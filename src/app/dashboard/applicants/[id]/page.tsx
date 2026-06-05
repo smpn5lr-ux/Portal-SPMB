@@ -8,20 +8,14 @@ import {
   MapPin, 
   User, 
   School, 
-  Phone, 
   FileText, 
   CheckCircle2, 
   XCircle, 
   AlertCircle,
   Sparkles,
   Printer,
-  Calendar,
   Loader2,
-  Book,
-  CreditCard,
-  Hash,
   Home,
-  Heart,
   Briefcase,
   Users as UsersIcon,
   Layers,
@@ -136,6 +130,9 @@ export default function ApplicantDetailPage() {
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-headline font-bold">{applicant.fullName}</h1>
               <Badge variant="outline" className="text-primary border-primary/20 bg-primary/5 uppercase font-bold text-[10px]">
+                NO. URUT #{applicant.registrationSequence || '-'}
+              </Badge>
+              <Badge variant="outline" className="text-muted-foreground border-border uppercase font-bold text-[10px]">
                 {applicant.registrationNumber}
               </Badge>
             </div>

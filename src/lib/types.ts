@@ -8,6 +8,7 @@ export type AdmissionStatus = 'accepted' | 'waitlisted' | 'rejected' | 'pending'
 export interface Applicant {
   id: string;
   registrationNumber: string;
+  registrationSequence: number;
   NISN: string;
   NIK: string;
   fullName: string;

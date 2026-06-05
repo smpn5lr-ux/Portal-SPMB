@@ -7,6 +7,7 @@
       "type": "object",
       "properties": {
         "registrationNumber": { "type": "string" },
+        "registrationSequence": { "type": "number", "description": "Sequential registration number." },
         "NISN": { "type": "string" },
         "NIK": { "type": "string" },
         "fullName": { "type": "string" },
