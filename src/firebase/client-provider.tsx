@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -13,7 +14,8 @@ export function FirebaseClientProvider({ children }: { children: React.ReactNode
     setServices(initialized);
   }, []);
 
-  if (!services) return null;
+  // Return background to avoid white flash in dark mode during initialization
+  if (!services) return <div className="min-h-screen bg-background" />;
 
   return (
     <FirebaseProvider
