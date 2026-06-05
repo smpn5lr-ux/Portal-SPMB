@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo } from 'react'
@@ -79,18 +80,34 @@ const pathColorMap: Record<string, string> = {
   'Perpindahan Orang Tua': 'text-purple-500 border-purple-500/20',
 }
 
-// Daftar sekolah zonasi (bisa dipindahkan ke Firestore settings nantinya)
+// Daftar sekolah zonasi diperluas
 const SCHOOL_SUGGESTIONS = [
   "SDN Menteng 01",
   "SDN Menteng 02",
   "SDN Menteng 03",
   "SDN Gondangdia 01",
   "SDN Gondangdia 03",
+  "SDN Kebon Sirih 01",
+  "SDN Cikini 01",
+  "SDN Kenari 01",
+  "SDN Kenari 02",
+  "SDN Pegangsaan 01",
   "SD Swasta Jakarta Pusat",
   "MI Nurul Iman",
   "SD Islam Al-Azhar",
+  "SD Kanisius",
+  "SD Santa Theresia",
+  "SD Muhammadiyah 1",
+  "SD Muhammadiyah 2",
+  "SD Kristen Ketapang",
+  "SD BPK Penabur",
+  "SD Tarakanita",
+  "SD Islam Terpadu (IT) Nurul Fikri",
+  "SD Al-Irsyad",
+  "MI Negeri 1",
+  "MI Negeri 2",
   "Lainnya"
-]
+].sort()
 
 const formSchema = z.object({
   fullName: z.string().min(2, "Nama lengkap harus diisi"),
