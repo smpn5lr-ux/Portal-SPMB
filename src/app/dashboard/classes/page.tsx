@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   Users, 
   Trash2, 
@@ -13,7 +13,8 @@ import {
   LayoutGrid,
   Settings2,
   Loader2,
-  Plus
+  Plus,
+  Pencil
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -49,13 +50,14 @@ import { useToast } from '@/hooks/use-toast'
 const classFormSchema = z.object({
   name: z.string().min(1, "Nama kelas harus diisi"),
   gradeLevel: z.string().min(1, "Tingkat harus diisi"),
-  homeroomTeacher: z.string().min(2, "Nama wali kelas harus diisi"),
+  homeroomTeacher: z.string().optional(),
   capacity: z.string().min(1, "Kapasitas harus diisi"),
 })
 
 export default function ClassesPage() {
   const [isShuffling, setIsShuffling] = useState(false)
-  const [isAddClassOpen, setIsAddClassOpen] = useState(false)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [editingClass, setEditingClass] = useState<Classroom | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const { toast } = useToast()
   const db = useFirestore()
@@ -83,38 +85,83 @@ export default function ClassesPage() {
     },
   })
 
-  const onAddClassSubmit = (values: z.infer<typeof classFormSchema>) => {
+  useEffect(() => {
+    if (editingClass) {
+      form.reset({
+        name: editingClass.name,
+        gradeLevel: editingClass.gradeLevel.toString(),
+        homeroomTeacher: editingClass.homeroomTeacher || "",
+        capacity: editingClass.capacity.toString(),
+      })
+    } else {
+      form.reset({
+        name: "",
+        gradeLevel: "7",
+        homeroomTeacher: "",
+        capacity: "32",
+      })
+    }
+  }, [editingClass, form])
+
+  const onClassSubmit = (values: z.infer<typeof classFormSchema>) => {
     if (!db || submitting) return
     setSubmitting(true)
 
-    const newClass = {
+    const classData = {
       name: values.name,
       gradeLevel: parseInt(values.gradeLevel),
-      homeroomTeacher: values.homeroomTeacher,
+      homeroomTeacher: values.homeroomTeacher || "",
       capacity: parseInt(values.capacity),
-      currentEnrollment: 0,
-      students: []
     }
 
-    addDoc(collection(db, 'classes'), newClass)
-      .then(() => {
-        setIsAddClassOpen(false)
-        form.reset()
-        toast({
-          title: "Kelas Berhasil Dibuat",
-          description: `Kelas ${values.name} telah ditambahkan ke sistem.`,
+    if (editingClass) {
+      const classRef = doc(db, 'classes', editingClass.id)
+      updateDoc(classRef, classData)
+        .then(() => {
+          setIsDialogOpen(false)
+          setEditingClass(null)
+          toast({
+            title: "Kelas Diperbarui",
+            description: `Data kelas ${values.name} berhasil disimpan.`,
+          })
         })
-      })
-      .catch(async (error) => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: 'classes',
-          operation: 'create',
-          requestResourceData: newClass
-        }))
-      })
-      .finally(() => {
-        setSubmitting(false)
-      })
+        .catch(async (error) => {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: classRef.path,
+            operation: 'update',
+            requestResourceData: classData
+          }))
+        })
+        .finally(() => setSubmitting(false))
+    } else {
+      const newClass = {
+        ...classData,
+        currentEnrollment: 0,
+        students: []
+      }
+      addDoc(collection(db, 'classes'), newClass)
+        .then(() => {
+          setIsDialogOpen(false)
+          form.reset()
+          toast({
+            title: "Kelas Berhasil Dibuat",
+            description: `Kelas ${values.name} telah ditambahkan ke sistem.`,
+          })
+        })
+        .catch(async (error) => {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: 'classes',
+            operation: 'create',
+            requestResourceData: newClass
+          }))
+        })
+        .finally(() => setSubmitting(false))
+    }
+  }
+
+  const handleEdit = (cls: Classroom) => {
+    setEditingClass(cls)
+    setIsDialogOpen(true)
   }
 
   const handleShuffle = () => {
@@ -196,7 +243,10 @@ export default function ClassesPage() {
             </DialogContent>
           </Dialog>
 
-          <Dialog open={isAddClassOpen} onOpenChange={setIsAddClassOpen}>
+          <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            setIsDialogOpen(open)
+            if (!open) setEditingClass(null)
+          }}>
             <DialogTrigger asChild>
               <Button className="bg-primary hover:bg-primary/90 gap-2">
                 <Plus className="w-4 h-4" />
@@ -205,13 +255,15 @@ export default function ClassesPage() {
             </DialogTrigger>
             <DialogContent className="sm:max-w-[500px] border-border/50 bg-card">
               <DialogHeader>
-                <DialogTitle className="font-headline text-2xl">Buat Rombel Baru</DialogTitle>
+                <DialogTitle className="font-headline text-2xl">
+                  {editingClass ? 'Edit Rombel' : 'Buat Rombel Baru'}
+                </DialogTitle>
                 <DialogDescription>
-                  Tambahkan kelompok belajar baru untuk tingkat yang tersedia.
+                  {editingClass ? 'Perbarui informasi kelompok belajar.' : 'Tambahkan kelompok belajar baru untuk tingkat yang tersedia.'}
                 </DialogDescription>
               </DialogHeader>
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onAddClassSubmit)} className="space-y-4 py-4">
+                <form onSubmit={form.handleSubmit(onClassSubmit)} className="space-y-4 py-4">
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -245,7 +297,7 @@ export default function ClassesPage() {
                     name="homeroomTeacher"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Wali Kelas</FormLabel>
+                        <FormLabel>Wali Kelas (Opsional)</FormLabel>
                         <FormControl>
                           <Input placeholder="Nama Guru" {...field} />
                         </FormControl>
@@ -267,7 +319,7 @@ export default function ClassesPage() {
                     )}
                   />
                   <DialogFooter className="pt-4">
-                    <Button type="button" variant="outline" onClick={() => setIsAddClassOpen(false)}>Batal</Button>
+                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Batal</Button>
                     <Button type="submit" disabled={submitting}>
                       {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Simpan Kelas'}
                     </Button>
@@ -302,14 +354,19 @@ export default function ClassesPage() {
                 </div>
                 <div className="p-3 bg-muted/30 rounded-lg border border-border/50">
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Wali Kelas</p>
-                  <p className="text-sm font-medium mt-1">{cls.homeroomTeacher}</p>
+                  <p className="text-sm font-medium mt-1">{cls.homeroomTeacher || "Belum ditentukan"}</p>
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" className="flex-1 h-8 text-xs gap-1">
                     <Printer className="w-3 h-3" /> Daftar
                   </Button>
-                  <Button variant="outline" size="sm" className="flex-1 h-8 text-xs gap-1">
-                    <Settings2 className="w-3 h-3" /> Edit
+                  <Button 
+                    onClick={() => handleEdit(cls)}
+                    variant="outline" 
+                    size="sm" 
+                    className="flex-1 h-8 text-xs gap-1"
+                  >
+                    <Pencil className="w-3 h-3" /> Edit
                   </Button>
                 </div>
               </div>
