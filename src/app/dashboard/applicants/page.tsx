@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { 
   Search, 
   FileDown, 
@@ -127,6 +127,8 @@ export default function ApplicantsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [isImporting, setIsImporting] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
   const db = useFirestore()
 
@@ -204,6 +206,89 @@ export default function ApplicantsPage() {
     return age
   }
 
+  const handleImportClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !db) return
+
+    setIsImporting(true)
+    const reader = new FileReader()
+
+    reader.onload = async (event) => {
+      const text = event.target?.result as string
+      if (!text) {
+        setIsImporting(false)
+        return
+      }
+
+      const lines = text.split('\n').filter(line => line.trim() !== '')
+      if (lines.length < 2) {
+        toast({
+          variant: "destructive",
+          title: "Format Salah",
+          description: "File CSV tidak memiliki data atau header.",
+        })
+        setIsImporting(false)
+        return
+      }
+
+      const headers = lines[0].split(',').map(h => h.trim())
+      const rows = lines.slice(1)
+      let successCount = 0
+      let errorCount = 0
+
+      for (const row of rows) {
+        const values = row.split(',').map(v => v.trim())
+        const data: any = {}
+        headers.forEach((header, index) => {
+          data[header] = values[index]
+        })
+
+        if (!data.NISN || !data.fullName) {
+          errorCount++
+          continue
+        }
+
+        const registrationNumber = `REG-2024-${Math.floor(1000 + Math.random() * 9000)}`
+        const ageYears = calculateAge(data.birthDate)
+
+        const newApplicant = {
+          ...data,
+          registrationNumber,
+          ageYears,
+          academicScore: data.academicScore ? parseFloat(data.academicScore) : 0,
+          distanceToSchoolKm: data.distanceToSchoolKm ? parseFloat(data.distanceToSchoolKm) : 0,
+          numberOfSiblings: data.numberOfSiblings ? parseInt(data.numberOfSiblings) : 1,
+          childOrder: data.childOrder ? parseInt(data.childOrder) : 1,
+          verificationStatus: 'Belum Diverifikasi',
+          admissionStatus: 'pending',
+          createdAt: new Date().toISOString(),
+          serverCreatedAt: serverTimestamp(),
+          documents: []
+        }
+
+        try {
+          await addDoc(collection(db, 'applicants'), newApplicant)
+          successCount++
+        } catch (err) {
+          errorCount++
+        }
+      }
+
+      toast({
+        title: "Import Selesai",
+        description: `Berhasil mengimpor ${successCount} data. Gagal: ${errorCount}.`,
+      })
+      setIsImporting(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+
+    reader.readAsText(file)
+  }
+
   function onSubmit(values: z.infer<typeof formSchema>) {
     if (!db || submitting) return
 
@@ -255,8 +340,21 @@ export default function ApplicantsPage() {
           <p className="text-muted-foreground mt-1">Kelola data pendaftar sesuai standar Dapodik.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" className="gap-2">
-            <FileUp className="w-4 h-4" /> Import
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileChange} 
+            accept=".csv" 
+            className="hidden" 
+          />
+          <Button 
+            variant="outline" 
+            className="gap-2" 
+            onClick={handleImportClick}
+            disabled={isImporting}
+          >
+            {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
+            Import
           </Button>
           
           <Dialog open={isDialogOpen} onOpenChange={(open) => {
