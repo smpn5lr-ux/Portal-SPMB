@@ -59,8 +59,8 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import Link from 'next/link'
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase'
-import { collection, query, orderBy, addDoc, serverTimestamp, limit } from 'firebase/firestore'
+import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase'
+import { collection, query, orderBy, addDoc, serverTimestamp, limit, doc } from 'firebase/firestore'
 import { Applicant } from '@/lib/types'
 import { errorEmitter } from '@/firebase/error-emitter'
 import { FirestorePermissionError } from '@/firebase/errors'
@@ -79,35 +79,6 @@ const pathColorMap: Record<string, string> = {
   'Afirmasi': 'text-pink-500 border-pink-500/20',
   'Perpindahan Orang Tua': 'text-purple-500 border-purple-500/20',
 }
-
-// Daftar sekolah zonasi diperluas
-const SCHOOL_SUGGESTIONS = [
-  "SDN Menteng 01",
-  "SDN Menteng 02",
-  "SDN Menteng 03",
-  "SDN Gondangdia 01",
-  "SDN Gondangdia 03",
-  "SDN Kebon Sirih 01",
-  "SDN Cikini 01",
-  "SDN Kenari 01",
-  "SDN Kenari 02",
-  "SDN Pegangsaan 01",
-  "SD Swasta Jakarta Pusat",
-  "MI Nurul Iman",
-  "SD Islam Al-Azhar",
-  "SD Kanisius",
-  "SD Santa Theresia",
-  "SD Muhammadiyah 1",
-  "SD Muhammadiyah 2",
-  "SD Kristen Ketapang",
-  "SD BPK Penabur",
-  "SD Tarakanita",
-  "SD Islam Terpadu (IT) Nurul Fikri",
-  "SD Al-Irsyad",
-  "MI Negeri 1",
-  "MI Negeri 2",
-  "Lainnya"
-].sort()
 
 const formSchema = z.object({
   fullName: z.string().min(2, "Nama lengkap harus diisi"),
@@ -136,7 +107,17 @@ export default function ApplicantsPage() {
     )
   }, [db])
 
+  const schoolsRef = useMemoFirebase(() => {
+    if (!db) return null
+    return doc(db, 'settings', 'schools')
+  }, [db])
+
   const { data: applicants, loading } = useCollection<Applicant>(applicantsQuery)
+  const { data: schoolsData } = useDoc<any>(schoolsRef)
+
+  const schoolSuggestions = useMemo(() => {
+    return schoolsData?.list || []
+  }, [schoolsData])
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -193,12 +174,11 @@ export default function ApplicantsPage() {
         })
       })
       .catch(async (error) => {
-        const permissionError = new FirestorePermissionError({
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: 'applicants',
           operation: 'create',
           requestResourceData: newApplicant
-        })
-        errorEmitter.emit('permission-error', permissionError)
+        }))
       })
       .finally(() => {
         setSubmitting(false)
@@ -210,16 +190,11 @@ export default function ApplicantsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline font-bold">Data Calon Murid</h1>
-          <p className="text-muted-foreground mt-1">Kelola data pendaftar (Dibatasi 50 entri terbaru untuk performa).</p>
+          <p className="text-muted-foreground mt-1">Kelola data pendaftar (Dibatasi 50 entri terbaru).</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" className="gap-2">
-            <FileUp className="w-4 h-4" />
-            Import Excel
-          </Button>
-          <Button variant="outline" className="gap-2">
-            <FileDown className="w-4 h-4" />
-            Export CSV
+            <FileUp className="w-4 h-4" /> Import
           </Button>
           
           <Dialog open={isDialogOpen} onOpenChange={(open) => {
@@ -227,16 +202,13 @@ export default function ApplicantsPage() {
           }}>
             <DialogTrigger asChild>
               <Button className="gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20">
-                <Plus className="w-4 h-4" />
-                Tambah Manual
+                <Plus className="w-4 h-4" /> Tambah Manual
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[600px] border-border/50 bg-card">
               <DialogHeader>
                 <DialogTitle className="font-headline text-2xl">Tambah Calon Murid</DialogTitle>
-                <DialogDescription>
-                  Masukkan data dasar pendaftar. Sistem akan men-generate nomor registrasi otomatis.
-                </DialogDescription>
+                <DialogDescription>Masukkan data dasar pendaftar.</DialogDescription>
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
@@ -248,7 +220,7 @@ export default function ApplicantsPage() {
                         <FormItem>
                           <FormLabel>Nama Lengkap</FormLabel>
                           <FormControl>
-                            <Input placeholder="Contoh: Budi Santoso" {...field} disabled={submitting} />
+                            <Input placeholder="Budi Santoso" {...field} disabled={submitting} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -276,34 +248,6 @@ export default function ApplicantsPage() {
                       )}
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="NISN"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>NISN (10 Digit)</FormLabel>
-                          <FormControl>
-                            <Input placeholder="0123456789" {...field} maxLength={10} disabled={submitting} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="NIK"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>NIK (16 Digit)</FormLabel>
-                          <FormControl>
-                            <Input placeholder="3201..." {...field} maxLength={16} disabled={submitting} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
                   
                   <FormField
                     control={form.control}
@@ -318,9 +262,13 @@ export default function ApplicantsPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {SCHOOL_SUGGESTIONS.map((school) => (
-                              <SelectItem key={school} value={school}>{school}</SelectItem>
-                            ))}
+                            {schoolSuggestions.length > 0 ? (
+                              schoolSuggestions.map((school: string) => (
+                                <SelectItem key={school} value={school}>{school}</SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="Lainnya" disabled>Atur daftar sekolah di Pengaturan</SelectItem>
+                            )}
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -329,6 +277,19 @@ export default function ApplicantsPage() {
                   />
 
                   <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="NISN"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>NISN (10 Digit)</FormLabel>
+                          <FormControl>
+                            <Input placeholder="0123456789" {...field} maxLength={10} disabled={submitting} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                     <FormField
                       control={form.control}
                       name="applicationPath"
@@ -352,49 +313,14 @@ export default function ApplicantsPage() {
                         </FormItem>
                       )}
                     />
-                    {form.watch("applicationPath") === "Prestasi" ? (
-                      <FormField
-                        control={form.control}
-                        name="academicScore"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Rata-rata Nilai</FormLabel>
-                            <FormControl>
-                              <Input type="number" placeholder="85.5" {...field} disabled={submitting} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    ) : form.watch("applicationPath") === "Zonasi" ? (
-                      <FormField
-                        control={form.control}
-                        name="distanceToSchoolKm"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Jarak ke Sekolah (Km)</FormLabel>
-                            <FormControl>
-                              <Input type="number" step="0.1" placeholder="1.5" {...field} disabled={submitting} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    ) : null}
                   </div>
+
                   <DialogFooter className="pt-4">
                     <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={submitting}>
                       Batal
                     </Button>
-                    <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={submitting}>
-                      {submitting ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Menyimpan...
-                        </>
-                      ) : (
-                        'Simpan Pendaftar'
-                      )}
+                    <Button type="submit" disabled={submitting}>
+                      {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Simpan Pendaftar'}
                     </Button>
                   </DialogFooter>
                 </form>
@@ -408,20 +334,11 @@ export default function ApplicantsPage() {
         <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input 
-            placeholder="Cari NISN, Nama, atau Asal Sekolah..." 
+            placeholder="Cari NISN atau Nama..." 
             className="pl-10 h-11 bg-background"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-        </div>
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <div className="text-xs font-medium text-muted-foreground whitespace-nowrap">
-            {loading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <>Ditemukan <span className="text-foreground font-bold">{filteredApplicants.length}</span> pendaftar</>
-            )}
-          </div>
         </div>
       </div>
 
@@ -433,7 +350,7 @@ export default function ApplicantsPage() {
               <TableHead className="font-bold">Nama Lengkap</TableHead>
               <TableHead className="font-bold">Asal Sekolah</TableHead>
               <TableHead className="font-bold">Jalur</TableHead>
-              <TableHead className="font-bold">Status Verifikasi</TableHead>
+              <TableHead className="font-bold">Status</TableHead>
               <TableHead className="font-bold text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
@@ -441,10 +358,7 @@ export default function ApplicantsPage() {
             {loading ? (
               <TableRow>
                 <TableCell colSpan={6} className="h-32 text-center">
-                  <div className="flex justify-center items-center gap-2 text-muted-foreground">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Memuat data...
-                  </div>
+                  <Loader2 className="w-4 h-4 animate-spin mx-auto" />
                 </TableCell>
               </TableRow>
             ) : filteredApplicants.length === 0 ? (
@@ -464,10 +378,7 @@ export default function ApplicantsPage() {
                       </span>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <div className="font-medium text-foreground">{applicant.fullName}</div>
-                    <div className="text-[10px] text-muted-foreground uppercase">{applicant.gender}</div>
-                  </TableCell>
+                  <TableCell className="font-medium">{applicant.fullName}</TableCell>
                   <TableCell className="text-muted-foreground text-sm">{applicant.originSchool}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className={`${pathColorMap[applicant.applicationPath] || ''} font-bold text-[10px]`}>
@@ -480,25 +391,11 @@ export default function ApplicantsPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem asChild>
-                          <Link href={`/dashboard/applicants/${applicant.id}`} className="flex items-center gap-2 cursor-pointer">
-                            <Eye className="w-4 h-4" />
-                            Lihat Detail
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="flex items-center gap-2 cursor-pointer">
-                          <CheckCircle className="w-4 h-4 text-green-500" />
-                          Verifikasi Langsung
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <Button variant="ghost" size="icon" asChild>
+                      <Link href={`/dashboard/applicants/${applicant.id}`}>
+                        <Eye className="w-4 h-4" />
+                      </Link>
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))

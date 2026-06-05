@@ -13,7 +13,9 @@ import {
   Percent, 
   MapPin, 
   Trophy, 
-  Loader2 
+  Loader2,
+  Plus,
+  Trash2
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -31,13 +33,20 @@ export default function SettingsPage() {
   const db = useFirestore()
   const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
+  const [newSchool, setNewSchool] = useState("")
   
   const settingsRef = useMemoFirebase(() => {
     if (!db) return null
     return doc(db, "settings", "system")
   }, [db])
 
-  const { data: config, loading } = useDoc<any>(settingsRef)
+  const schoolsRef = useMemoFirebase(() => {
+    if (!db) return null
+    return doc(db, "settings", "schools")
+  }, [db])
+
+  const { data: config, loading: loadingConfig } = useDoc<any>(settingsRef)
+  const { data: schoolsData, loading: loadingSchools } = useDoc<any>(schoolsRef)
 
   const [localConfig, setLocalConfig] = useState<any>({
     schoolName: "SMP Negeri 1 Jakarta",
@@ -51,13 +60,21 @@ export default function SettingsPage() {
     minScore: 75
   })
 
+  const [localSchools, setLocalSchools] = useState<string[]>([])
+
   useEffect(() => {
     if (config) {
       setLocalConfig(config)
     }
   }, [config])
 
-  const handleSave = () => {
+  useEffect(() => {
+    if (schoolsData && schoolsData.list) {
+      setLocalSchools(schoolsData.list)
+    }
+  }, [schoolsData])
+
+  const handleSaveConfig = () => {
     if (!db || !settingsRef) return
     setIsSaving(true)
 
@@ -65,23 +82,46 @@ export default function SettingsPage() {
       .then(() => {
         toast({
           title: "Pengaturan Disimpan",
-          description: "Konfigurasi sistem berhasil diperbarui di seluruh platform.",
+          description: "Konfigurasi sistem berhasil diperbarui.",
         })
       })
       .catch(async (error) => {
-        const permissionError = new FirestorePermissionError({
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: settingsRef.path,
           operation: 'write',
           requestResourceData: localConfig
-        })
-        errorEmitter.emit('permission-error', permissionError)
+        }))
       })
-      .finally(() => {
-        setIsSaving(false)
+      .finally(() => setIsSaving(false))
+  }
+
+  const handleAddSchool = () => {
+    if (!newSchool.trim()) return
+    const updated = [...localSchools, newSchool.trim()].sort()
+    setLocalSchools(updated)
+    setNewSchool("")
+    saveSchools(updated)
+  }
+
+  const handleRemoveSchool = (name: string) => {
+    const updated = localSchools.filter(s => s !== name)
+    setLocalSchools(updated)
+    saveSchools(updated)
+  }
+
+  const saveSchools = (list: string[]) => {
+    if (!schoolsRef) return
+    setDoc(schoolsRef, { list }, { merge: true })
+      .catch(async () => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: schoolsRef.path,
+          operation: 'write',
+          requestResourceData: { list }
+        }))
       })
   }
 
-  if (loading) return (
+  if (loadingConfig || loadingSchools) return (
     <div className="flex flex-col items-center justify-center h-64 gap-2">
       <Loader2 className="w-8 h-8 animate-spin text-primary" />
       <p className="text-muted-foreground">Memuat pengaturan sistem...</p>
@@ -96,12 +136,12 @@ export default function SettingsPage() {
           <p className="text-muted-foreground mt-1">Konfigurasi global untuk identitas sekolah dan aturan seleksi.</p>
         </div>
         <Button 
-          onClick={handleSave} 
+          onClick={handleSaveConfig} 
           disabled={isSaving}
           className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20"
         >
           {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          Simpan Semua Perubahan
+          Simpan Profil & Kuota
         </Button>
       </div>
 
@@ -140,25 +180,63 @@ export default function SettingsPage() {
           <Card className="border-border/50">
             <CardHeader>
               <div className="flex items-center gap-2">
+                <School className="w-5 h-5 text-accent" />
+                <CardTitle className="font-headline text-lg">Daftar Sekolah Asal (SD/MI)</CardTitle>
+              </div>
+              <CardDescription>Kelola daftar sekolah yang akan muncul di dropdown pendaftaran.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Input 
+                  value={newSchool}
+                  onChange={(e) => setNewSchool(e.target.value)}
+                  placeholder="Masukkan nama sekolah baru..."
+                  className="flex-1"
+                />
+                <Button onClick={handleAddSchool} variant="outline" className="gap-2">
+                  <Plus className="w-4 h-4" /> Tambah
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[300px] overflow-y-auto p-2 border rounded-lg bg-muted/20">
+                {localSchools.map((school) => (
+                  <div key={school} className="flex items-center justify-between p-2 rounded bg-card border group">
+                    <span className="text-sm truncate mr-2">{school}</span>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => handleRemoveSchool(school)}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ))}
+                {localSchools.length === 0 && (
+                  <p className="col-span-full text-center py-8 text-muted-foreground text-sm italic">Belum ada sekolah yang ditambahkan.</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="space-y-6">
+          <Card className="border-border/50">
+            <CardHeader>
+              <div className="flex items-center gap-2">
                 <Percent className="w-5 h-5 text-accent" />
                 <CardTitle className="font-headline text-lg">Distribusi Kuota</CardTitle>
               </div>
-              <CardDescription>Atur persentase alokasi untuk masing-masing jalur pendaftaran.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {[
-                  { label: "Jalur Zonasi (%)", key: "quotaZonasi", icon: MapPin },
-                  { label: "Jalur Prestasi (%)", key: "quotaPrestasi", icon: Trophy },
-                  { label: "Jalur Afirmasi (%)", key: "quotaAfirmasi", icon: Users },
-                  { label: "Pindahan Orang Tua (%)", key: "quotaPerpindahan", icon: School },
+            <CardContent className="space-y-6">
+               {[
+                  { label: "Zonasi (%)", key: "quotaZonasi", icon: MapPin },
+                  { label: "Prestasi (%)", key: "quotaPrestasi", icon: Trophy },
+                  { label: "Afirmasi (%)", key: "quotaAfirmasi", icon: Users },
+                  { label: "Pindahan (%)", key: "quotaPerpindahan", icon: School },
                 ].map((item) => (
-                  <div key={item.key} className="space-y-3">
+                  <div key={item.key} className="space-y-2">
                     <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-2">
-                        <item.icon className="w-3 h-3 text-muted-foreground" />
-                        <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{item.label}</label>
-                      </div>
+                      <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{item.label}</label>
                       <span className="text-sm font-bold text-primary">{localConfig[item.key]}%</span>
                     </div>
                     <Slider 
@@ -169,62 +247,6 @@ export default function SettingsPage() {
                     />
                   </div>
                 ))}
-              </div>
-              <div className="p-4 bg-muted/30 rounded-lg border border-border flex items-center justify-between">
-                <span className="text-sm font-medium">Total Akumulasi Kuota</span>
-                <Badge variant={localConfig.quotaZonasi + localConfig.quotaPrestasi + localConfig.quotaAfirmasi + localConfig.quotaPerpindahan === 100 ? "default" : "destructive"}>
-                  {localConfig.quotaZonasi + localConfig.quotaPrestasi + localConfig.quotaAfirmasi + localConfig.quotaPerpindahan}%
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="space-y-6">
-          <Card className="border-border/50">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Target className="w-5 h-5 text-pink-500" />
-                <CardTitle className="font-headline text-lg">Default Seleksi</CardTitle>
-              </div>
-              <CardDescription>Ambang batas awal yang digunakan saat menjalankan seleksi.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <label className="text-xs font-bold uppercase text-muted-foreground">Total Kuota (Siswa)</label>
-                  <span className="text-sm font-bold">{localConfig.totalQuota}</span>
-                </div>
-                <Input 
-                  type="number" 
-                  value={localConfig.totalQuota}
-                  onChange={(e) => setLocalConfig({...localConfig, totalQuota: parseInt(e.target.value) || 0})}
-                />
-              </div>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <label className="text-xs font-bold uppercase text-muted-foreground">Max Jarak Default</label>
-                  <span className="text-sm font-bold">{localConfig.maxDistance} km</span>
-                </div>
-                <Slider 
-                  value={[localConfig.maxDistance]} 
-                  max={10} 
-                  step={0.1}
-                  onValueChange={([v]) => setLocalConfig({...localConfig, maxDistance: v})}
-                />
-              </div>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <label className="text-xs font-bold uppercase text-muted-foreground">Min Nilai Default</label>
-                  <span className="text-sm font-bold">{localConfig.minScore}</span>
-                </div>
-                <Slider 
-                  value={[localConfig.minScore]} 
-                  max={100} 
-                  step={1}
-                  onValueChange={([v]) => setLocalConfig({...localConfig, minScore: v})}
-                />
-              </div>
             </CardContent>
           </Card>
 
@@ -233,9 +255,9 @@ export default function SettingsPage() {
               <div className="flex items-start gap-4">
                 <ShieldCheck className="w-6 h-6 text-primary mt-1" />
                 <div>
-                  <h4 className="font-bold text-sm">Keamanan Konfigurasi</h4>
+                  <h4 className="font-bold text-sm">Validitas Data</h4>
                   <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    Setiap perubahan pada pengaturan ini akan berdampak langsung pada perhitungan otomatis di seluruh modul seleksi.
+                    Pastikan total kuota mencapai 100% dan daftar sekolah sudah benar sebelum periode pendaftaran dimulai.
                   </p>
                 </div>
               </div>
