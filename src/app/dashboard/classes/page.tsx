@@ -19,7 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase'
-import { collection, doc, updateDoc, writeBatch, addDoc } from 'firebase/firestore'
+import { collection, doc, updateDoc, writeBatch, addDoc, query, orderBy } from 'firebase/firestore'
 import { Applicant, Classroom } from '@/lib/types'
 import { 
   Dialog, 
@@ -63,7 +63,8 @@ export default function ClassesPage() {
 
   const classesQuery = useMemoFirebase(() => {
     if (!db) return null
-    return collection(db, 'classes')
+    // Mengurutkan kelas berdasarkan nama secara ascending (A-Z)
+    return query(collection(db, 'classes'), orderBy('name', 'asc'))
   }, [db])
 
   const applicantsQuery = useMemoFirebase(() => {
