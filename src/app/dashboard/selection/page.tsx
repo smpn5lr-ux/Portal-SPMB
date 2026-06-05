@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo } from 'react'
@@ -239,14 +240,14 @@ export default function SelectionPage() {
                 </CardHeader>
                 <CardContent className="p-0">
                   <Table>
-                    <TableHeader className="bg-muted/30">
+                    <TableHeader className="bg-primary/5 border-b">
                       <TableRow>
-                        <TableHead className="w-[60px]">No.</TableHead>
-                        <TableHead className="w-[80px]">Rank</TableHead>
-                        <TableHead>Nama Calon Murid</TableHead>
-                        <TableHead>Jalur</TableHead>
-                        <TableHead>Skor/Jarak</TableHead>
-                        <TableHead className="text-right">Status</TableHead>
+                        <TableHead className="w-[60px] font-bold text-primary">No.</TableHead>
+                        <TableHead className="w-[80px] font-bold text-primary">Rank</TableHead>
+                        <TableHead className="font-bold text-primary">Nama Calon Murid</TableHead>
+                        <TableHead className="font-bold text-primary">Jalur</TableHead>
+                        <TableHead className="font-bold text-primary">Skor/Jarak</TableHead>
+                        <TableHead className="text-right font-bold text-primary">Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>

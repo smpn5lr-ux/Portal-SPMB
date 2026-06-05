@@ -477,7 +477,7 @@ export default function ClassesPage() {
                     'Keseimbangan Jenis Kelamin',
                     'Distribusi Nilai Akademik Seimbang',
                     'Distribusi Murid Sekolah Asal Seimbang',
-                    'Kapasitas Maksimal Kelas'
+                    'Kapasitas Maksimal Murid'
                   ].map((pref) => (
                     <div key={pref} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border">
                       <span className="text-sm font-medium">{pref}</span>

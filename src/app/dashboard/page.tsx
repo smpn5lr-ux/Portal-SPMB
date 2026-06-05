@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useMemo } from "react"
@@ -231,7 +232,7 @@ export default function OverviewPage() {
           <Card className="border-border/50 bg-card">
             <CardHeader className="pb-2">
               <CardTitle className="font-headline text-lg flex items-center gap-2">
-                <User className="w-4 h-4 text-primary" /> Distribusi Gender
+                <User className="w-4 h-4 text-primary" /> Distribusi Jenis Kelamin
               </CardTitle>
               <CardDescription className="text-xs">Perbandingan murid Laki-laki & Perempuan.</CardDescription>
             </CardHeader>
