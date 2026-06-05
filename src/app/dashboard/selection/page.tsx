@@ -29,11 +29,12 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table"
-import { useCollection, useFirestore } from '@/firebase'
-import { collection, query, doc, updateDoc } from 'firebase/firestore'
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase'
+import { collection, query, doc, writeBatch, limit } from 'firebase/firestore'
 import { Applicant } from '@/lib/types'
 import { errorEmitter } from '@/firebase/error-emitter'
 import { FirestorePermissionError } from '@/firebase/errors'
+import { useToast } from '@/hooks/use-toast'
 
 export default function SelectionPage() {
   const [isProcessing, setIsProcessing] = useState(false)
@@ -44,15 +45,24 @@ export default function SelectionPage() {
     priorityAge: true
   })
 
+  const { toast } = useToast()
   const db = useFirestore()
-  const { data: applicants, loading } = useCollection<Applicant>(db ? collection(db, 'applicants') : null)
+  
+  // Gunakan useMemoFirebase dan limit untuk performa
+  const applicantsQuery = useMemoFirebase(() => {
+    if (!db) return null
+    return query(collection(db, 'applicants'), limit(100))
+  }, [db])
 
-  const handleRunSelection = () => {
-    if (!applicants || !db) return
-    setIsProcessing(true)
+  const { data: applicants, loading } = useCollection<Applicant>(applicantsQuery)
+
+  const handleRunSelection = async () => {
+    if (!applicants || !db || isProcessing) return
     
-    // Simulate selection logic
-    setTimeout(() => {
+    setIsProcessing(true)
+    const batch = writeBatch(db)
+    
+    try {
       applicants.forEach((a, index) => {
         let status: 'accepted' | 'waitlisted' | 'rejected' = 'rejected'
         
@@ -67,20 +77,28 @@ export default function SelectionPage() {
         }
 
         const docRef = doc(db, 'applicants', a.id)
-        updateDoc(docRef, { 
+        batch.update(docRef, { 
           admissionStatus: status,
-          rankingInPath: index + 1 // Mock ranking
-        }).catch(err => {
-          errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: docRef.path,
-            operation: 'update',
-          }))
+          rankingInPath: index + 1 
         })
       })
 
-      setIsProcessing(false)
+      // Eksekusi semua update sekaligus (maks 500 dokumen per batch)
+      await batch.commit()
+      
+      toast({
+        title: "Seleksi Selesai",
+        description: `Berhasil memproses ${applicants.length} data pendaftar.`,
+      })
       setShowRankings(true)
-    }, 2000)
+    } catch (err) {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: 'applicants',
+        operation: 'write',
+      }))
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   const sortedApplicants = useMemo(() => {
@@ -90,6 +108,15 @@ export default function SelectionPage() {
       return (a.distanceToSchoolKm || 0) - (b.distanceToSchoolKm || 0)
     }).slice(0, 15)
   }, [applicants])
+
+  if (loading && !applicants) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-2">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <p className="text-muted-foreground">Memuat sistem seleksi...</p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -156,7 +183,7 @@ export default function SelectionPage() {
 
               <Button 
                 onClick={handleRunSelection}
-                disabled={isProcessing || loading}
+                disabled={isProcessing}
                 className="w-full bg-primary hover:bg-primary/90 h-11 gap-2 shadow-lg shadow-primary/20"
               >
                 {isProcessing ? (
