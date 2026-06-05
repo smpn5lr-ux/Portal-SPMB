@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -12,7 +13,9 @@ import {
   Menu,
   Bell,
   Search,
-  UserCircle
+  UserCircle,
+  LogOut,
+  Loader2
 } from "lucide-react"
 import { 
   Sidebar, 
@@ -29,7 +32,9 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
+import { useAuth, useUser } from "@/firebase"
+import { signOut } from "firebase/auth"
 
 const navigation = [
   { name: 'Ringkasan', href: '/dashboard', icon: LayoutDashboard },
@@ -42,6 +47,34 @@ const navigation = [
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
+  const auth = useAuth()
+  const { user, loading } = useUser()
+
+  React.useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login')
+    }
+  }, [user, loading, router])
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth)
+      router.push('/login')
+    } catch (error) {
+      console.error("Logout error", error)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (!user) return null
 
   return (
     <SidebarProvider>
@@ -91,6 +124,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton 
+                  onClick={handleLogout}
+                  className="h-11 text-destructive hover:text-destructive hover:bg-destructive/10"
+                >
+                  <div className="flex items-center gap-3 w-full">
+                    <LogOut className="w-5 h-5" />
+                    <span className="font-medium">Logout</span>
+                  </div>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarFooter>
         </Sidebar>
@@ -116,11 +160,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <div className="h-8 w-px bg-border"></div>
               <div className="flex items-center gap-3 pl-2">
                 <div className="flex flex-col items-end hidden sm:flex">
-                  <span className="text-sm font-semibold">Admin Pusat</span>
+                  <span className="text-sm font-semibold">{user?.displayName || 'Admin'}</span>
                   <span className="text-[10px] text-primary font-bold uppercase tracking-widest">Super Admin</span>
                 </div>
-                <div className="w-9 h-9 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary">
-                  <UserCircle className="w-6 h-6" />
+                <div className="w-9 h-9 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary overflow-hidden">
+                  {user?.photoURL ? (
+                    <img src={user.photoURL} alt="profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <UserCircle className="w-6 h-6" />
+                  )}
                 </div>
               </div>
             </div>
