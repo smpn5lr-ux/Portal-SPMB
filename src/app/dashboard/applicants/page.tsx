@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo } from 'react'
@@ -12,8 +11,7 @@ import {
   Eye, 
   CheckCircle,
   FileText,
-  Loader2,
-  UserPlus
+  Loader2
 } from "lucide-react"
 import { 
   Table, 
@@ -60,8 +58,8 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import Link from 'next/link'
-import { useCollection, useFirestore } from '@/firebase'
-import { collection, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore'
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase'
+import { collection, query, orderBy, addDoc, serverTimestamp, limit } from 'firebase/firestore'
 import { Applicant } from '@/lib/types'
 import { errorEmitter } from '@/firebase/error-emitter'
 import { FirestorePermissionError } from '@/firebase/errors'
@@ -99,9 +97,14 @@ export default function ApplicantsPage() {
   const { toast } = useToast()
   const db = useFirestore()
 
-  const applicantsQuery = useMemo(() => {
+  // Gunakan useMemoFirebase dan limit(50) untuk menghemat pembacaan database
+  const applicantsQuery = useMemoFirebase(() => {
     if (!db) return null
-    return query(collection(db, 'applicants'), orderBy('createdAt', 'desc'))
+    return query(
+      collection(db, 'applicants'), 
+      orderBy('createdAt', 'desc'),
+      limit(50) 
+    )
   }, [db])
 
   const { data: applicants, loading } = useCollection<Applicant>(applicantsQuery)
@@ -151,6 +154,7 @@ export default function ApplicantsPage() {
       familyCardNumber: "0000000000000000"
     }
 
+    // Hindari await langsung untuk performa UI instan dan efisiensi cache
     addDoc(collection(db, 'applicants'), newApplicant)
       .then(() => {
         setIsDialogOpen(false)
@@ -178,7 +182,7 @@ export default function ApplicantsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline font-bold">Data Calon Murid</h1>
-          <p className="text-muted-foreground mt-1">Kelola dan sinkronisasi data pendaftar dengan format Dapodik.</p>
+          <p className="text-muted-foreground mt-1">Kelola data pendaftar (Dibatasi 50 entri terbaru untuk performa).</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" className="gap-2">
@@ -372,14 +376,11 @@ export default function ApplicantsPage() {
           />
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <Button variant="outline" size="icon" className="h-11 w-11">
-            <Filter className="w-4 h-4" />
-          </Button>
           <div className="text-xs font-medium text-muted-foreground whitespace-nowrap">
             {loading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
-              <>Menampilkan <span className="text-foreground font-bold">{filteredApplicants.length}</span> pendaftar</>
+              <>Ditemukan <span className="text-foreground font-bold">{filteredApplicants.length}</span> pendaftar</>
             )}
           </div>
         </div>
@@ -457,10 +458,6 @@ export default function ApplicantsPage() {
                           <CheckCircle className="w-4 h-4 text-green-500" />
                           Verifikasi Langsung
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="flex items-center gap-2 cursor-pointer">
-                          <FileText className="w-4 h-4" />
-                          Cetak Bukti
-                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -473,4 +470,3 @@ export default function ApplicantsPage() {
     </div>
   )
 }
-    

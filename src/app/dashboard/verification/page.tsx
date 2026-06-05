@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo } from 'react'
@@ -8,7 +7,6 @@ import {
   FileText, 
   Search, 
   Eye,
-  Check,
   Loader2
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
@@ -25,8 +23,8 @@ import {
   TableRow 
 } from "@/components/ui/table"
 import Link from 'next/link'
-import { useCollection, useFirestore } from '@/firebase'
-import { collection, query, orderBy, doc, updateDoc } from 'firebase/firestore'
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase'
+import { collection, query, orderBy, doc, updateDoc, limit } from 'firebase/firestore'
 import { Applicant } from '@/lib/types'
 import { errorEmitter } from '@/firebase/error-emitter'
 import { FirestorePermissionError } from '@/firebase/errors'
@@ -36,9 +34,13 @@ export default function VerificationPage() {
   const [activeTab, setActiveTab] = useState('pending')
   const db = useFirestore()
 
-  const applicantsQuery = useMemo(() => {
+  const applicantsQuery = useMemoFirebase(() => {
     if (!db) return null
-    return query(collection(db, 'applicants'), orderBy('createdAt', 'desc'))
+    return query(
+      collection(db, 'applicants'), 
+      orderBy('createdAt', 'desc'),
+      limit(100)
+    )
   }, [db])
 
   const { data: applicants, loading } = useCollection<Applicant>(applicantsQuery)
@@ -57,6 +59,7 @@ export default function VerificationPage() {
   const handleQuickVerify = (id: string, status: string) => {
     if (!db) return
     const docRef = doc(db, 'applicants', id)
+    // Non-blocking update untuk efisiensi
     updateDoc(docRef, { verificationStatus: status })
       .catch(async () => {
         const permissionError = new FirestorePermissionError({
@@ -72,7 +75,7 @@ export default function VerificationPage() {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div>
         <h1 className="text-3xl font-headline font-bold">Verifikasi Berkas</h1>
-        <p className="text-muted-foreground mt-1">Validasi dokumen persyaratan calon siswa baru dari database.</p>
+        <p className="text-muted-foreground mt-1">Validasi dokumen pendaftar (Dibatasi 100 data terbaru).</p>
       </div>
 
       <Tabs defaultValue="pending" onValueChange={setActiveTab} className="w-full">
@@ -80,9 +83,6 @@ export default function VerificationPage() {
           <TabsList className="bg-muted/50 p-1 border border-border/50">
             <TabsTrigger value="pending" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               Belum Diperiksa
-              <Badge variant="secondary" className="bg-primary/20 text-primary-foreground/90 border-none h-5 px-1.5 min-w-[1.25rem]">
-                {applicants?.filter(a => a.verificationStatus === 'Belum Diverifikasi').length || 0}
-              </Badge>
             </TabsTrigger>
             <TabsTrigger value="revision" className="gap-2">
               Perlu Perbaikan

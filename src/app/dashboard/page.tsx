@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useMemo } from "react"
@@ -25,17 +24,19 @@ import {
   PieChart,
   Pie
 } from "recharts"
-import { useCollection, useFirestore } from "@/firebase"
-import { collection } from "firebase/firestore"
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { collection, query, limit } from "firebase/firestore"
 import { Applicant } from "@/lib/types"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export default function OverviewPage() {
   const db = useFirestore()
   
-  const applicantsQuery = useMemo(() => {
+  // Batasi pembacaan untuk ringkasan. 
+  // Untuk statistik yang akurat pada skala besar, disarankan menggunakan dokumen metadata khusus.
+  const applicantsQuery = useMemoFirebase(() => {
     if (!db) return null
-    return collection(db, 'applicants')
+    return query(collection(db, 'applicants'), limit(500))
   }, [db])
 
   const { data: applicants, loading } = useCollection<Applicant>(applicantsQuery)
@@ -48,7 +49,7 @@ export default function OverviewPage() {
     const rejected = applicants.filter(a => a.verificationStatus === 'Ditolak').length
 
     return [
-      { name: 'Total Pendaftar', value: total.toLocaleString(), icon: Users, color: 'text-primary', bg: 'bg-primary/10' },
+      { name: 'Pendaftar Terbaru', value: total.toLocaleString(), icon: Users, color: 'text-primary', bg: 'bg-primary/10' },
       { name: 'Siswa Diterima', value: accepted.toLocaleString(), icon: CheckCircle2, color: 'text-green-500', bg: 'bg-green-500/10' },
       { name: 'Menunggu Verifikasi', value: pending.toLocaleString(), icon: Clock, color: 'text-amber-500', bg: 'bg-amber-500/10' },
       { name: 'Pendaftaran Ditolak', value: rejected.toLocaleString(), icon: AlertCircle, color: 'text-destructive', bg: 'bg-destructive/10' },
@@ -78,7 +79,6 @@ export default function OverviewPage() {
     { day: 'Min', count: 15 },
   ]
 
-  // Nilai tinggi deterministik untuk skeleton agar tidak terjadi hydration mismatch
   const skeletonHeights = [40, 60, 35, 75, 50, 25, 45];
 
   return (
@@ -86,11 +86,11 @@ export default function OverviewPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline font-bold">Ringkasan Sistem</h1>
-          <p className="text-muted-foreground mt-1">Status penerimaan murid baru dari database real-time.</p>
+          <p className="text-muted-foreground mt-1">Status penerimaan (Dianalisis dari 500 pendaftar terbaru).</p>
         </div>
         <div className="flex items-center gap-2 bg-card p-1.5 rounded-lg border border-border">
-          <span className="px-3 py-1 text-xs font-bold uppercase tracking-widest text-primary bg-primary/10 rounded-md">Live Update</span>
-          <span className="text-[10px] text-muted-foreground mr-2 font-mono uppercase tracking-tighter">Connected to Firestore</span>
+          <span className="px-3 py-1 text-xs font-bold uppercase tracking-widest text-primary bg-primary/10 rounded-md">Spark Plan</span>
+          <span className="text-[10px] text-muted-foreground mr-2 font-mono uppercase tracking-tighter">Firestore Optimized</span>
         </div>
       </div>
 
