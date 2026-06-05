@@ -16,7 +16,10 @@ import {
   Sparkles,
   Printer,
   Calendar,
-  Loader2
+  Loader2,
+  Book,
+  CreditCard,
+  Hash
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -147,48 +150,70 @@ export default function ApplicantDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <Card className="border-border/50 shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
               <div>
-                <CardTitle className="font-headline text-lg">Informasi Profil</CardTitle>
-                <CardDescription>Data lengkap calon siswa sesuai Dapodik.</CardDescription>
+                <CardTitle className="font-headline text-lg">Informasi Profil Siswa</CardTitle>
+                <CardDescription>Data lengkap calon siswa sesuai standar Dapodik.</CardDescription>
               </div>
               <Badge className="bg-accent text-accent-foreground">{applicant.verificationStatus}</Badge>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                <div className="space-y-6">
                   <div className="flex items-start gap-3">
                     <User className="w-4 h-4 text-muted-foreground mt-1" />
-                    <div>
-                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Identitas</p>
-                      <p className="text-sm font-medium mt-1">NISN: {applicant.NISN}</p>
-                      <p className="text-sm font-medium">NIK: {applicant.NIK}</p>
-                      <p className="text-sm font-medium">Jenis Kelamin: {applicant.gender}</p>
+                    <div className="flex-1">
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Identitas Dasar</p>
+                      <div className="mt-2 space-y-1">
+                        <p className="text-sm font-medium flex justify-between"><span>NISN:</span> <span className="font-mono">{applicant.NISN}</span></p>
+                        <p className="text-sm font-medium flex justify-between"><span>NIK:</span> <span className="font-mono">{applicant.NIK}</span></p>
+                        <p className="text-sm font-medium flex justify-between"><span>Gender:</span> <span>{applicant.gender}</span></p>
+                        <p className="text-sm font-medium flex justify-between"><span>Agama:</span> <span>{applicant.religion || 'Islam'}</span></p>
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <Calendar className="w-4 h-4 text-muted-foreground mt-1" />
-                    <div>
-                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Kelahiran</p>
+                    <div className="flex-1">
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Tempat & Tgl Lahir</p>
                       <p className="text-sm font-medium mt-1">{applicant.birthPlace}, {applicant.birthDate}</p>
                     </div>
                   </div>
+                  <div className="flex items-start gap-3">
+                    <MapPin className="w-4 h-4 text-muted-foreground mt-1" />
+                    <div className="flex-1">
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Domisili & Jarak</p>
+                      <p className="text-sm font-medium mt-1 leading-relaxed">{applicant.address}</p>
+                      <p className="text-sm font-medium mt-1 text-primary">Jarak: {applicant.distanceToSchoolKm || '0'} Km</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-6">
                   <div className="flex items-start gap-3">
                     <School className="w-4 h-4 text-muted-foreground mt-1" />
-                    <div>
+                    <div className="flex-1">
                       <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Pendidikan</p>
-                      <p className="text-sm font-medium mt-1">Asal: {applicant.originSchool}</p>
-                      <p className="text-sm font-medium">Nilai Akhir: {applicant.academicScore || '-'}</p>
+                      <div className="mt-2 space-y-1">
+                        <p className="text-sm font-medium">Asal: {applicant.originSchool}</p>
+                        <p className="text-sm font-medium text-cyan-500">Nilai Rapor: {applicant.academicScore || '-'}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <CreditCard className="w-4 h-4 text-muted-foreground mt-1" />
+                    <div className="flex-1">
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Kartu Keluarga</p>
+                      <p className="text-sm font-mono mt-1">{applicant.familyCardNumber || '-'}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <Phone className="w-4 h-4 text-muted-foreground mt-1" />
-                    <div>
-                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Kontak Wali</p>
-                      <p className="text-sm font-medium mt-1">{applicant.parentName}</p>
-                      <p className="text-sm font-medium">{applicant.parentPhone}</p>
+                    <div className="flex-1">
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Kontak Orang Tua</p>
+                      <div className="mt-2 space-y-1">
+                        <p className="text-sm font-medium">{applicant.parentName}</p>
+                        <p className="text-sm font-medium text-primary">{applicant.parentPhone}</p>
+                      </div>
                     </div>
                   </div>
                 </div>

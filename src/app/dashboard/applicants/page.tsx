@@ -12,7 +12,11 @@ import {
   Eye, 
   CheckCircle,
   FileText,
-  Loader2
+  Loader2,
+  User,
+  Home,
+  Users as UsersIcon,
+  GraduationCap
 } from "lucide-react"
 import { 
   Table, 
@@ -55,6 +59,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Separator } from "@/components/ui/separator"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -84,9 +90,16 @@ const formSchema = z.object({
   fullName: z.string().min(2, "Nama lengkap harus diisi"),
   NISN: z.string().length(10, "NISN harus 10 digit"),
   NIK: z.string().length(16, "NIK harus 16 digit"),
+  familyCardNumber: z.string().length(16, "No. KK harus 16 digit"),
   originSchool: z.string().min(2, "Asal sekolah harus diisi"),
   applicationPath: z.enum(['Zonasi', 'Prestasi', 'Afirmasi', 'Perpindahan Orang Tua']),
   gender: z.enum(['Laki-laki', 'Perempuan']),
+  birthPlace: z.string().min(2, "Tempat lahir harus diisi"),
+  birthDate: z.string().min(1, "Tanggal lahir harus diisi"),
+  religion: z.string().min(1, "Agama harus dipilih"),
+  address: z.string().min(5, "Alamat lengkap harus diisi"),
+  parentName: z.string().min(2, "Nama orang tua/wali harus diisi"),
+  parentPhone: z.string().min(10, "No. Telepon minimal 10 digit"),
   academicScore: z.string().optional(),
   distanceToSchoolKm: z.string().optional(),
 })
@@ -125,9 +138,18 @@ export default function ApplicantsPage() {
       fullName: "",
       NISN: "",
       NIK: "",
+      familyCardNumber: "",
       originSchool: "",
       applicationPath: "Zonasi",
       gender: "Laki-laki",
+      birthPlace: "",
+      birthDate: "",
+      religion: "Islam",
+      address: "",
+      parentName: "",
+      parentPhone: "",
+      academicScore: "0",
+      distanceToSchoolKm: "0",
     },
   })
 
@@ -154,14 +176,7 @@ export default function ApplicantsPage() {
       admissionStatus: 'pending',
       createdAt: new Date().toISOString(),
       serverCreatedAt: serverTimestamp(),
-      documents: [],
-      address: "Alamat belum diisi",
-      parentName: "Belum diisi",
-      parentPhone: "08",
-      birthPlace: "Belum diisi",
-      birthDate: "2012-01-01",
-      religion: "Lainnya",
-      familyCardNumber: "0000000000000000"
+      documents: []
     }
 
     addDoc(collection(db, 'applicants'), newApplicant)
@@ -190,7 +205,7 @@ export default function ApplicantsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline font-bold">Data Calon Murid</h1>
-          <p className="text-muted-foreground mt-1">Kelola data pendaftar (Dibatasi 50 entri terbaru).</p>
+          <p className="text-muted-foreground mt-1">Kelola data pendaftar sesuai standar Dapodik.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" className="gap-2">
@@ -202,126 +217,316 @@ export default function ApplicantsPage() {
           }}>
             <DialogTrigger asChild>
               <Button className="gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20">
-                <Plus className="w-4 h-4" /> Tambah Manual
+                <Plus className="w-4 h-4" /> Tambah Pendaftar
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px] border-border/50 bg-card">
-              <DialogHeader>
-                <DialogTitle className="font-headline text-2xl">Tambah Calon Murid</DialogTitle>
-                <DialogDescription>Masukkan data dasar pendaftar.</DialogDescription>
+            <DialogContent className="sm:max-w-[800px] h-[90vh] p-0 overflow-hidden border-border/50 bg-card">
+              <DialogHeader className="p-6 pb-0">
+                <DialogTitle className="font-headline text-2xl">Formulir Pendaftaran Dapodik</DialogTitle>
+                <DialogDescription>Lengkapi seluruh informasi calon siswa sesuai dokumen resmi.</DialogDescription>
               </DialogHeader>
+              
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="fullName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Nama Lengkap</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Budi Santoso" {...field} disabled={submitting} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="gender"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Jenis Kelamin</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value} disabled={submitting}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Pilih Gender" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="Laki-laki">Laki-laki</SelectItem>
-                              <SelectItem value="Perempuan">Perempuan</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  
-                  <FormField
-                    control={form.control}
-                    name="originSchool"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Asal Sekolah (SD/MI)</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Input 
-                              placeholder="Ketik atau pilih sekolah asal..." 
-                              {...field} 
-                              list="school-suggestions"
-                              disabled={submitting} 
+                <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full">
+                  <ScrollArea className="flex-1 px-6 py-4">
+                    <div className="space-y-8 pb-8">
+                      {/* Section: Identitas Pribadi */}
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 text-primary">
+                          <User className="w-4 h-4" />
+                          <h3 className="font-bold uppercase tracking-widest text-xs">Identitas Pribadi</h3>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <FormField
+                            control={form.control}
+                            name="fullName"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Nama Lengkap</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Sesuai Akte Kelahiran" {...field} disabled={submitting} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="gender"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Jenis Kelamin</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={submitting}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Pilih Gender" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="Laki-laki">Laki-laki</SelectItem>
+                                    <SelectItem value="Perempuan">Perempuan</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="NISN"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>NISN (10 Digit)</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="0123456789" {...field} maxLength={10} disabled={submitting} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="NIK"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>NIK (16 Digit)</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="3201..." {...field} maxLength={16} disabled={submitting} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="birthPlace"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Tempat Lahir</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Kota/Kabupaten" {...field} disabled={submitting} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="birthDate"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Tanggal Lahir</FormLabel>
+                                <FormControl>
+                                  <Input type="date" {...field} disabled={submitting} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="religion"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Agama</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={submitting}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Pilih Agama" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {['Islam', 'Kristen', 'Katolik', 'Hindu', 'Budha', 'Khonghucu', 'Lainnya'].map(r => (
+                                      <SelectItem key={r} value={r}>{r}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+
+                      <Separator />
+
+                      {/* Section: Alamat & Domisili */}
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 text-primary">
+                          <Home className="w-4 h-4" />
+                          <h3 className="font-bold uppercase tracking-widest text-xs">Alamat & Domisili</h3>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="md:col-span-2">
+                            <FormField
+                              control={form.control}
+                              name="address"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Alamat Lengkap</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="Jl. Raya No..., RT/RW, Kelurahan, Kecamatan" {...field} disabled={submitting} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
                             />
-                            <datalist id="school-suggestions">
-                              {schoolSuggestions.map((school: string) => (
-                                <option key={school} value={school} />
-                              ))}
-                            </datalist>
                           </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                          <FormField
+                            control={form.control}
+                            name="familyCardNumber"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>No. Kartu Keluarga (16 Digit)</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="3201..." {...field} maxLength={16} disabled={submitting} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="distanceToSchoolKm"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Jarak ke Sekolah (Km)</FormLabel>
+                                <FormControl>
+                                  <Input type="number" step="0.1" placeholder="Contoh: 1.5" {...field} disabled={submitting} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="NISN"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>NISN (10 Digit)</FormLabel>
-                          <FormControl>
-                            <Input placeholder="0123456789" {...field} maxLength={10} disabled={submitting} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="applicationPath"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Jalur Pendaftaran</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value} disabled={submitting}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Pilih Jalur" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="Zonasi">Zonasi</SelectItem>
-                              <SelectItem value="Prestasi">Prestasi</SelectItem>
-                              <SelectItem value="Afirmasi">Afirmasi</SelectItem>
-                              <SelectItem value="Perpindahan Orang Tua">Perpindahan Orang Tua</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                      <Separator />
+
+                      {/* Section: Orang Tua / Wali */}
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 text-primary">
+                          <UsersIcon className="w-4 h-4" />
+                          <h3 className="font-bold uppercase tracking-widest text-xs">Data Orang Tua / Wali</h3>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <FormField
+                            control={form.control}
+                            name="parentName"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Nama Orang Tua / Wali</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Nama Lengkap" {...field} disabled={submitting} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="parentPhone"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>No. Telepon Aktif (WhatsApp)</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="08..." {...field} disabled={submitting} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+
+                      <Separator />
+
+                      {/* Section: Jalur & Akademik */}
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 text-primary">
+                          <GraduationCap className="w-4 h-4" />
+                          <h3 className="font-bold uppercase tracking-widest text-xs">Pendidikan & Jalur Masuk</h3>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="md:col-span-2">
+                            <FormField
+                              control={form.control}
+                              name="originSchool"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Asal Sekolah (SD/MI)</FormLabel>
+                                  <FormControl>
+                                    <div className="relative">
+                                      <Input 
+                                        placeholder="Ketik atau pilih sekolah asal..." 
+                                        {...field} 
+                                        list="school-suggestions"
+                                        disabled={submitting} 
+                                      />
+                                      <datalist id="school-suggestions">
+                                        {schoolSuggestions.map((school: string) => (
+                                          <option key={school} value={school} />
+                                        ))}
+                                      </datalist>
+                                    </div>
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                          <FormField
+                            control={form.control}
+                            name="applicationPath"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Jalur Pendaftaran</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={submitting}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Pilih Jalur" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="Zonasi">Zonasi</SelectItem>
+                                    <SelectItem value="Prestasi">Prestasi</SelectItem>
+                                    <SelectItem value="Afirmasi">Afirmasi</SelectItem>
+                                    <SelectItem value="Perpindahan Orang Tua">Perpindahan Orang Tua</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="academicScore"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Rata-rata Nilai Rapor</FormLabel>
+                                <FormControl>
+                                  <Input type="number" step="0.01" placeholder="Contoh: 85.50" {...field} disabled={submitting} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </ScrollArea>
+
+                  <div className="p-6 border-t bg-card">
+                    <DialogFooter>
+                      <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={submitting}>
+                        Batal
+                      </Button>
+                      <Button type="submit" disabled={submitting} className="min-w-[150px]">
+                        {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+                        Simpan Pendaftar
+                      </Button>
+                    </DialogFooter>
                   </div>
-
-                  <DialogFooter className="pt-4">
-                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={submitting}>
-                      Batal
-                    </Button>
-                    <Button type="submit" disabled={submitting}>
-                      {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Simpan Pendaftar'}
-                    </Button>
-                  </DialogFooter>
                 </form>
               </Form>
             </DialogContent>
