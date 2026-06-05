@@ -128,8 +128,8 @@ export default function ReportsPage() {
 
   const getExportData = () => {
     if (!applicants) return []
-    return applicants.map(a => {
-      const row: any = {}
+    return applicants.map((a, idx) => {
+      const row: any = { "No.": idx + 1 }
       EXPORT_COLUMNS.forEach(col => {
         if (selectedColumns.includes(col.id)) {
           row[col.label] = (a as any)[col.id] || '-'
@@ -196,7 +196,7 @@ export default function ReportsPage() {
       const body = data.map(item => Object.values(item))
 
       doc.setFontSize(18)
-      doc.setTextColor(67, 97, 238) // Primary Blue
+      doc.setTextColor(67, 97, 238)
       doc.text("Laporan Penerimaan Peserta Didik Baru (PPDB)", 14, 15)
       
       doc.setFontSize(10)
@@ -210,7 +210,7 @@ export default function ReportsPage() {
         theme: 'striped',
         styles: { fontSize: 7, cellPadding: 2, font: 'helvetica' },
         headStyles: { 
-          fillColor: [67, 97, 238], // Blue Header
+          fillColor: [67, 97, 238],
           textColor: [255, 255, 255],
           fontStyle: 'bold',
           halign: 'center'
@@ -219,7 +219,7 @@ export default function ReportsPage() {
       })
 
       doc.save(`Laporan_Siswa_PPDB_${new Date().toISOString().split('T')[0]}.pdf`)
-      toast({ title: "PDF Berhasil", description: "Laporan dalam format PDF telah diunduh dengan judul tabel berwarna biru." })
+      toast({ title: "PDF Berhasil", description: "Laporan dalam format PDF telah diunduh." })
       setIsDownloadDialogOpen(false)
     } catch (error) {
       console.error(error)

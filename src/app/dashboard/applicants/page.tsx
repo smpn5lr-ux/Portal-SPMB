@@ -117,7 +117,6 @@ const formSchema = z.object({
   childOrder: z.string().optional(),
 })
 
-// MAPPING UNTUK BAHASA INDONESIA (EKSPOR/IMPOR)
 const COLUMN_MAPPING: Record<string, string> = {
   fullName: "Nama Lengkap",
   NISN: "NISN",
@@ -272,12 +271,12 @@ export default function ApplicantsPage() {
       }
     ]
 
-    const headers = TEMPLATE_KEYS.map(key => COLUMN_MAPPING[key]);
+    const headers = ["No.", ...TEMPLATE_KEYS.map(key => COLUMN_MAPPING[key])];
 
     if (format === 'csv') {
       const csvContent = [
         headers.join(","),
-        ...sampleData.map(row => TEMPLATE_KEYS.map(key => `"${(row as any)[key] || ""}"`).join(","))
+        ...sampleData.map((row, idx) => [idx + 1, ...TEMPLATE_KEYS.map(key => `"${(row as any)[key] || ""}"`)].join(","))
       ].join("\n")
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
       const url = URL.createObjectURL(blob)
@@ -286,8 +285,8 @@ export default function ApplicantsPage() {
       link.setAttribute("download", "Templat_Impor_Siswa.csv")
       link.click()
     } else if (format === 'excel') {
-      const mappedData = sampleData.map(row => {
-        const newRow: any = {};
+      const mappedData = sampleData.map((row, idx) => {
+        const newRow: any = { "No.": idx + 1 };
         TEMPLATE_KEYS.forEach(key => {
           newRow[COLUMN_MAPPING[key]] = (row as any)[key];
         });
@@ -310,11 +309,14 @@ export default function ApplicantsPage() {
       doc.setTextColor(100)
       doc.text("Gunakan kolom-kolom berikut dalam file CSV atau Excel Anda agar sistem dapat membaca data dengan baik.", 14, 22)
       
-      const tableBody = TEMPLATE_KEYS.map(key => [
-        COLUMN_MAPPING[key], 
-        "Teks/Angka", 
-        ["fullName", "NISN", "NIK", "birthDate"].includes(key) ? "Wajib" : "Opsional"
-      ])
+      const tableBody = [
+        ["No.", "Angka", "Wajib"],
+        ...TEMPLATE_KEYS.map(key => [
+          COLUMN_MAPPING[key], 
+          "Teks/Angka", 
+          ["fullName", "NISN", "NIK", "birthDate"].includes(key) ? "Wajib" : "Opsional"
+        ])
+      ]
       
       autoTable(doc, {
         head: [['Nama Kolom', 'Tipe Data', 'Status']],
@@ -322,7 +324,7 @@ export default function ApplicantsPage() {
         startY: 30,
         styles: { fontSize: 8, font: 'helvetica' },
         headStyles: { 
-          fillColor: [67, 97, 238], // Blue Header
+          fillColor: [67, 97, 238],
           textColor: [255, 255, 255],
           fontStyle: 'bold'
         }
@@ -370,7 +372,6 @@ export default function ApplicantsPage() {
       let successCount = 0
       let errorCount = 0
 
-      // Get current max sequence
       const q = query(collection(db, 'applicants'), orderBy('registrationSequence', 'desc'), limit(1));
       const snap = await getDocs(q);
       let currentMax = 0;
@@ -385,7 +386,6 @@ export default function ApplicantsPage() {
           rawData[header] = values[index]
         })
 
-        // Map Indonesian headers back to internal keys
         const data: any = {};
         Object.entries(rawData).forEach(([headerLabel, val]) => {
           const dbKey = REVERSE_MAPPING[headerLabel];
@@ -444,7 +444,6 @@ export default function ApplicantsPage() {
     setSubmitting(true)
     
     try {
-      // Get next unique sequence number
       const q = query(collection(db, 'applicants'), orderBy('registrationSequence', 'desc'), limit(1));
       const snap = await getDocs(q);
       let nextSequence = 1;
@@ -556,7 +555,6 @@ export default function ApplicantsPage() {
                 <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 overflow-hidden">
                   <ScrollArea className="flex-1 px-8 py-6">
                     <div className="space-y-10 pb-10">
-                      {/* SEKSI 1: IDENTITAS */}
                       <div className="space-y-6">
                         <div className="flex items-center gap-3 text-primary">
                           <div className="bg-primary/10 p-2 rounded-lg">
@@ -689,7 +687,6 @@ export default function ApplicantsPage() {
                         </div>
                       </div>
 
-                      {/* SEKSI 2: KELUARGA */}
                       <div className="space-y-6">
                         <div className="flex items-center gap-3 text-cyan-500">
                           <div className="bg-cyan-500/10 p-2 rounded-lg">
@@ -727,7 +724,6 @@ export default function ApplicantsPage() {
                         </div>
                       </div>
 
-                      {/* SEKSI 3: DOMISILI */}
                       <div className="space-y-6">
                         <div className="flex items-center gap-3 text-amber-500">
                           <div className="bg-amber-500/10 p-2 rounded-lg">
@@ -824,7 +820,6 @@ export default function ApplicantsPage() {
                         </div>
                       </div>
 
-                      {/* SEKSI 4: ORANG TUA */}
                       <div className="space-y-6">
                         <div className="flex items-center gap-3 text-pink-500">
                           <div className="bg-pink-500/10 p-2 rounded-lg">
@@ -963,7 +958,6 @@ export default function ApplicantsPage() {
                         </div>
                       </div>
 
-                      {/* SEKSI 5: PENDIDIKAN */}
                       <div className="space-y-6">
                         <div className="flex items-center gap-3 text-green-500">
                           <div className="bg-green-500/10 p-2 rounded-lg">
@@ -1074,6 +1068,7 @@ export default function ApplicantsPage() {
         <Table>
           <TableHeader className="bg-primary/5 border-b">
             <TableRow className="hover:bg-transparent">
+              <TableHead className="font-bold w-[60px] text-primary">No.</TableHead>
               <TableHead className="font-bold w-[100px] text-primary">No. Urut</TableHead>
               <TableHead className="font-bold text-primary">NISN / No. Reg</TableHead>
               <TableHead className="font-bold text-primary">Nama Lengkap</TableHead>
@@ -1086,19 +1081,20 @@ export default function ApplicantsPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-32 text-center">
+                <TableCell colSpan={8} className="h-32 text-center">
                   <Loader2 className="w-4 h-4 animate-spin mx-auto" />
                 </TableCell>
               </TableRow>
             ) : filteredApplicants.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
                   Tidak ada data pendaftar ditemukan.
                 </TableCell>
               </TableRow>
             ) : (
-              filteredApplicants.map((applicant) => (
+              filteredApplicants.map((applicant, idx) => (
                 <TableRow key={applicant.id} className="hover:bg-muted/20 transition-colors">
+                  <TableCell className="text-xs text-muted-foreground font-medium">{idx + 1}</TableCell>
                   <TableCell className="font-bold text-muted-foreground">
                     #{applicant.registrationSequence || '-'}
                   </TableCell>

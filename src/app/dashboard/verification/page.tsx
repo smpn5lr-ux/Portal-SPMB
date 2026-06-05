@@ -60,7 +60,6 @@ export default function VerificationPage() {
   const handleQuickVerify = (id: string, status: string) => {
     if (!db) return
     const docRef = doc(db, 'applicants', id)
-    // Non-blocking update untuk efisiensi
     updateDoc(docRef, { verificationStatus: status })
       .catch(async () => {
         const permissionError = new FirestorePermissionError({
@@ -109,6 +108,7 @@ export default function VerificationPage() {
             <Table>
               <TableHeader className="bg-primary/5 border-b">
                 <TableRow className="hover:bg-transparent">
+                  <TableHead className="font-bold w-[60px] text-primary">No.</TableHead>
                   <TableHead className="font-bold text-primary">No. Registrasi</TableHead>
                   <TableHead className="font-bold text-primary">Nama Calon Siswa</TableHead>
                   <TableHead className="font-bold text-primary">Jalur</TableHead>
@@ -119,7 +119,7 @@ export default function VerificationPage() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-64 text-center">
+                    <TableCell colSpan={6} className="h-64 text-center">
                       <div className="flex justify-center items-center gap-2 text-muted-foreground">
                         <Loader2 className="w-6 h-6 animate-spin" />
                         Memuat data...
@@ -127,8 +127,9 @@ export default function VerificationPage() {
                     </TableCell>
                   </TableRow>
                 ) : filteredApplicants.length > 0 ? (
-                  filteredApplicants.map((applicant) => (
+                  filteredApplicants.map((applicant, idx) => (
                     <TableRow key={applicant.id} className="hover:bg-muted/20 transition-colors">
+                      <TableCell className="text-xs text-muted-foreground font-medium">{idx + 1}</TableCell>
                       <TableCell className="font-mono text-xs font-bold text-primary">
                         {applicant.registrationNumber}
                       </TableCell>
@@ -180,7 +181,7 @@ export default function VerificationPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-64 text-center">
+                    <TableCell colSpan={6} className="h-64 text-center">
                       <div className="flex flex-col items-center justify-center text-muted-foreground">
                         <FileText className="w-12 h-12 opacity-20 mb-4" />
                         <p>Tidak ada data pendaftar untuk kriteria ini.</p>

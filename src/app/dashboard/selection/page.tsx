@@ -48,7 +48,6 @@ export default function SelectionPage() {
   const { toast } = useToast()
   const db = useFirestore()
   
-  // Gunakan useMemoFirebase dan limit untuk performa
   const applicantsQuery = useMemoFirebase(() => {
     if (!db) return null
     return query(collection(db, 'applicants'), limit(100))
@@ -83,7 +82,6 @@ export default function SelectionPage() {
         })
       })
 
-      // Eksekusi semua update sekaligus (maks 500 dokumen per batch)
       await batch.commit()
       
       toast({
@@ -244,6 +242,7 @@ export default function SelectionPage() {
                   <Table>
                     <TableHeader className="bg-muted/30">
                       <TableRow>
+                        <TableHead className="w-[60px]">No.</TableHead>
                         <TableHead className="w-[80px]">Rank</TableHead>
                         <TableHead>Nama Calon Siswa</TableHead>
                         <TableHead>Jalur</TableHead>
@@ -254,6 +253,7 @@ export default function SelectionPage() {
                     <TableBody>
                       {sortedApplicants.map((a, idx) => (
                         <TableRow key={a.id} className="hover:bg-muted/20">
+                          <TableCell className="text-xs text-muted-foreground font-medium">{idx + 1}</TableCell>
                           <TableCell className="font-bold text-muted-foreground">#{idx + 1}</TableCell>
                           <TableCell>
                             <div className="font-medium">{a.fullName}</div>
