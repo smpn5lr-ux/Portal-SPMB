@@ -144,7 +144,7 @@ export default function ApplicantsPage() {
       gender: "Laki-laki",
       birthPlace: "",
       birthDate: "",
-      religion: "Islam",
+      religion: "Katolik",
       address: "",
       parentName: "",
       parentPhone: "",
@@ -336,7 +336,7 @@ export default function ApplicantsPage() {
                                     </SelectTrigger>
                                   </FormControl>
                                   <SelectContent>
-                                    {['Islam', 'Kristen', 'Katolik', 'Hindu', 'Budha', 'Khonghucu', 'Lainnya'].map(r => (
+                                    {['Katolik', 'Islam', 'Kristen', 'Hindu', 'Budha', 'Khonghucu', 'Lainnya'].map(r => (
                                       <SelectItem key={r} value={r}>{r}</SelectItem>
                                     ))}
                                   </SelectContent>
