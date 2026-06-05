@@ -161,15 +161,29 @@ export default function ApplicantsPage() {
     )
   }, [applicants, searchTerm])
 
+  function calculateAge(birthDate: string): number {
+    if (!birthDate) return 0
+    const birth = new Date(birthDate)
+    const now = new Date()
+    let age = now.getFullYear() - birth.getFullYear()
+    const m = now.getMonth() - birth.getMonth()
+    if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) {
+      age--
+    }
+    return age
+  }
+
   function onSubmit(values: z.infer<typeof formSchema>) {
     if (!db || submitting) return
 
     setSubmitting(true)
     const registrationNumber = `REG-2024-${Math.floor(1000 + Math.random() * 9000)}`
+    const ageYears = calculateAge(values.birthDate)
     
     const newApplicant = {
       ...values,
       registrationNumber,
+      ageYears,
       academicScore: values.academicScore ? parseFloat(values.academicScore) : 0,
       distanceToSchoolKm: values.distanceToSchoolKm ? parseFloat(values.distanceToSchoolKm) : 0,
       verificationStatus: 'Belum Diverifikasi',
@@ -185,7 +199,7 @@ export default function ApplicantsPage() {
         form.reset()
         toast({
           title: "Berhasil!",
-          description: `Data ${values.fullName} telah disimpan.`,
+          description: `Data ${values.fullName} (Usia: ${ageYears} Tahun) telah disimpan.`,
         })
       })
       .catch(async (error) => {
