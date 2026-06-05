@@ -79,6 +79,19 @@ const pathColorMap: Record<string, string> = {
   'Perpindahan Orang Tua': 'text-purple-500 border-purple-500/20',
 }
 
+// Daftar sekolah zonasi (bisa dipindahkan ke Firestore settings nantinya)
+const SCHOOL_SUGGESTIONS = [
+  "SDN Menteng 01",
+  "SDN Menteng 02",
+  "SDN Menteng 03",
+  "SDN Gondangdia 01",
+  "SDN Gondangdia 03",
+  "SD Swasta Jakarta Pusat",
+  "MI Nurul Iman",
+  "SD Islam Al-Azhar",
+  "Lainnya"
+]
+
 const formSchema = z.object({
   fullName: z.string().min(2, "Nama lengkap harus diisi"),
   NISN: z.string().length(10, "NISN harus 10 digit"),
@@ -97,7 +110,6 @@ export default function ApplicantsPage() {
   const { toast } = useToast()
   const db = useFirestore()
 
-  // Gunakan useMemoFirebase dan limit(50) untuk menghemat pembacaan database
   const applicantsQuery = useMemoFirebase(() => {
     if (!db) return null
     return query(
@@ -154,7 +166,6 @@ export default function ApplicantsPage() {
       familyCardNumber: "0000000000000000"
     }
 
-    // Hindari await langsung untuk performa UI instan dan efisiensi cache
     addDoc(collection(db, 'applicants'), newApplicant)
       .then(() => {
         setIsDialogOpen(false)
@@ -276,19 +287,30 @@ export default function ApplicantsPage() {
                       )}
                     />
                   </div>
+                  
                   <FormField
                     control={form.control}
                     name="originSchool"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Asal Sekolah (SD/MI)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="SDN Menteng 01" {...field} disabled={submitting} />
-                        </FormControl>
+                        <Select onValueChange={field.onChange} defaultValue={field.value} disabled={submitting}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Pilih Sekolah Asal" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {SCHOOL_SUGGESTIONS.map((school) => (
+                              <SelectItem key={school} value={school}>{school}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
