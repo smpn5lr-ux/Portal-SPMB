@@ -14,7 +14,9 @@ import {
   GraduationCap,
   Info,
   Layers,
-  Smartphone
+  Smartphone,
+  FileDown,
+  ChevronDown
 } from "lucide-react"
 import { 
   Table, 
@@ -51,6 +53,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -62,6 +70,7 @@ import { Applicant } from '@/lib/types'
 import { errorEmitter } from '@/firebase/error-emitter'
 import { FirestorePermissionError } from '@/firebase/errors'
 import { useToast } from '@/hooks/use-toast'
+import * as XLSX from 'xlsx'
 
 const statusColorMap: Record<string, string> = {
   'Belum Diverifikasi': 'bg-slate-500/10 text-slate-400 border-slate-500/20',
@@ -107,6 +116,15 @@ const formSchema = z.object({
   numberOfSiblings: z.string().optional(),
   childOrder: z.string().optional(),
 })
+
+const TEMPLATE_COLUMNS = [
+  "fullName", "NISN", "NIK", "familyCardNumber", "originSchool", 
+  "applicationPath", "gender", "birthPlace", "birthDate", "religion", 
+  "address", "parentName", "parentPhone", "academicScore", "distanceToSchoolKm",
+  "livingWith", "transportation", "hobbies", "registrantRelationship",
+  "fatherName", "fatherNIK", "fatherOccupation", "motherName", "motherNIK",
+  "motherOccupation", "numberOfSiblings", "childOrder"
+]
 
 export default function ApplicantsPage() {
   const [searchTerm, setSearchTerm] = useState('')
@@ -191,6 +209,81 @@ export default function ApplicantsPage() {
     return age
   }
 
+  const handleDownloadTemplate = async (format: 'csv' | 'excel' | 'pdf') => {
+    const sampleData = [
+      {
+        fullName: "Budi Santoso",
+        NISN: "0123456789",
+        NIK: "3201234567890001",
+        familyCardNumber: "3201234567890002",
+        originSchool: "SDN Menteng 01",
+        applicationPath: "Zonasi",
+        gender: "Laki-laki",
+        birthPlace: "Jakarta",
+        birthDate: "2012-05-15",
+        religion: "Katolik",
+        address: "Jl. Merdeka No. 10",
+        parentName: "Agus Santoso",
+        parentPhone: "081234567890",
+        academicScore: "85.5",
+        distanceToSchoolKm: "1.2",
+        livingWith: "Bersama Orang Tua",
+        transportation: "Jalan Kaki",
+        hobbies: "Membaca",
+        registrantRelationship: "Ayah",
+        fatherName: "Agus Santoso",
+        fatherNIK: "3201234567890003",
+        fatherOccupation: "Karyawan Swasta",
+        motherName: "Siti Aminah",
+        motherNIK: "3201234567890004",
+        motherOccupation: "Ibu Rumah Tangga",
+        numberOfSiblings: "2",
+        childOrder: "1"
+      }
+    ]
+
+    if (format === 'csv') {
+      const csvContent = [
+        TEMPLATE_COLUMNS.join(","),
+        ...sampleData.map(row => TEMPLATE_COLUMNS.map(col => `"${(row as any)[col] || ""}"`).join(","))
+      ].join("\n")
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.setAttribute("href", url)
+      link.setAttribute("download", "Templat_Impor_Siswa.csv")
+      link.click()
+    } else if (format === 'excel') {
+      const worksheet = XLSX.utils.json_to_sheet(sampleData, { header: TEMPLATE_COLUMNS })
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Templat Impor")
+      XLSX.writeFile(workbook, "Templat_Impor_Siswa.xlsx")
+    } else if (format === 'pdf') {
+      const { default: jsPDF } = await import('jspdf')
+      const { default: autoTable } = await import('jspdf-autotable')
+      const doc = new jsPDF('landscape')
+      doc.text("Panduan Templat Impor Data Calon Murid", 14, 15)
+      doc.setFontSize(10)
+      doc.text("Gunakan kolom-kolom berikut dalam file CSV atau Excel Anda:", 14, 22)
+      
+      const tableBody = TEMPLATE_COLUMNS.map(col => [col, "Teks/Angka", "Wajib" if ["fullName", "NISN", "NIK", "birthDate"].includes(col) else "Opsional"])
+      
+      autoTable(doc, {
+        head: [['Nama Kolom', 'Tipe Data', 'Status']],
+        body: tableBody,
+        startY: 30,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [67, 97, 238] }
+      })
+      doc.save("Panduan_Templat_Impor.pdf")
+    }
+    
+    toast({
+      title: "Templat Diunduh",
+      description: `File templat ${format.toUpperCase()} berhasil diunduh.`,
+    })
+  }
+
   const handleImportClick = () => {
     fileInputRef.current?.click()
   }
@@ -220,7 +313,7 @@ export default function ApplicantsPage() {
         return
       }
 
-      const headers = lines[0].split(',').map(h => h.trim())
+      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
       const rows = lines.slice(1)
       let successCount = 0
       let errorCount = 0
@@ -234,7 +327,7 @@ export default function ApplicantsPage() {
       }
 
       for (const row of rows) {
-        const values = row.split(',').map(v => v.trim())
+        const values = row.split(',').map(v => v.trim().replace(/"/g, ''))
         const data: any = {}
         headers.forEach((header, index) => {
           data[header] = values[index]
@@ -352,6 +445,28 @@ export default function ApplicantsPage() {
             accept=".csv" 
             className="hidden" 
           />
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <FileDown className="w-4 h-4" />
+                Unduh Templat
+                <ChevronDown className="w-3 h-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleDownloadTemplate('csv')}>
+                Format CSV (.csv)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleDownloadTemplate('excel')}>
+                Format Excel (.xlsx)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleDownloadTemplate('pdf')}>
+                Panduan PDF (.pdf)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <Button 
             variant="outline" 
             className="gap-2" 
@@ -359,7 +474,7 @@ export default function ApplicantsPage() {
             disabled={isImporting}
           >
             {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
-            Import
+            Import Data
           </Button>
           
           <Dialog open={isDialogOpen} onOpenChange={(open) => {
