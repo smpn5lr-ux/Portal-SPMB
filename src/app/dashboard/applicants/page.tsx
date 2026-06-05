@@ -65,6 +65,7 @@ import { collection, query, orderBy, addDoc, serverTimestamp } from 'firebase/fi
 import { Applicant } from '@/lib/types'
 import { errorEmitter } from '@/firebase/error-emitter'
 import { FirestorePermissionError } from '@/firebase/errors'
+import { useToast } from '@/hooks/use-toast'
 
 const statusColorMap: Record<string, string> = {
   'Belum Diverifikasi': 'bg-slate-500/10 text-slate-400 border-slate-500/20',
@@ -94,6 +95,8 @@ const formSchema = z.object({
 export default function ApplicantsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const { toast } = useToast()
   const db = useFirestore()
 
   const applicantsQuery = useMemo(() => {
@@ -124,8 +127,9 @@ export default function ApplicantsPage() {
   }, [applicants, searchTerm])
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!db) return
+    if (!db || submitting) return
 
+    setSubmitting(true)
     const registrationNumber = `REG-2024-${Math.floor(1000 + Math.random() * 9000)}`
     
     const newApplicant = {
@@ -151,6 +155,10 @@ export default function ApplicantsPage() {
       .then(() => {
         setIsDialogOpen(false)
         form.reset()
+        toast({
+          title: "Berhasil!",
+          description: `Data ${values.fullName} telah disimpan.`,
+        })
       })
       .catch(async (error) => {
         const permissionError = new FirestorePermissionError({
@@ -159,6 +167,9 @@ export default function ApplicantsPage() {
           requestResourceData: newApplicant
         })
         errorEmitter.emit('permission-error', permissionError)
+      })
+      .finally(() => {
+        setSubmitting(false)
       })
   }
 
@@ -179,7 +190,9 @@ export default function ApplicantsPage() {
             Export CSV
           </Button>
           
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            if (!submitting) setIsDialogOpen(open)
+          }}>
             <DialogTrigger asChild>
               <Button className="gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20">
                 <Plus className="w-4 h-4" />
@@ -203,7 +216,7 @@ export default function ApplicantsPage() {
                         <FormItem>
                           <FormLabel>Nama Lengkap</FormLabel>
                           <FormControl>
-                            <Input placeholder="Contoh: Budi Santoso" {...field} />
+                            <Input placeholder="Contoh: Budi Santoso" {...field} disabled={submitting} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -215,7 +228,7 @@ export default function ApplicantsPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Jenis Kelamin</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select onValueChange={field.onChange} defaultValue={field.value} disabled={submitting}>
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder="Pilih Gender" />
@@ -239,7 +252,7 @@ export default function ApplicantsPage() {
                         <FormItem>
                           <FormLabel>NISN (10 Digit)</FormLabel>
                           <FormControl>
-                            <Input placeholder="0123456789" {...field} maxLength={10} />
+                            <Input placeholder="0123456789" {...field} maxLength={10} disabled={submitting} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -252,7 +265,7 @@ export default function ApplicantsPage() {
                         <FormItem>
                           <FormLabel>NIK (16 Digit)</FormLabel>
                           <FormControl>
-                            <Input placeholder="3201..." {...field} maxLength={16} />
+                            <Input placeholder="3201..." {...field} maxLength={16} disabled={submitting} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -266,7 +279,7 @@ export default function ApplicantsPage() {
                       <FormItem>
                         <FormLabel>Asal Sekolah (SD/MI)</FormLabel>
                         <FormControl>
-                          <Input placeholder="SDN Menteng 01" {...field} />
+                          <Input placeholder="SDN Menteng 01" {...field} disabled={submitting} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -279,7 +292,7 @@ export default function ApplicantsPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Jalur Pendaftaran</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select onValueChange={field.onChange} defaultValue={field.value} disabled={submitting}>
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder="Pilih Jalur" />
@@ -304,7 +317,7 @@ export default function ApplicantsPage() {
                           <FormItem>
                             <FormLabel>Rata-rata Nilai</FormLabel>
                             <FormControl>
-                              <Input type="number" placeholder="85.5" {...field} />
+                              <Input type="number" placeholder="85.5" {...field} disabled={submitting} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -318,7 +331,7 @@ export default function ApplicantsPage() {
                           <FormItem>
                             <FormLabel>Jarak ke Sekolah (Km)</FormLabel>
                             <FormControl>
-                              <Input type="number" step="0.1" placeholder="1.5" {...field} />
+                              <Input type="number" step="0.1" placeholder="1.5" {...field} disabled={submitting} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -327,11 +340,18 @@ export default function ApplicantsPage() {
                     ) : null}
                   </div>
                   <DialogFooter className="pt-4">
-                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={submitting}>
                       Batal
                     </Button>
-                    <Button type="submit" className="bg-primary hover:bg-primary/90">
-                      Simpan Pendaftar
+                    <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={submitting}>
+                      {submitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Menyimpan...
+                        </>
+                      ) : (
+                        'Simpan Pendaftar'
+                      )}
                     </Button>
                   </DialogFooter>
                 </form>
@@ -453,3 +473,4 @@ export default function ApplicantsPage() {
     </div>
   )
 }
+    
