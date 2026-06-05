@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useMemo } from "react"
@@ -28,7 +29,6 @@ import { useCollection, useFirestore } from "@/firebase"
 import { collection } from "firebase/firestore"
 import { Applicant } from "@/lib/types"
 import { Skeleton } from "@/components/ui/skeleton"
-import { cn } from "@/lib/utils"
 
 export default function OverviewPage() {
   const db = useFirestore()
@@ -77,6 +77,9 @@ export default function OverviewPage() {
     { day: 'Sab', count: 22 },
     { day: 'Min', count: 15 },
   ]
+
+  // Nilai tinggi deterministik untuk skeleton agar tidak terjadi hydration mismatch
+  const skeletonHeights = [40, 60, 35, 75, 50, 25, 45];
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700 fill-mode-both">
@@ -134,8 +137,8 @@ export default function OverviewPage() {
           <CardContent className="h-[300px]">
             {loading ? (
               <div className="w-full h-full flex items-end gap-2 pb-4">
-                {Array.from({ length: 7 }).map((_, i) => (
-                  <Skeleton key={i} className="flex-1 bg-muted/10" style={{ height: `${Math.random() * 60 + 20}%` }} />
+                {skeletonHeights.map((h, i) => (
+                  <Skeleton key={i} className="flex-1 bg-muted/10" style={{ height: `${h}%` }} />
                 ))}
               </div>
             ) : (
