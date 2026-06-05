@@ -184,7 +184,7 @@ export default function ApplicantDetailPage() {
                         <span className="text-sm font-mono">{applicant.NIK}</span>
                       </div>
                       <div className="flex justify-between items-center py-1">
-                        <span className="text-xs text-muted-foreground">Gender</span>
+                        <span className="text-xs text-muted-foreground">Jenis Kelamin</span>
                         <span className="text-sm">{applicant.gender}</span>
                       </div>
                       <div className="flex justify-between items-center py-1">

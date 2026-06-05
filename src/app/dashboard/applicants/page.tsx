@@ -571,7 +571,7 @@ export default function ApplicantsPage() {
                                 <Select onValueChange={field.onChange} defaultValue={field.value} disabled={submitting}>
                                   <FormControl>
                                     <SelectTrigger>
-                                      <SelectValue placeholder="Pilih Gender" />
+                                      <SelectValue placeholder="Pilih Jenis Kelamin" />
                                     </SelectTrigger>
                                   </FormControl>
                                   <SelectContent>

@@ -601,7 +601,7 @@ export default function ClassesPage() {
                     <TableHead className="w-[60px] font-bold text-primary">No.</TableHead>
                     <TableHead className="font-bold text-primary">Nama Lengkap</TableHead>
                     <TableHead className="font-bold text-primary">NISN</TableHead>
-                    <TableHead className="font-bold text-primary">Gender</TableHead>
+                    <TableHead className="font-bold text-primary">Jenis Kelamin</TableHead>
                     <TableHead className="font-bold text-primary">Sekolah Asal</TableHead>
                   </TableRow>
                 </TableHeader>
