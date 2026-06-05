@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useMemo } from "react"
@@ -9,7 +10,8 @@ import {
   MapPin,
   Trophy,
   Heart,
-  Truck
+  Truck,
+  User
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { 
@@ -32,8 +34,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 export default function OverviewPage() {
   const db = useFirestore()
   
-  // Batasi pembacaan untuk ringkasan. 
-  // Untuk statistik yang akurat pada skala besar, disarankan menggunakan dokumen metadata khusus.
+  // Limit reading for summary. 
+  // For large scale accurate stats, a dedicated metadata doc is recommended.
   const applicantsQuery = useMemoFirebase(() => {
     if (!db) return null
     return query(collection(db, 'applicants'), limit(500))
@@ -67,6 +69,16 @@ export default function OverviewPage() {
       const percentage = applicants.length ? Math.round((count / applicants.length) * 100) : 0
       return { name: p, value: percentage, icon: icons[i], color: colors[i] }
     })
+  }, [applicants])
+
+  const genderStats = useMemo(() => {
+    if (!applicants) return []
+    const male = applicants.filter(a => a.gender === 'Laki-laki').length
+    const female = applicants.filter(a => a.gender === 'Perempuan').length
+    return [
+      { name: 'Laki-laki', value: male, color: '#4361EE' },
+      { name: 'Perempuan', value: female, color: '#F72585' },
+    ]
   }, [applicants])
 
   const chartData = [
@@ -174,61 +186,92 @@ export default function OverviewPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-border/50 bg-card">
-          <CardHeader>
-            <CardTitle className="font-headline text-lg">Distribusi Jalur</CardTitle>
-            <CardDescription>Persentase pendaftar per jalur masuk.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[200px] flex items-center justify-center">
-              {loading ? (
-                <Skeleton className="h-32 w-32 rounded-full bg-muted/10" />
-              ) : (
-                <div className="w-full h-full animate-in zoom-in-90 duration-700">
+        <div className="space-y-6">
+          <Card className="border-border/50 bg-card">
+            <CardHeader>
+              <CardTitle className="font-headline text-lg">Distribusi Jalur</CardTitle>
+              <CardDescription>Persentase pendaftar per jalur masuk.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[180px] flex items-center justify-center">
+                {loading ? (
+                  <Skeleton className="h-28 w-28 rounded-full bg-muted/10" />
+                ) : (
+                  <div className="w-full h-full animate-in zoom-in-90 duration-700">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={pathStats}
+                          innerRadius={50}
+                          outerRadius={70}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          {pathStats.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2 mt-4">
+                {pathStats.map((path) => (
+                  <div key={path.name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: path.color }}></div>
+                      <span className="text-[10px] font-medium">{path.name}</span>
+                    </div>
+                    <span className="text-[10px] font-bold text-muted-foreground">{path.value}%</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/50 bg-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="font-headline text-lg flex items-center gap-2">
+                <User className="w-4 h-4 text-primary" /> Distribusi Gender
+              </CardTitle>
+              <CardDescription className="text-xs">Perbandingan Laki-laki & Perempuan.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[100px] flex items-center justify-center">
+                {loading ? (
+                  <Skeleton className="h-16 w-16 rounded-full bg-muted/10" />
+                ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={pathStats}
-                        innerRadius={60}
-                        outerRadius={80}
+                        data={genderStats}
+                        innerRadius={30}
+                        outerRadius={45}
                         paddingAngle={5}
                         dataKey="value"
                       >
-                        {pathStats.map((entry, index) => (
+                        {genderStats.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
                       <Tooltip />
                     </PieChart>
                   </ResponsiveContainer>
-                </div>
-              )}
-            </div>
-            <div className="space-y-3 mt-4">
-              {loading ? (
-                Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Skeleton className="h-2 w-2 rounded-full bg-muted/20" />
-                      <Skeleton className="h-3 w-20 bg-muted/20" />
-                    </div>
-                    <Skeleton className="h-3 w-8 bg-muted/20" />
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                {genderStats.map((stat) => (
+                  <div key={stat.name} className="bg-muted/30 p-2 rounded-lg border border-border/50">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase">{stat.name}</p>
+                    <p className="text-sm font-bold">{stat.value} <span className="text-[8px] font-normal">Siswa</span></p>
                   </div>
-                ))
-              ) : (
-                pathStats.map((path) => (
-                  <div key={path.name} className="flex items-center justify-between animate-in slide-in-from-left-2 duration-500">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: path.color }}></div>
-                      <span className="text-xs font-medium">{path.name}</span>
-                    </div>
-                    <span className="text-xs font-bold text-muted-foreground">{path.value}%</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   )
