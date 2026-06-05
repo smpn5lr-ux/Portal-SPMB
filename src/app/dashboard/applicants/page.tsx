@@ -12,7 +12,8 @@ import {
   Eye, 
   CheckCircle,
   FileText,
-  Loader2
+  Loader2,
+  UserPlus
 } from "lucide-react"
 import { 
   Table, 
@@ -31,10 +32,39 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
 import Link from 'next/link'
 import { useCollection, useFirestore } from '@/firebase'
-import { collection, query, orderBy } from 'firebase/firestore'
+import { collection, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore'
 import { Applicant } from '@/lib/types'
+import { errorEmitter } from '@/firebase/error-emitter'
+import { FirestorePermissionError } from '@/firebase/errors'
 
 const statusColorMap: Record<string, string> = {
   'Belum Diverifikasi': 'bg-slate-500/10 text-slate-400 border-slate-500/20',
@@ -50,8 +80,20 @@ const pathColorMap: Record<string, string> = {
   'Perpindahan Orang Tua': 'text-purple-500 border-purple-500/20',
 }
 
+const formSchema = z.object({
+  fullName: z.string().min(2, "Nama lengkap harus diisi"),
+  NISN: z.string().length(10, "NISN harus 10 digit"),
+  NIK: z.string().length(16, "NIK harus 16 digit"),
+  originSchool: z.string().min(2, "Asal sekolah harus diisi"),
+  applicationPath: z.enum(['Zonasi', 'Prestasi', 'Afirmasi', 'Perpindahan Orang Tua']),
+  gender: z.enum(['Laki-laki', 'Perempuan']),
+  academicScore: z.string().optional(),
+  distanceToSchoolKm: z.string().optional(),
+})
+
 export default function ApplicantsPage() {
   const [searchTerm, setSearchTerm] = useState('')
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
   const db = useFirestore()
 
   const applicantsQuery = useMemo(() => {
@@ -61,6 +103,18 @@ export default function ApplicantsPage() {
 
   const { data: applicants, loading } = useCollection<Applicant>(applicantsQuery)
 
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      fullName: "",
+      NISN: "",
+      NIK: "",
+      originSchool: "",
+      applicationPath: "Zonasi",
+      gender: "Laki-laki",
+    },
+  })
+
   const filteredApplicants = useMemo(() => {
     if (!applicants) return []
     return applicants.filter(a => 
@@ -68,6 +122,45 @@ export default function ApplicantsPage() {
       a.NISN.includes(searchTerm)
     )
   }, [applicants, searchTerm])
+
+  function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!db) return
+
+    const registrationNumber = `REG-2024-${Math.floor(1000 + Math.random() * 9000)}`
+    
+    const newApplicant = {
+      ...values,
+      registrationNumber,
+      academicScore: values.academicScore ? parseFloat(values.academicScore) : 0,
+      distanceToSchoolKm: values.distanceToSchoolKm ? parseFloat(values.distanceToSchoolKm) : 0,
+      verificationStatus: 'Belum Diverifikasi',
+      admissionStatus: 'pending',
+      createdAt: new Date().toISOString(),
+      serverCreatedAt: serverTimestamp(),
+      documents: [],
+      address: "Alamat belum diisi",
+      parentName: "Belum diisi",
+      parentPhone: "08",
+      birthPlace: "Belum diisi",
+      birthDate: "2012-01-01",
+      religion: "Lainnya",
+      familyCardNumber: "0000000000000000"
+    }
+
+    addDoc(collection(db, 'applicants'), newApplicant)
+      .then(() => {
+        setIsDialogOpen(false)
+        form.reset()
+      })
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: 'applicants',
+          operation: 'create',
+          requestResourceData: newApplicant
+        })
+        errorEmitter.emit('permission-error', permissionError)
+      })
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -85,10 +178,166 @@ export default function ApplicantsPage() {
             <FileDown className="w-4 h-4" />
             Export CSV
           </Button>
-          <Button className="gap-2 bg-primary hover:bg-primary/90">
-            <Plus className="w-4 h-4" />
-            Tambah Manual
-          </Button>
+          
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20">
+                <Plus className="w-4 h-4" />
+                Tambah Manual
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[600px] border-border/50 bg-card">
+              <DialogHeader>
+                <DialogTitle className="font-headline text-2xl">Tambah Calon Murid</DialogTitle>
+                <DialogDescription>
+                  Masukkan data dasar pendaftar. Sistem akan men-generate nomor registrasi otomatis.
+                </DialogDescription>
+              </DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="fullName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nama Lengkap</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Contoh: Budi Santoso" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="gender"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Jenis Kelamin</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Pilih Gender" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Laki-laki">Laki-laki</SelectItem>
+                              <SelectItem value="Perempuan">Perempuan</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="NISN"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>NISN (10 Digit)</FormLabel>
+                          <FormControl>
+                            <Input placeholder="0123456789" {...field} maxLength={10} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="NIK"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>NIK (16 Digit)</FormLabel>
+                          <FormControl>
+                            <Input placeholder="3201..." {...field} maxLength={16} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name="originSchool"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Asal Sekolah (SD/MI)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="SDN Menteng 01" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="applicationPath"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Jalur Pendaftaran</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Pilih Jalur" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Zonasi">Zonasi</SelectItem>
+                              <SelectItem value="Prestasi">Prestasi</SelectItem>
+                              <SelectItem value="Afirmasi">Afirmasi</SelectItem>
+                              <SelectItem value="Perpindahan Orang Tua">Perpindahan Orang Tua</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    {form.watch("applicationPath") === "Prestasi" ? (
+                      <FormField
+                        control={form.control}
+                        name="academicScore"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Rata-rata Nilai</FormLabel>
+                            <FormControl>
+                              <Input type="number" placeholder="85.5" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    ) : form.watch("applicationPath") === "Zonasi" ? (
+                      <FormField
+                        control={form.control}
+                        name="distanceToSchoolKm"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Jarak ke Sekolah (Km)</FormLabel>
+                            <FormControl>
+                              <Input type="number" step="0.1" placeholder="1.5" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    ) : null}
+                  </div>
+                  <DialogFooter className="pt-4">
+                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                      Batal
+                    </Button>
+                    <Button type="submit" className="bg-primary hover:bg-primary/90">
+                      Simpan Pendaftar
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
