@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo } from 'react'
@@ -106,13 +107,13 @@ export default function VerificationPage() {
         <TabsContent value={activeTab} className="mt-0">
           <Card className="border-border/50 shadow-sm overflow-hidden">
             <Table>
-              <TableHeader className="bg-muted/30">
-                <TableRow>
-                  <TableHead>No. Registrasi</TableHead>
-                  <TableHead>Nama Calon Siswa</TableHead>
-                  <TableHead>Jalur</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
+              <TableHeader className="bg-primary/5 border-b">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="font-bold text-primary">No. Registrasi</TableHead>
+                  <TableHead className="font-bold text-primary">Nama Calon Siswa</TableHead>
+                  <TableHead className="font-bold text-primary">Jalur</TableHead>
+                  <TableHead className="font-bold text-primary">Status</TableHead>
+                  <TableHead className="font-bold text-right text-primary">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

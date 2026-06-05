@@ -1055,15 +1055,15 @@ export default function ApplicantsPage() {
 
       <div className="bg-card border border-border/50 rounded-xl overflow-hidden shadow-sm">
         <Table>
-          <TableHeader className="bg-muted/30">
-            <TableRow>
-              <TableHead className="font-bold w-[100px]">No. Urut</TableHead>
-              <TableHead className="font-bold">NISN / No. Reg</TableHead>
-              <TableHead className="font-bold">Nama Lengkap</TableHead>
-              <TableHead className="font-bold">Asal Sekolah</TableHead>
-              <TableHead className="font-bold">Jalur</TableHead>
-              <TableHead className="font-bold">Status</TableHead>
-              <TableHead className="font-bold text-right">Aksi</TableHead>
+          <TableHeader className="bg-primary/5 border-b">
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="font-bold w-[100px] text-primary">No. Urut</TableHead>
+              <TableHead className="font-bold text-primary">NISN / No. Reg</TableHead>
+              <TableHead className="font-bold text-primary">Nama Lengkap</TableHead>
+              <TableHead className="font-bold text-primary">Asal Sekolah</TableHead>
+              <TableHead className="font-bold text-primary">Jalur</TableHead>
+              <TableHead className="font-bold text-primary">Status</TableHead>
+              <TableHead className="font-bold text-right text-primary">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

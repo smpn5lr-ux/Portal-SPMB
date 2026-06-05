@@ -332,7 +332,7 @@ export default function ReportsPage() {
           <CardContent>
             <div className="text-4xl font-bold">{loading ? "..." : stats.total}</div>
             <p className="text-xs text-green-500 mt-1 font-bold flex items-center gap-1">
-              <TrendingUp className="w-3 h-3" /> Data Real-time Firestore
+              <TrendingUp className="w-3 h-3" /> Data Real-time Live
             </p>
           </CardContent>
         </Card>
