@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Mengizinkan akses baca dan tulis untuk pengembangan aplikasi
+    match /applicants/{applicantId} {
+      allow read, write: if true;
+    }
+    match /classes/{classId} {
+      allow read, write: if true;
+    }
+    match /settings/{settingId} {
+      allow read, write: if true;
+    }
+  }
+}

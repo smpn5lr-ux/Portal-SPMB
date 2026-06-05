@@ -54,6 +54,10 @@
     "/classes/{classId}": {
       "schema": "Classroom",
       "description": "Collection of class groups."
+    },
+    "/settings/{settingId}": {
+      "schema": "object",
+      "description": "Global system settings."
     }
   }
 }
