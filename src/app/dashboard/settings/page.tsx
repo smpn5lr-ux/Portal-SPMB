@@ -199,7 +199,7 @@ export default function SettingsPage() {
                 <School className="w-5 h-5 text-accent" />
                 <CardTitle className="font-headline text-lg">Daftar Sekolah Asal (SD/MI)</CardTitle>
               </div>
-              <CardDescription>Kelola daftar sekolah yang akan muncul di dropdown pendaftaran.</CardDescription>
+              <CardDescription>Kelola daftar sekolah yang akan muncul di pendaftaran.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex gap-2">

@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -37,7 +38,7 @@ import { signOut } from "firebase/auth"
 
 const navigation = [
   { name: 'Ringkasan', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Calon Murid', href: '/dashboard/applicants', icon: Users },
+  { name: 'Data Murid', href: '/dashboard/applicants', icon: Users },
   { name: 'Verifikasi Berkas', href: '/dashboard/verification', icon: CheckSquare },
   { name: 'Sistem Seleksi', href: '/dashboard/selection', icon: Target },
   { name: 'Manajemen Kelas', href: '/dashboard/classes', icon: School },
