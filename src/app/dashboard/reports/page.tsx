@@ -53,20 +53,21 @@ import * as XLSX from 'xlsx'
 const COLORS = ['#4361EE', '#4CC9F0', '#F72585', '#7209B7', '#3A0CA3']
 
 const EXPORT_COLUMNS = [
+  { id: 'registrationSequence', label: 'No. Urut' },
   { id: 'registrationNumber', label: 'No. Registrasi' },
   { id: 'NISN', label: 'NISN' },
   { id: 'NIK', label: 'NIK' },
   { id: 'fullName', label: 'Nama Lengkap' },
-  { id: 'gender', label: 'Gender' },
-  { id: 'originSchool', label: 'Asal Sekolah' },
-  { id: 'applicationPath', label: 'Jalur' },
+  { id: 'gender', label: 'Jenis Kelamin' },
+  { id: 'originSchool', label: 'Sekolah Asal' },
+  { id: 'applicationPath', label: 'Jalur Masuk' },
   { id: 'academicScore', label: 'Skor Akademik' },
   { id: 'distanceToSchoolKm', label: 'Jarak (Km)' },
   { id: 'verificationStatus', label: 'Status Verifikasi' },
-  { id: 'admissionStatus', label: 'Status Seleksi' },
-  { id: 'parentName', label: 'Wali Murid' },
+  { id: 'admissionStatus', label: 'Hasil Seleksi' },
+  { id: 'parentName', label: 'Nama Orang Tua' },
   { id: 'parentPhone', label: 'No. Telepon' },
-  { id: 'address', label: 'Alamat' },
+  { id: 'address', label: 'Alamat Lengkap' },
   { id: 'birthDate', label: 'Tanggal Lahir' },
   { id: 'religion', label: 'Agama' },
 ]
@@ -80,7 +81,7 @@ export default function ReportsPage() {
 
   const applicantsQuery = useMemoFirebase(() => {
     if (!db) return null
-    return query(collection(db, 'applicants'), orderBy('createdAt', 'desc'))
+    return query(collection(db, 'applicants'), orderBy('registrationSequence', 'asc'))
   }, [db])
 
   const { data: applicants, loading } = useCollection<Applicant>(applicantsQuery)
@@ -153,9 +154,9 @@ export default function ReportsPage() {
       const url = URL.createObjectURL(blob)
       const link = document.createElement("a")
       link.setAttribute("href", url)
-      link.setAttribute("download", `Laporan_PPDB_${new Date().toISOString().split('T')[0]}.csv`)
+      link.setAttribute("download", `Laporan_Siswa_PPDB_${new Date().toISOString().split('T')[0]}.csv`)
       link.click()
-      toast({ title: "CSV Berhasil", description: "Laporan CSV telah diunduh." })
+      toast({ title: "CSV Berhasil", description: "Laporan dalam format CSV telah diunduh." })
       setIsDownloadDialogOpen(false)
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "Gagal ekspor CSV." })
@@ -172,8 +173,8 @@ export default function ReportsPage() {
       const worksheet = XLSX.utils.json_to_sheet(data)
       const workbook = XLSX.utils.book_new()
       XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Pendaftar")
-      XLSX.writeFile(workbook, `Laporan_PPDB_${new Date().toISOString().split('T')[0]}.xlsx`)
-      toast({ title: "Excel Berhasil", description: "Laporan Excel telah diunduh." })
+      XLSX.writeFile(workbook, `Laporan_Siswa_PPDB_${new Date().toISOString().split('T')[0]}.xlsx`)
+      toast({ title: "Excel Berhasil", description: "Laporan dalam format Excel (.xlsx) telah diunduh." })
       setIsDownloadDialogOpen(false)
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "Gagal ekspor Excel." })
@@ -194,20 +195,31 @@ export default function ReportsPage() {
       const headers = [Object.keys(data[0])]
       const body = data.map(item => Object.values(item))
 
+      doc.setFontSize(18)
+      doc.setTextColor(67, 97, 238) // Primary Blue
       doc.text("Laporan Penerimaan Peserta Didik Baru (PPDB)", 14, 15)
+      
       doc.setFontSize(10)
-      doc.text(`Tanggal Cetak: ${new Date().toLocaleString()}`, 14, 22)
+      doc.setTextColor(100)
+      doc.text(`Dicetak pada: ${new Date().toLocaleString('id-ID')}`, 14, 22)
       
       autoTable(doc, {
         head: headers,
         body: body,
         startY: 30,
-        styles: { fontSize: 7, cellPadding: 1 },
-        headStyles: { fillColor: [67, 97, 238] } // Biru (Primary Blue)
+        theme: 'striped',
+        styles: { fontSize: 7, cellPadding: 2, font: 'helvetica' },
+        headStyles: { 
+          fillColor: [67, 97, 238], // Blue Header
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          halign: 'center'
+        },
+        alternateRowStyles: { fillColor: [245, 247, 255] }
       })
 
-      doc.save(`Laporan_PPDB_${new Date().toISOString().split('T')[0]}.pdf`)
-      toast({ title: "PDF Berhasil", description: "Laporan PDF telah diunduh." })
+      doc.save(`Laporan_Siswa_PPDB_${new Date().toISOString().split('T')[0]}.pdf`)
+      toast({ title: "PDF Berhasil", description: "Laporan dalam format PDF telah diunduh dengan judul tabel berwarna biru." })
       setIsDownloadDialogOpen(false)
     } catch (error) {
       console.error(error)
@@ -245,29 +257,29 @@ export default function ReportsPage() {
                 Download Laporan
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px] border-border/50 bg-card">
+            <DialogContent className="sm:max-w-[650px] border-border/50 bg-card">
               <DialogHeader>
                 <DialogTitle className="font-headline text-xl flex items-center gap-2">
                   <Settings2 className="w-5 h-5 text-primary" />
-                  Kustomisasi Ekspor Data
+                  Kustomisasi Ekspor Laporan
                 </DialogTitle>
                 <DialogDescription>
-                  Pilih kolom yang ingin Anda masukkan ke dalam file laporan.
+                  Pilih kolom data yang ingin Anda sertakan dalam dokumen ekspor (Excel/PDF/CSV).
                 </DialogDescription>
               </DialogHeader>
               
               <div className="py-4">
                 <div className="flex items-center justify-between mb-4 px-1">
-                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Pilih Kolom ({selectedColumns.length})</span>
+                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Kolom Tersedia ({selectedColumns.length})</span>
                   <div className="flex gap-2">
                     <Button variant="ghost" size="sm" onClick={selectAll} className="text-[10px] h-7">Pilih Semua</Button>
                     <Button variant="ghost" size="sm" onClick={selectNone} className="text-[10px] h-7 text-destructive">Hapus Semua</Button>
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 bg-muted/20 rounded-xl border border-border/50">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 bg-muted/20 rounded-xl border border-border/50 max-h-[300px] overflow-y-auto">
                   {EXPORT_COLUMNS.map((col) => (
-                    <div key={col.id} className="flex items-center space-x-2">
+                    <div key={col.id} className="flex items-center space-x-2 p-1 hover:bg-background/50 rounded transition-colors">
                       <Checkbox 
                         id={`col-${col.id}`} 
                         checked={selectedColumns.includes(col.id)}
@@ -286,7 +298,7 @@ export default function ReportsPage() {
 
               <DialogFooter className="flex-col sm:flex-row gap-2 border-t pt-6">
                 <div className="flex-1 text-[10px] text-muted-foreground italic flex items-center">
-                  * Format PDF menggunakan orientasi landscape dengan judul tabel biru.
+                  * Format PDF menggunakan warna biru pada header tabel untuk tampilan profesional.
                 </div>
                 <div className="flex gap-2">
                   <Button 
@@ -459,7 +471,7 @@ export default function ReportsPage() {
       <Card className="border-border/50">
         <CardHeader>
           <CardTitle className="font-headline text-lg">Log Ekspor Data</CardTitle>
-          <CardDescription>Riwayat pengunduhan data untuk laporan dinas.</CardDescription>
+          <CardDescription>Riwayat pengunduhan data untuk laporan dinas (Live Database).</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -484,7 +496,7 @@ export default function ReportsPage() {
                   size="sm" 
                   className="text-primary font-bold gap-2"
                 >
-                  <FileSpreadsheet className="w-3 h-3" /> Re-download
+                  <FileSpreadsheet className="w-3 h-3" /> Unduh Ulang
                 </Button>
               </div>
             ))}

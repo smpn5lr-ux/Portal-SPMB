@@ -117,7 +117,7 @@ const formSchema = z.object({
   childOrder: z.string().optional(),
 })
 
-// MAPPING FOR IMPORT/EXPORT
+// MAPPING UNTUK BAHASA INDONESIA (EKSPOR/IMPOR)
 const COLUMN_MAPPING: Record<string, string> = {
   fullName: "Nama Lengkap",
   NISN: "NISN",
@@ -168,8 +168,8 @@ export default function ApplicantsPage() {
     if (!db) return null
     return query(
       collection(db, 'applicants'), 
-      orderBy('createdAt', 'desc'),
-      limit(50) 
+      orderBy('registrationSequence', 'asc'),
+      limit(100) 
     )
   }, [db])
 
@@ -229,6 +229,7 @@ export default function ApplicantsPage() {
   function calculateAge(birthDate: string): number {
     if (!birthDate) return 0
     const birth = new Date(birthDate)
+    if (isNaN(birth.getTime())) return 0
     const now = new Date()
     let age = now.getFullYear() - birth.getFullYear()
     const m = now.getMonth() - birth.getMonth()
@@ -300,9 +301,14 @@ export default function ApplicantsPage() {
       const { default: jsPDF } = await import('jspdf')
       const { default: autoTable } = await import('jspdf-autotable')
       const doc = new jsPDF('landscape')
+      
+      doc.setFontSize(16)
+      doc.setTextColor(67, 97, 238)
       doc.text("Panduan Templat Impor Data Calon Murid", 14, 15)
+      
       doc.setFontSize(10)
-      doc.text("Gunakan kolom-kolom berikut dalam file CSV atau Excel Anda:", 14, 22)
+      doc.setTextColor(100)
+      doc.text("Gunakan kolom-kolom berikut dalam file CSV atau Excel Anda agar sistem dapat membaca data dengan baik.", 14, 22)
       
       const tableBody = TEMPLATE_KEYS.map(key => [
         COLUMN_MAPPING[key], 
@@ -314,15 +320,19 @@ export default function ApplicantsPage() {
         head: [['Nama Kolom', 'Tipe Data', 'Status']],
         body: tableBody,
         startY: 30,
-        styles: { fontSize: 8 },
-        headStyles: { fillColor: [67, 97, 238] } // Blue header
+        styles: { fontSize: 8, font: 'helvetica' },
+        headStyles: { 
+          fillColor: [67, 97, 238], // Blue Header
+          textColor: [255, 255, 255],
+          fontStyle: 'bold'
+        }
       })
-      doc.save("Panduan_Templat_Impor.pdf")
+      doc.save("Panduan_Templat_Impor_Siswa.pdf")
     }
     
     toast({
       title: "Templat Diunduh",
-      description: `File templat ${format.toUpperCase()} berhasil diunduh.`,
+      description: `Contoh templat format ${format.toUpperCase()} berhasil diunduh.`,
     })
   }
 
@@ -349,7 +359,7 @@ export default function ApplicantsPage() {
         toast({
           variant: "destructive",
           title: "Format Salah",
-          description: "File CSV tidak memiliki data atau header.",
+          description: "File tidak memiliki data pendaftar.",
         })
         setIsImporting(false)
         return
@@ -360,6 +370,7 @@ export default function ApplicantsPage() {
       let successCount = 0
       let errorCount = 0
 
+      // Get current max sequence
       const q = query(collection(db, 'applicants'), orderBy('registrationSequence', 'desc'), limit(1));
       const snap = await getDocs(q);
       let currentMax = 0;
@@ -374,7 +385,7 @@ export default function ApplicantsPage() {
           rawData[header] = values[index]
         })
 
-        // Map Indonesian headers back to DB keys
+        // Map Indonesian headers back to internal keys
         const data: any = {};
         Object.entries(rawData).forEach(([headerLabel, val]) => {
           const dbKey = REVERSE_MAPPING[headerLabel];
@@ -417,8 +428,8 @@ export default function ApplicantsPage() {
       }
 
       toast({
-        title: "Import Selesai",
-        description: `Berhasil mengimpor ${successCount} data. Gagal: ${errorCount}.`,
+        title: "Impor Selesai",
+        description: `Berhasil mengimpor ${successCount} siswa. Gagal: ${errorCount}.`,
       })
       setIsImporting(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -433,6 +444,7 @@ export default function ApplicantsPage() {
     setSubmitting(true)
     
     try {
+      // Get next unique sequence number
       const q = query(collection(db, 'applicants'), orderBy('registrationSequence', 'desc'), limit(1));
       const snap = await getDocs(q);
       let nextSequence = 1;
@@ -466,8 +478,8 @@ export default function ApplicantsPage() {
       setIsDialogOpen(false)
       form.reset()
       toast({
-        title: "Berhasil!",
-        description: `Data ${values.fullName} telah disimpan dengan nomor urut #${nextSequence}.`,
+        title: "Data Disimpan",
+        description: `Siswa ${values.fullName} berhasil didaftarkan dengan nomor urut #${nextSequence}.`,
       })
     } catch (error: any) {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
@@ -484,7 +496,7 @@ export default function ApplicantsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline font-bold">Data Calon Murid</h1>
-          <p className="text-muted-foreground mt-1">Kelola data pendaftar sesuai standar Dapodik.</p>
+          <p className="text-muted-foreground mt-1">Kelola pendaftar baru sesuai standar Dapodik.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <input 
@@ -497,20 +509,20 @@ export default function ApplicantsPage() {
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2">
+              <Button variant="outline" className="gap-2 border-primary/20 text-primary hover:bg-primary/5">
                 <FileDown className="w-4 h-4" />
                 Unduh Templat
                 <ChevronDown className="w-3 h-3" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleDownloadTemplate('csv')}>
+            <DropdownMenuContent align="end" className="border-border/50">
+              <DropdownMenuItem onClick={() => handleDownloadTemplate('csv')} className="cursor-pointer">
                 Format CSV (.csv)
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleDownloadTemplate('excel')}>
+              <DropdownMenuItem onClick={() => handleDownloadTemplate('excel')} className="cursor-pointer">
                 Format Excel (.xlsx)
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleDownloadTemplate('pdf')}>
+              <DropdownMenuItem onClick={() => handleDownloadTemplate('pdf')} className="cursor-pointer">
                 Panduan PDF (.pdf)
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -518,12 +530,12 @@ export default function ApplicantsPage() {
 
           <Button 
             variant="outline" 
-            className="gap-2" 
+            className="gap-2 border-primary/20 text-primary hover:bg-primary/5" 
             onClick={handleImportClick}
             disabled={isImporting}
           >
             {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
-            Import Data
+            Impor Data
           </Button>
           
           <Dialog open={isDialogOpen} onOpenChange={(open) => {
@@ -531,19 +543,20 @@ export default function ApplicantsPage() {
           }}>
             <DialogTrigger asChild>
               <Button className="gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20">
-                <Plus className="w-4 h-4" /> Tambah Pendaftar
+                <Plus className="w-4 h-4" /> Tambah Siswa
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[850px] h-[95vh] p-0 overflow-hidden border-border/50 bg-card flex flex-col">
               <DialogHeader className="p-6 pb-2 border-b bg-muted/20">
-                <DialogTitle className="font-headline text-2xl">Formulir Pendaftaran Dapodik</DialogTitle>
-                <DialogDescription>Lengkapi seluruh informasi calon siswa sesuai dokumen resmi.</DialogDescription>
+                <DialogTitle className="font-headline text-2xl">Formulir Pendaftaran Siswa</DialogTitle>
+                <DialogDescription>Input data lengkap calon siswa baru sesuai dokumen resmi Dapodik.</DialogDescription>
               </DialogHeader>
               
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 overflow-hidden">
                   <ScrollArea className="flex-1 px-8 py-6">
                     <div className="space-y-10 pb-10">
+                      {/* SEKSI 1: IDENTITAS */}
                       <div className="space-y-6">
                         <div className="flex items-center gap-3 text-primary">
                           <div className="bg-primary/10 p-2 rounded-lg">
@@ -676,6 +689,7 @@ export default function ApplicantsPage() {
                         </div>
                       </div>
 
+                      {/* SEKSI 2: KELUARGA */}
                       <div className="space-y-6">
                         <div className="flex items-center gap-3 text-cyan-500">
                           <div className="bg-cyan-500/10 p-2 rounded-lg">
@@ -713,6 +727,7 @@ export default function ApplicantsPage() {
                         </div>
                       </div>
 
+                      {/* SEKSI 3: DOMISILI */}
                       <div className="space-y-6">
                         <div className="flex items-center gap-3 text-amber-500">
                           <div className="bg-amber-500/10 p-2 rounded-lg">
@@ -727,7 +742,7 @@ export default function ApplicantsPage() {
                               name="address"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Alamat Lengkap</FormLabel>
+                                  <FormLabel>Alamat Lengkap (Sesuai KK)</FormLabel>
                                   <FormControl>
                                     <Input placeholder="Jl. Raya No..., RT/RW, Kelurahan, Kecamatan" {...field} disabled={submitting} />
                                   </FormControl>
@@ -741,7 +756,7 @@ export default function ApplicantsPage() {
                             name="familyCardNumber"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>No. KK (16 Digit)</FormLabel>
+                                <FormLabel>No. Kartu Keluarga (16 Digit)</FormLabel>
                                 <FormControl>
                                   <Input placeholder="3201..." {...field} maxLength={16} disabled={submitting} />
                                 </FormControl>
@@ -809,6 +824,7 @@ export default function ApplicantsPage() {
                         </div>
                       </div>
 
+                      {/* SEKSI 4: ORANG TUA */}
                       <div className="space-y-6">
                         <div className="flex items-center gap-3 text-pink-500">
                           <div className="bg-pink-500/10 p-2 rounded-lg">
@@ -828,7 +844,7 @@ export default function ApplicantsPage() {
                                 <FormItem>
                                   <FormLabel>Nama Lengkap Ayah</FormLabel>
                                   <FormControl>
-                                    <Input placeholder="Nama Sesuai KTP" {...field} disabled={submitting} />
+                                    <Input placeholder="Sesuai KTP" {...field} disabled={submitting} />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
@@ -873,7 +889,7 @@ export default function ApplicantsPage() {
                                 <FormItem>
                                   <FormLabel>Nama Lengkap Ibu</FormLabel>
                                   <FormControl>
-                                    <Input placeholder="Nama Sesuai KTP" {...field} disabled={submitting} />
+                                    <Input placeholder="Sesuai KTP" {...field} disabled={submitting} />
                                   </FormControl>
                                   <FormMessage />
                                 </FormItem>
@@ -935,7 +951,7 @@ export default function ApplicantsPage() {
                               name="parentPhone"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel className="flex items-center gap-2"><Smartphone className="w-3 h-3" /> No. HP Aktif (WhatsApp)</FormLabel>
+                                  <FormLabel className="flex items-center gap-2"><Smartphone className="w-3 h-3" /> No. HP WhatsApp</FormLabel>
                                   <FormControl>
                                     <Input placeholder="08..." {...field} disabled={submitting} />
                                   </FormControl>
@@ -947,12 +963,13 @@ export default function ApplicantsPage() {
                         </div>
                       </div>
 
+                      {/* SEKSI 5: PENDIDIKAN */}
                       <div className="space-y-6">
                         <div className="flex items-center gap-3 text-green-500">
                           <div className="bg-green-500/10 p-2 rounded-lg">
                             <GraduationCap className="w-5 h-5" />
                           </div>
-                          <h3 className="font-bold uppercase tracking-widest text-sm">Bagian 5: Jalur Masuk & Pendidikan</h3>
+                          <h3 className="font-bold uppercase tracking-widest text-sm">Bagian 5: Jalur Masuk & Sekolah Asal</h3>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-muted/10 p-5 rounded-2xl border border-border/50">
                           <div className="md:col-span-2">
@@ -1012,7 +1029,7 @@ export default function ApplicantsPage() {
                               <FormItem>
                                 <FormLabel>Rata-rata Nilai Rapor</FormLabel>
                                 <FormControl>
-                                  <Input type="number" step="0.01" placeholder="Contoh: 85.50" {...field} disabled={submitting} />
+                                  <Input type="number" step="0.01" placeholder="85.50" {...field} disabled={submitting} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -1028,7 +1045,7 @@ export default function ApplicantsPage() {
                       <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={submitting}>
                         Batal
                       </Button>
-                      <Button type="submit" disabled={submitting} className="min-w-[180px] shadow-lg shadow-primary/20 h-11 text-base font-bold">
+                      <Button type="submit" disabled={submitting} className="min-w-[200px] shadow-lg shadow-primary/20 h-11 text-base font-bold">
                         {submitting ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Plus className="w-5 h-5 mr-2" />}
                         Simpan Pendaftar
                       </Button>
@@ -1045,7 +1062,7 @@ export default function ApplicantsPage() {
         <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input 
-            placeholder="Cari NISN atau Nama..." 
+            placeholder="Cari NISN atau Nama Calon Murid..." 
             className="pl-10 h-11 bg-background"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -1076,7 +1093,7 @@ export default function ApplicantsPage() {
             ) : filteredApplicants.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
-                  Tidak ada pendaftar ditemukan.
+                  Tidak ada data pendaftar ditemukan.
                 </TableCell>
               </TableRow>
             ) : (
@@ -1106,7 +1123,7 @@ export default function ApplicantsPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" asChild>
+                    <Button variant="ghost" size="icon" asChild title="Lihat Detail">
                       <Link href={`/dashboard/applicants/${applicant.id}`}>
                         <Eye className="w-4 h-4" />
                       </Link>
