@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useMemo } from "react"
@@ -10,8 +9,7 @@ import {
   MapPin,
   Trophy,
   Heart,
-  Truck,
-  Loader2
+  Truck
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { 
@@ -30,10 +28,17 @@ import { useCollection, useFirestore } from "@/firebase"
 import { collection } from "firebase/firestore"
 import { Applicant } from "@/lib/types"
 import { Skeleton } from "@/components/ui/skeleton"
+import { cn } from "@/lib/utils"
 
 export default function OverviewPage() {
   const db = useFirestore()
-  const { data: applicants, loading } = useCollection<Applicant>(db ? collection(db, 'applicants') : null)
+  
+  const applicantsQuery = useMemo(() => {
+    if (!db) return null
+    return collection(db, 'applicants')
+  }, [db])
+
+  const { data: applicants, loading } = useCollection<Applicant>(applicantsQuery)
 
   const stats = useMemo(() => {
     if (!applicants) return []
@@ -74,7 +79,7 @@ export default function OverviewPage() {
   ]
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-8 animate-in fade-in duration-700 fill-mode-both">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline font-bold">Ringkasan Sistem</h1>
@@ -89,21 +94,21 @@ export default function OverviewPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => (
-            <Card key={i} className="border-border/50">
+            <Card key={i} className="border-border/50 bg-card/50">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="space-y-2">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-8 w-16" />
+                    <Skeleton className="h-4 w-24 bg-muted/20" />
+                    <Skeleton className="h-8 w-16 bg-muted/20" />
                   </div>
-                  <Skeleton className="h-12 w-12 rounded-xl" />
+                  <Skeleton className="h-12 w-12 rounded-xl bg-muted/20" />
                 </div>
               </CardContent>
             </Card>
           ))
         ) : (
           stats.map((stat) => (
-            <Card key={stat.name} className="border-border/50 hover:border-primary/50 transition-all duration-300">
+            <Card key={stat.name} className="border-border/50 hover:border-primary/50 transition-all duration-300 animate-in zoom-in-95 duration-500">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -121,7 +126,7 @@ export default function OverviewPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 border-border/50">
+        <Card className="lg:col-span-2 border-border/50 bg-card overflow-hidden">
           <CardHeader>
             <CardTitle className="font-headline text-lg">Statistik Pendaftaran Harian</CardTitle>
             <CardDescription>Tren pendaftaran selama 7 hari terakhir.</CardDescription>
@@ -130,41 +135,43 @@ export default function OverviewPage() {
             {loading ? (
               <div className="w-full h-full flex items-end gap-2 pb-4">
                 {Array.from({ length: 7 }).map((_, i) => (
-                  <Skeleton key={i} className="flex-1" style={{ height: `${Math.random() * 60 + 20}%` }} />
+                  <Skeleton key={i} className="flex-1 bg-muted/10" style={{ height: `${Math.random() * 60 + 20}%` }} />
                 ))}
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                  <XAxis 
-                    dataKey="day" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} 
-                  />
-                  <YAxis 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                  />
-                  <Tooltip 
-                    cursor={{ fill: 'hsl(var(--muted)/0.3)' }}
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
-                      borderColor: 'hsl(var(--border))',
-                      borderRadius: '8px',
-                      fontSize: '12px'
-                    }} 
-                  />
-                  <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} barSize={40} />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="w-full h-full animate-in fade-in duration-1000">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                    <XAxis 
+                      dataKey="day" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} 
+                    />
+                    <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                    />
+                    <Tooltip 
+                      cursor={{ fill: 'hsl(var(--muted)/0.3)' }}
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--card))', 
+                        borderColor: 'hsl(var(--border))',
+                        borderRadius: '8px',
+                        fontSize: '12px'
+                      }} 
+                    />
+                    <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} barSize={40} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             )}
           </CardContent>
         </Card>
 
-        <Card className="border-border/50">
+        <Card className="border-border/50 bg-card">
           <CardHeader>
             <CardTitle className="font-headline text-lg">Distribusi Jalur</CardTitle>
             <CardDescription>Persentase pendaftar per jalur masuk.</CardDescription>
@@ -172,24 +179,26 @@ export default function OverviewPage() {
           <CardContent>
             <div className="h-[200px] flex items-center justify-center">
               {loading ? (
-                <Skeleton className="h-32 w-32 rounded-full" />
+                <Skeleton className="h-32 w-32 rounded-full bg-muted/10" />
               ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pathStats}
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {pathStats.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
+                <div className="w-full h-full animate-in zoom-in-90 duration-700">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={pathStats}
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {pathStats.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
               )}
             </div>
             <div className="space-y-3 mt-4">
@@ -197,15 +206,15 @@ export default function OverviewPage() {
                 Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Skeleton className="h-2 w-2 rounded-full" />
-                      <Skeleton className="h-3 w-20" />
+                      <Skeleton className="h-2 w-2 rounded-full bg-muted/20" />
+                      <Skeleton className="h-3 w-20 bg-muted/20" />
                     </div>
-                    <Skeleton className="h-3 w-8" />
+                    <Skeleton className="h-3 w-8 bg-muted/20" />
                   </div>
                 ))
               ) : (
                 pathStats.map((path) => (
-                  <div key={path.name} className="flex items-center justify-between">
+                  <div key={path.name} className="flex items-center justify-between animate-in slide-in-from-left-2 duration-500">
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full" style={{ backgroundColor: path.color }}></div>
                       <span className="text-xs font-medium">{path.name}</span>
