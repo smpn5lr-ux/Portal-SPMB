@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState } from 'react'
@@ -19,7 +18,11 @@ import {
   Loader2,
   Book,
   CreditCard,
-  Hash
+  Hash,
+  Home,
+  Heart,
+  Briefcase,
+  Users as UsersIcon
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -168,27 +171,55 @@ export default function ApplicantDetailPage() {
                         <p className="text-sm font-medium flex justify-between"><span>NISN:</span> <span className="font-mono">{applicant.NISN}</span></p>
                         <p className="text-sm font-medium flex justify-between"><span>NIK:</span> <span className="font-mono">{applicant.NIK}</span></p>
                         <p className="text-sm font-medium flex justify-between"><span>Gender:</span> <span>{applicant.gender}</span></p>
-                        <p className="text-sm font-medium flex justify-between"><span>Agama:</span> <span>{applicant.religion || 'Islam'}</span></p>
+                        <p className="text-sm font-medium flex justify-between"><span>Agama:</span> <span>{applicant.religion}</span></p>
                       </div>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
-                    <Calendar className="w-4 h-4 text-muted-foreground mt-1" />
+                    <Home className="w-4 h-4 text-muted-foreground mt-1" />
                     <div className="flex-1">
-                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Tempat & Tgl Lahir</p>
-                      <p className="text-sm font-medium mt-1">{applicant.birthPlace}, {applicant.birthDate}</p>
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Status Domisili</p>
+                      <div className="mt-2 space-y-1">
+                        <p className="text-sm font-medium flex justify-between"><span>Tinggal Dengan:</span> <span>{applicant.livingWith || '-'}</span></p>
+                        <p className="text-sm font-medium flex justify-between"><span>Transportasi:</span> <span>{applicant.transportation || '-'}</span></p>
+                        <p className="text-sm font-medium text-primary mt-1">Jarak: {applicant.distanceToSchoolKm || '0'} Km</p>
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
-                    <MapPin className="w-4 h-4 text-muted-foreground mt-1" />
+                    <Heart className="w-4 h-4 text-muted-foreground mt-1" />
                     <div className="flex-1">
-                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Domisili & Jarak</p>
-                      <p className="text-sm font-medium mt-1 leading-relaxed">{applicant.address}</p>
-                      <p className="text-sm font-medium mt-1 text-primary">Jarak: {applicant.distanceToSchoolKm || '0'} Km</p>
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Hobi & Bakat</p>
+                      <p className="text-sm font-medium mt-1">{applicant.hobbies || 'Tidak dicantumkan'}</p>
                     </div>
                   </div>
                 </div>
                 <div className="space-y-6">
+                  <div className="flex items-start gap-3">
+                    <UsersIcon className="w-4 h-4 text-muted-foreground mt-1" />
+                    <div className="flex-1">
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Data Orang Tua</p>
+                      <div className="mt-2 space-y-3">
+                        <div className="bg-muted/30 p-2 rounded border border-border/50">
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase">Ayah</p>
+                          <p className="text-sm font-semibold">{applicant.fatherName || applicant.parentName}</p>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                            <Briefcase className="w-3 h-3" /> {applicant.fatherOccupation || '-'}
+                          </p>
+                        </div>
+                        <div className="bg-muted/30 p-2 rounded border border-border/50">
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase">Ibu</p>
+                          <p className="text-sm font-semibold">{applicant.motherName || '-'}</p>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                            <Briefcase className="w-3 h-3" /> {applicant.motherOccupation || '-'}
+                          </p>
+                        </div>
+                        <p className="text-sm font-medium text-primary flex justify-between px-1">
+                          <span>Kontak:</span> <span>{applicant.parentPhone}</span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                   <div className="flex items-start gap-3">
                     <School className="w-4 h-4 text-muted-foreground mt-1" />
                     <div className="flex-1">
@@ -196,23 +227,6 @@ export default function ApplicantDetailPage() {
                       <div className="mt-2 space-y-1">
                         <p className="text-sm font-medium">Asal: {applicant.originSchool}</p>
                         <p className="text-sm font-medium text-cyan-500">Nilai Rapor: {applicant.academicScore || '-'}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <CreditCard className="w-4 h-4 text-muted-foreground mt-1" />
-                    <div className="flex-1">
-                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Kartu Keluarga</p>
-                      <p className="text-sm font-mono mt-1">{applicant.familyCardNumber || '-'}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <Phone className="w-4 h-4 text-muted-foreground mt-1" />
-                    <div className="flex-1">
-                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Kontak Orang Tua</p>
-                      <div className="mt-2 space-y-1">
-                        <p className="text-sm font-medium">{applicant.parentName}</p>
-                        <p className="text-sm font-medium text-primary">{applicant.parentPhone}</p>
                       </div>
                     </div>
                   </div>

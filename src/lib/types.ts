@@ -36,6 +36,20 @@ export interface Applicant {
   rankingInPath?: number;
   assignedClassId?: string;
   createdAt: string;
+  
+  // Additional Dapodik Fields
+  livingWith?: string; // e.g., Bersama Orang Tua, Wali, Kost
+  transportation?: string;
+  hobbies?: string;
+  specialNeeds?: string;
+  registrantRelationship?: string; // Hubungan pendaftar dengan calon siswa
+  
+  // Detailed Parent Info
+  fatherName?: string;
+  fatherOccupation?: string;
+  motherName?: string;
+  motherOccupation?: string;
+  parentIncomeRange?: string;
 }
 
 export interface Classroom {

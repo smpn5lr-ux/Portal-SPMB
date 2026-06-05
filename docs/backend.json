@@ -24,7 +24,15 @@
         "distanceToSchoolKm": { "type": "number" },
         "ageYears": { "type": "number" },
         "admissionStatus": { "type": "string", "enum": ["accepted", "waitlisted", "rejected", "pending"] },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "createdAt": { "type": "string", "format": "date-time" },
+        "livingWith": { "type": "string" },
+        "transportation": { "type": "string" },
+        "hobbies": { "type": "string" },
+        "registrantRelationship": { "type": "string" },
+        "fatherName": { "type": "string" },
+        "fatherOccupation": { "type": "string" },
+        "motherName": { "type": "string" },
+        "motherOccupation": { "type": "string" }
       },
       "required": ["NISN", "fullName", "applicationPath"]
     },

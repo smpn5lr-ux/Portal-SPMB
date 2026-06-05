@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo } from 'react'
@@ -16,7 +15,9 @@ import {
   User,
   Home,
   Users as UsersIcon,
-  GraduationCap
+  GraduationCap,
+  Sparkles,
+  Info
 } from "lucide-react"
 import { 
   Table, 
@@ -102,6 +103,16 @@ const formSchema = z.object({
   parentPhone: z.string().min(10, "No. Telepon minimal 10 digit"),
   academicScore: z.string().optional(),
   distanceToSchoolKm: z.string().optional(),
+  
+  // New Fields
+  livingWith: z.string().optional(),
+  transportation: z.string().optional(),
+  hobbies: z.string().optional(),
+  registrantRelationship: z.string().optional(),
+  fatherName: z.string().optional(),
+  fatherOccupation: z.string().optional(),
+  motherName: z.string().optional(),
+  motherOccupation: z.string().optional(),
 })
 
 export default function ApplicantsPage() {
@@ -150,6 +161,14 @@ export default function ApplicantsPage() {
       parentPhone: "",
       academicScore: "0",
       distanceToSchoolKm: "0",
+      livingWith: "Bersama Orang Tua",
+      transportation: "Jalan Kaki",
+      hobbies: "",
+      registrantRelationship: "Ayah",
+      fatherName: "",
+      fatherOccupation: "",
+      motherName: "",
+      motherOccupation: "",
     },
   })
 
@@ -199,7 +218,7 @@ export default function ApplicantsPage() {
         form.reset()
         toast({
           title: "Berhasil!",
-          description: `Data ${values.fullName} (Usia: ${ageYears} Tahun) telah disimpan.`,
+          description: `Data ${values.fullName} telah disimpan ke sistem.`,
         })
       })
       .catch(async (error) => {
@@ -246,7 +265,7 @@ export default function ApplicantsPage() {
                     <div className="space-y-8 pb-8">
                       {/* Section: Identitas Pribadi */}
                       <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-primary">
+                        <div className="flex items-center gap-2 text-primary border-b border-primary/10 pb-2">
                           <User className="w-4 h-4" />
                           <h3 className="font-bold uppercase tracking-widest text-xs">Identitas Pribadi</h3>
                         </div>
@@ -362,11 +381,9 @@ export default function ApplicantsPage() {
                         </div>
                       </div>
 
-                      <Separator />
-
                       {/* Section: Alamat & Domisili */}
                       <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-primary">
+                        <div className="flex items-center gap-2 text-primary border-b border-primary/10 pb-2">
                           <Home className="w-4 h-4" />
                           <h3 className="font-bold uppercase tracking-widest text-xs">Alamat & Domisili</h3>
                         </div>
@@ -391,7 +408,7 @@ export default function ApplicantsPage() {
                             name="familyCardNumber"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>No. Kartu Keluarga (16 Digit)</FormLabel>
+                                <FormLabel>No. KK (16 Digit)</FormLabel>
                                 <FormControl>
                                   <Input placeholder="3201..." {...field} maxLength={16} disabled={submitting} />
                                 </FormControl>
@@ -401,13 +418,22 @@ export default function ApplicantsPage() {
                           />
                           <FormField
                             control={form.control}
-                            name="distanceToSchoolKm"
+                            name="livingWith"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Jarak ke Sekolah (Km)</FormLabel>
-                                <FormControl>
-                                  <Input type="number" step="0.1" placeholder="Contoh: 1.5" {...field} disabled={submitting} />
-                                </FormControl>
+                                <FormLabel>Tinggal Dengan</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={submitting}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Pilih" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {['Bersama Orang Tua', 'Wali', 'Kost', 'Asrama', 'Lainnya'].map(v => (
+                                      <SelectItem key={v} value={v}>{v}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                                 <FormMessage />
                               </FormItem>
                             )}
@@ -415,24 +441,31 @@ export default function ApplicantsPage() {
                         </div>
                       </div>
 
-                      <Separator />
-
                       {/* Section: Orang Tua / Wali */}
                       <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-primary">
+                        <div className="flex items-center gap-2 text-primary border-b border-primary/10 pb-2">
                           <UsersIcon className="w-4 h-4" />
                           <h3 className="font-bold uppercase tracking-widest text-xs">Data Orang Tua / Wali</h3>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <FormField
                             control={form.control}
-                            name="parentName"
+                            name="registrantRelationship"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Nama Orang Tua / Wali</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="Nama Lengkap" {...field} disabled={submitting} />
-                                </FormControl>
+                                <FormLabel>Yang Mendaftarkan</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={submitting}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Hubungan" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {['Ayah', 'Ibu', 'Wali', 'Calon Siswa', 'Lainnya'].map(v => (
+                                      <SelectItem key={v} value={v}>{v}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                                 <FormMessage />
                               </FormItem>
                             )}
@@ -442,9 +475,61 @@ export default function ApplicantsPage() {
                             name="parentPhone"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>No. Telepon Aktif (WhatsApp)</FormLabel>
+                                <FormLabel>No. HP Aktif (WA)</FormLabel>
                                 <FormControl>
                                   <Input placeholder="08..." {...field} disabled={submitting} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="fatherName"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Nama Ayah</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Nama Lengkap" {...field} disabled={submitting} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="fatherOccupation"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Pekerjaan Ayah</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Contoh: PNS, Buruh, dsb" {...field} disabled={submitting} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="motherName"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Nama Ibu</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Nama Lengkap" {...field} disabled={submitting} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="motherOccupation"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Pekerjaan Ibu</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Contoh: IRT, Guru, dsb" {...field} disabled={submitting} />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -453,11 +538,54 @@ export default function ApplicantsPage() {
                         </div>
                       </div>
 
-                      <Separator />
+                      {/* Section: Tambahan & Hobi */}
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 text-primary border-b border-primary/10 pb-2">
+                          <Sparkles className="w-4 h-4" />
+                          <h3 className="font-bold uppercase tracking-widest text-xs">Tambahan & Hobi</h3>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <FormField
+                            control={form.control}
+                            name="hobbies"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Hobi</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Seni, Olahraga, dsb" {...field} disabled={submitting} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="transportation"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Transportasi ke Sekolah</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={submitting}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Pilih" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {['Jalan Kaki', 'Motor', 'Mobil Pribadi', 'Ojek/Jemputan', 'Kendaraan Umum'].map(v => (
+                                      <SelectItem key={v} value={v}>{v}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
 
                       {/* Section: Jalur & Akademik */}
                       <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-primary">
+                        <div className="flex items-center gap-2 text-primary border-b border-primary/10 pb-2">
                           <GraduationCap className="w-4 h-4" />
                           <h3 className="font-bold uppercase tracking-widest text-xs">Pendidikan & Jalur Masuk</h3>
                         </div>
@@ -525,17 +653,30 @@ export default function ApplicantsPage() {
                               </FormItem>
                             )}
                           />
+                          <FormField
+                            control={form.control}
+                            name="distanceToSchoolKm"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Jarak ke Sekolah (Km)</FormLabel>
+                                <FormControl>
+                                  <Input type="number" step="0.1" placeholder="Contoh: 1.5" {...field} disabled={submitting} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
                         </div>
                       </div>
                     </div>
                   </ScrollArea>
 
-                  <div className="p-6 border-t bg-card shrink-0">
+                  <div className="p-6 border-t bg-card shrink-0 shadow-[0_-4px_10px_rgba(0,0,0,0.1)]">
                     <DialogFooter className="flex flex-row items-center justify-end gap-2">
                       <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={submitting}>
                         Batal
                       </Button>
-                      <Button type="submit" disabled={submitting} className="min-w-[150px]">
+                      <Button type="submit" disabled={submitting} className="min-w-[150px] shadow-lg shadow-primary/20">
                         {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
                         Simpan Pendaftar
                       </Button>
