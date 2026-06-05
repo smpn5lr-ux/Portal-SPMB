@@ -12,13 +12,14 @@ import {
   RotateCcw,
   LayoutGrid,
   Settings2,
-  Loader2
+  Loader2,
+  Plus
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase'
-import { collection, doc, updateDoc, writeBatch } from 'firebase/firestore'
+import { collection, doc, updateDoc, writeBatch, addDoc } from 'firebase/firestore'
 import { Applicant, Classroom } from '@/lib/types'
 import { 
   Dialog, 
@@ -29,11 +30,34 @@ import {
   DialogTitle, 
   DialogTrigger 
 } from "@/components/ui/dialog"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
 import { errorEmitter } from '@/firebase/error-emitter'
 import { FirestorePermissionError } from '@/firebase/errors'
+import { useToast } from '@/hooks/use-toast'
+
+const classFormSchema = z.object({
+  name: z.string().min(1, "Nama kelas harus diisi"),
+  gradeLevel: z.string().min(1, "Tingkat harus diisi"),
+  homeroomTeacher: z.string().min(2, "Nama wali kelas harus diisi"),
+  capacity: z.string().min(1, "Kapasitas harus diisi"),
+})
 
 export default function ClassesPage() {
   const [isShuffling, setIsShuffling] = useState(false)
+  const [isAddClassOpen, setIsAddClassOpen] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const { toast } = useToast()
   const db = useFirestore()
 
   const classesQuery = useMemoFirebase(() => {
@@ -48,6 +72,50 @@ export default function ClassesPage() {
 
   const { data: classes, loading: loadingClasses } = useCollection<Classroom>(classesQuery)
   const { data: applicants } = useCollection<Applicant>(applicantsQuery)
+
+  const form = useForm<z.infer<typeof classFormSchema>>({
+    resolver: zodResolver(classFormSchema),
+    defaultValues: {
+      name: "",
+      gradeLevel: "7",
+      homeroomTeacher: "",
+      capacity: "32",
+    },
+  })
+
+  const onAddClassSubmit = (values: z.infer<typeof classFormSchema>) => {
+    if (!db || submitting) return
+    setSubmitting(true)
+
+    const newClass = {
+      name: values.name,
+      gradeLevel: parseInt(values.gradeLevel),
+      homeroomTeacher: values.homeroomTeacher,
+      capacity: parseInt(values.capacity),
+      currentEnrollment: 0,
+      students: []
+    }
+
+    addDoc(collection(db, 'classes'), newClass)
+      .then(() => {
+        setIsAddClassOpen(false)
+        form.reset()
+        toast({
+          title: "Kelas Berhasil Dibuat",
+          description: `Kelas ${values.name} telah ditambahkan ke sistem.`,
+        })
+      })
+      .catch(async (error) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: 'classes',
+          operation: 'create',
+          requestResourceData: newClass
+        }))
+      })
+      .finally(() => {
+        setSubmitting(false)
+      })
+  }
 
   const handleShuffle = () => {
     if (!applicants || !classes || !db) return
@@ -69,14 +137,12 @@ export default function ClassesPage() {
         })
       })
 
-      try {
-        await batch.commit()
-      } catch (err) {
+      batch.commit().catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: 'classes',
           operation: 'update'
         }))
-      }
+      })
       setIsShuffling(false)
     }, 2000)
   }
@@ -129,10 +195,87 @@ export default function ClassesPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          <Button className="bg-primary hover:bg-primary/90 gap-2">
-            <LayoutGrid className="w-4 h-4" />
-            Tambah Kelas Baru
-          </Button>
+
+          <Dialog open={isAddClassOpen} onOpenChange={setIsAddClassOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-primary hover:bg-primary/90 gap-2">
+                <Plus className="w-4 h-4" />
+                Tambah Kelas Baru
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px] border-border/50 bg-card">
+              <DialogHeader>
+                <DialogTitle className="font-headline text-2xl">Buat Rombel Baru</DialogTitle>
+                <DialogDescription>
+                  Tambahkan kelompok belajar baru untuk tingkat yang tersedia.
+                </DialogDescription>
+              </DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onAddClassSubmit)} className="space-y-4 py-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nama Kelas</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Contoh: 7-D" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="gradeLevel"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Tingkat (Grade)</FormLabel>
+                          <FormControl>
+                            <Input type="number" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name="homeroomTeacher"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Wali Kelas</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Nama Guru" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="capacity"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Kapasitas Siswa</FormLabel>
+                        <FormControl>
+                          <Input type="number" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <DialogFooter className="pt-4">
+                    <Button type="button" variant="outline" onClick={() => setIsAddClassOpen(false)}>Batal</Button>
+                    <Button type="submit" disabled={submitting}>
+                      {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Simpan Kelas'}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -173,6 +316,12 @@ export default function ClassesPage() {
             </CardContent>
           </Card>
         ))}
+        {classes?.length === 0 && (
+          <div className="col-span-full py-12 text-center border-2 border-dashed border-border rounded-xl">
+             <LayoutGrid className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
+             <p className="text-muted-foreground">Belum ada kelas yang terdaftar. Silakan tambah kelas baru.</p>
+          </div>
+        )}
       </div>
 
       {isShuffling && (
