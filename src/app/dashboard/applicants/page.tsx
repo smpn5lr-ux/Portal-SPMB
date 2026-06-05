@@ -255,22 +255,21 @@ export default function ApplicantsPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Asal Sekolah (SD/MI)</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value} disabled={submitting}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Pilih Sekolah Asal" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {schoolSuggestions.length > 0 ? (
-                              schoolSuggestions.map((school: string) => (
-                                <SelectItem key={school} value={school}>{school}</SelectItem>
-                              ))
-                            ) : (
-                              <SelectItem value="Lainnya" disabled>Atur daftar sekolah di Pengaturan</SelectItem>
-                            )}
-                          </SelectContent>
-                        </Select>
+                        <FormControl>
+                          <div className="relative">
+                            <Input 
+                              placeholder="Ketik atau pilih sekolah asal..." 
+                              {...field} 
+                              list="school-suggestions"
+                              disabled={submitting} 
+                            />
+                            <datalist id="school-suggestions">
+                              {schoolSuggestions.map((school: string) => (
+                                <option key={school} value={school} />
+                              ))}
+                            </datalist>
+                          </div>
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
