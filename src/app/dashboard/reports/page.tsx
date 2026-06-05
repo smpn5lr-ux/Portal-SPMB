@@ -15,7 +15,9 @@ import {
   Loader2,
   FileSpreadsheet,
   FileText as FilePdf,
-  FileCode
+  FileCode,
+  CheckCircle2,
+  Settings2
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -32,25 +34,49 @@ import {
   Cell
 } from "recharts"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
 import { collection, query, orderBy } from "firebase/firestore"
 import { Applicant } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
 import * as XLSX from 'xlsx'
-import { jsPDF } from 'jspdf'
-import autoTable from 'jspdf-autotable'
 
 const COLORS = ['#4361EE', '#4CC9F0', '#F72585', '#7209B7', '#3A0CA3']
+
+const EXPORT_COLUMNS = [
+  { id: 'registrationNumber', label: 'No. Registrasi' },
+  { id: 'NISN', label: 'NISN' },
+  { id: 'NIK', label: 'NIK' },
+  { id: 'fullName', label: 'Nama Lengkap' },
+  { id: 'gender', label: 'Gender' },
+  { id: 'originSchool', label: 'Asal Sekolah' },
+  { id: 'applicationPath', label: 'Jalur' },
+  { id: 'academicScore', label: 'Skor Akademik' },
+  { id: 'distanceToSchoolKm', label: 'Jarak (Km)' },
+  { id: 'verificationStatus', label: 'Status Verifikasi' },
+  { id: 'admissionStatus', label: 'Status Seleksi' },
+  { id: 'parentName', label: 'Wali Murid' },
+  { id: 'parentPhone', label: 'No. Telepon' },
+  { id: 'address', label: 'Alamat' },
+  { id: 'birthDate', label: 'Tanggal Lahir' },
+  { id: 'religion', label: 'Agama' },
+]
 
 export default function ReportsPage() {
   const db = useFirestore()
   const { toast } = useToast()
   const [isExporting, setIsExporting] = useState(false)
+  const [selectedColumns, setSelectedColumns] = useState<string[]>(EXPORT_COLUMNS.map(c => c.id))
+  const [isDownloadDialogOpen, setIsDownloadDialogOpen] = useState(false)
 
   const applicantsQuery = useMemoFirebase(() => {
     if (!db) return null
@@ -101,25 +127,19 @@ export default function ReportsPage() {
 
   const getExportData = () => {
     if (!applicants) return []
-    return applicants.map(a => ({
-      "No. Registrasi": a.registrationNumber,
-      "NISN": a.NISN,
-      "NIK": a.NIK,
-      "Nama Lengkap": a.fullName,
-      "Gender": a.gender,
-      "Asal Sekolah": a.originSchool,
-      "Jalur": a.applicationPath,
-      "Skor Akademik": a.academicScore || 0,
-      "Jarak (Km)": a.distanceToSchoolKm || 0,
-      "Status Verifikasi": a.verificationStatus,
-      "Status Seleksi": a.admissionStatus,
-      "Wali Murid": a.parentName,
-      "No. Telepon": a.parentPhone
-    }))
+    return applicants.map(a => {
+      const row: any = {}
+      EXPORT_COLUMNS.forEach(col => {
+        if (selectedColumns.includes(col.id)) {
+          row[col.label] = (a as any)[col.id] || '-'
+        }
+      })
+      return row
+    })
   }
 
   const handleExportCSV = () => {
-    if (!applicants?.length) return
+    if (!applicants?.length || selectedColumns.length === 0) return
     setIsExporting(true)
     try {
       const data = getExportData()
@@ -133,9 +153,10 @@ export default function ReportsPage() {
       const url = URL.createObjectURL(blob)
       const link = document.createElement("a")
       link.setAttribute("href", url)
-      link.setAttribute("download", `Laporan_Pendaftaran_${new Date().toISOString().split('T')[0]}.csv`)
+      link.setAttribute("download", `Laporan_PPDB_${new Date().toISOString().split('T')[0]}.csv`)
       link.click()
       toast({ title: "CSV Berhasil", description: "Laporan CSV telah diunduh." })
+      setIsDownloadDialogOpen(false)
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "Gagal ekspor CSV." })
     } finally {
@@ -144,15 +165,16 @@ export default function ReportsPage() {
   }
 
   const handleExportExcel = () => {
-    if (!applicants?.length) return
+    if (!applicants?.length || selectedColumns.length === 0) return
     setIsExporting(true)
     try {
       const data = getExportData()
       const worksheet = XLSX.utils.json_to_sheet(data)
       const workbook = XLSX.utils.book_new()
       XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Pendaftar")
-      XLSX.writeFile(workbook, `Laporan_Pendaftaran_${new Date().toISOString().split('T')[0]}.xlsx`)
+      XLSX.writeFile(workbook, `Laporan_PPDB_${new Date().toISOString().split('T')[0]}.xlsx`)
       toast({ title: "Excel Berhasil", description: "Laporan Excel telah diunduh." })
+      setIsDownloadDialogOpen(false)
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "Gagal ekspor Excel." })
     } finally {
@@ -160,10 +182,13 @@ export default function ReportsPage() {
     }
   }
 
-  const handleExportPDF = () => {
-    if (!applicants?.length) return
+  const handleExportPDF = async () => {
+    if (!applicants?.length || selectedColumns.length === 0) return
     setIsExporting(true)
     try {
+      const { default: jsPDF } = await import('jspdf')
+      const { default: autoTable } = await import('jspdf-autotable')
+      
       const doc = new jsPDF('landscape')
       const data = getExportData()
       const headers = [Object.keys(data[0])]
@@ -177,18 +202,29 @@ export default function ReportsPage() {
         head: headers,
         body: body,
         startY: 30,
-        styles: { fontSize: 8 },
+        styles: { fontSize: 7, cellPadding: 1 },
         headStyles: { fillColor: [67, 97, 238] }
       })
 
-      doc.save(`Laporan_Pendaftaran_${new Date().toISOString().split('T')[0]}.pdf`)
+      doc.save(`Laporan_PPDB_${new Date().toISOString().split('T')[0]}.pdf`)
       toast({ title: "PDF Berhasil", description: "Laporan PDF telah diunduh." })
+      setIsDownloadDialogOpen(false)
     } catch (error) {
+      console.error(error)
       toast({ variant: "destructive", title: "Error", description: "Gagal ekspor PDF." })
     } finally {
       setIsExporting(false)
     }
   }
+
+  const toggleColumn = (id: string) => {
+    setSelectedColumns(prev => 
+      prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
+    )
+  }
+
+  const selectAll = () => setSelectedColumns(EXPORT_COLUMNS.map(c => c.id))
+  const selectNone = () => setSelectedColumns([])
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -202,25 +238,87 @@ export default function ReportsPage() {
             <Filter className="w-4 h-4" /> Filter Periode
           </Button>
           
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button disabled={isExporting || loading} className="gap-2 bg-primary hover:bg-primary/90">
-                {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
+          <Dialog open={isDownloadDialogOpen} onOpenChange={setIsDownloadDialogOpen}>
+            <DialogTrigger asChild>
+              <Button disabled={loading} className="gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20">
+                <FileDown className="w-4 h-4" />
                 Download Laporan
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={handleExportCSV} className="gap-2 cursor-pointer">
-                <FileCode className="w-4 h-4" /> Export CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportExcel} className="gap-2 cursor-pointer">
-                <FileSpreadsheet className="w-4 h-4" /> Export Excel
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportPDF} className="gap-2 cursor-pointer">
-                <FilePdf className="w-4 h-4" /> Export PDF
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[600px] border-border/50 bg-card">
+              <DialogHeader>
+                <DialogTitle className="font-headline text-xl flex items-center gap-2">
+                  <Settings2 className="w-5 h-5 text-primary" />
+                  Kustomisasi Ekspor Data
+                </DialogTitle>
+                <DialogDescription>
+                  Pilih kolom yang ingin Anda masukkan ke dalam file laporan.
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="py-4">
+                <div className="flex items-center justify-between mb-4 px-1">
+                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Pilih Kolom ({selectedColumns.length})</span>
+                  <div className="flex gap-2">
+                    <Button variant="ghost" size="sm" onClick={selectAll} className="text-[10px] h-7">Pilih Semua</Button>
+                    <Button variant="ghost" size="sm" onClick={selectNone} className="text-[10px] h-7 text-destructive">Hapus Semua</Button>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 bg-muted/20 rounded-xl border border-border/50">
+                  {EXPORT_COLUMNS.map((col) => (
+                    <div key={col.id} className="flex items-center space-x-2">
+                      <Checkbox 
+                        id={`col-${col.id}`} 
+                        checked={selectedColumns.includes(col.id)}
+                        onCheckedChange={() => toggleColumn(col.id)}
+                      />
+                      <Label 
+                        htmlFor={`col-${col.id}`}
+                        className="text-xs font-medium cursor-pointer leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        {col.label}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <DialogFooter className="flex-col sm:flex-row gap-2 border-t pt-6">
+                <div className="flex-1 text-[10px] text-muted-foreground italic flex items-center">
+                  * Format PDF disarankan menggunakan orientasi landscape.
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={handleExportCSV} 
+                    disabled={isExporting || selectedColumns.length === 0} 
+                    variant="outline" 
+                    className="gap-2 border-primary/20 text-primary hover:bg-primary/5"
+                  >
+                    {isExporting ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileCode className="w-3 h-3" />}
+                    CSV
+                  </Button>
+                  <Button 
+                    onClick={handleExportExcel} 
+                    disabled={isExporting || selectedColumns.length === 0} 
+                    variant="outline" 
+                    className="gap-2 border-green-500/20 text-green-500 hover:bg-green-500/5"
+                  >
+                    {isExporting ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileSpreadsheet className="w-3 h-3" />}
+                    Excel
+                  </Button>
+                  <Button 
+                    onClick={handleExportPDF} 
+                    disabled={isExporting || selectedColumns.length === 0} 
+                    className="gap-2 bg-primary hover:bg-primary/90"
+                  >
+                    {isExporting ? <Loader2 className="w-3 h-3 animate-spin" /> : <FilePdf className="w-3 h-3" />}
+                    PDF
+                  </Button>
+                </div>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -379,26 +477,15 @@ export default function ReportsPage() {
                     <p className="text-xs text-muted-foreground">Oleh {file.user} • {file.date}</p>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button 
-                    onClick={handleExportExcel}
-                    disabled={isExporting || loading}
-                    variant="ghost" 
-                    size="sm" 
-                    className="text-primary font-bold gap-2"
-                  >
-                    <FileSpreadsheet className="w-3 h-3" /> Excel
-                  </Button>
-                  <Button 
-                    onClick={handleExportPDF}
-                    disabled={isExporting || loading}
-                    variant="ghost" 
-                    size="sm" 
-                    className="text-primary font-bold gap-2"
-                  >
-                    <FilePdf className="w-3 h-3" /> PDF
-                  </Button>
-                </div>
+                <Button 
+                  onClick={() => setIsDownloadDialogOpen(true)}
+                  disabled={loading}
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-primary font-bold gap-2"
+                >
+                  <FileSpreadsheet className="w-3 h-3" /> Re-download
+                </Button>
               </div>
             ))}
           </div>
