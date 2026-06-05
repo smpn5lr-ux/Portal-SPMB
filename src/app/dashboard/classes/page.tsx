@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from 'react'
@@ -45,6 +46,7 @@ import * as z from "zod"
 import { errorEmitter } from '@/firebase/error-emitter'
 import { FirestorePermissionError } from '@/firebase/errors'
 import { useToast } from '@/hooks/use-toast'
+import { Switch } from "@/components/ui/switch"
 
 const classFormSchema = z.object({
   name: z.string().min(1, "Nama kelas harus diisi"),
@@ -63,7 +65,6 @@ export default function ClassesPage() {
 
   const classesQuery = useMemoFirebase(() => {
     if (!db) return null
-    // Mengurutkan kelas berdasarkan nama secara ascending (A-Z)
     return query(collection(db, 'classes'), orderBy('name', 'asc'))
   }, [db])
 
@@ -106,7 +107,6 @@ export default function ClassesPage() {
   const onClassSubmit = (values: z.infer<typeof classFormSchema>) => {
     if (!db || submitting || !classes) return
 
-    // Validasi Duplikasi Nama Kelas
     const isDuplicateName = classes.some(cls => 
       cls.name.toLowerCase() === values.name.toLowerCase() && 
       (!editingClass || cls.id !== editingClass.id)
@@ -121,7 +121,6 @@ export default function ClassesPage() {
       return
     }
 
-    // Validasi Duplikasi Wali Kelas (jika diisi)
     if (values.homeroomTeacher && values.homeroomTeacher.trim() !== "") {
       const isDuplicateTeacher = classes.some(cls => 
         cls.homeroomTeacher?.toLowerCase() === values.homeroomTeacher?.toLowerCase() && 
@@ -202,9 +201,15 @@ export default function ClassesPage() {
     setIsShuffling(true)
     
     setTimeout(async () => {
-      const acceptedStudents = applicants.filter(a => a.admissionStatus === 'accepted')
+      // 1. Ambil siswa yang diterima
+      let acceptedStudents = applicants.filter(a => a.admissionStatus === 'accepted')
+      
+      // 2. Acak urutan siswa (Randomize)
+      acceptedStudents = [...acceptedStudents].sort(() => Math.random() - 0.5)
+      
       const batch = writeBatch(db)
       
+      // 3. Distribusikan ke kelas secara seimbang
       classes.forEach((cls, idx) => {
         const perClass = Math.ceil(acceptedStudents.length / classes.length)
         const classStudents = acceptedStudents.slice(idx * perClass, (idx + 1) * perClass)
@@ -217,7 +222,12 @@ export default function ClassesPage() {
         })
       })
 
-      batch.commit().catch(async (err) => {
+      batch.commit().then(() => {
+        toast({
+          title: "Distribusi Selesai",
+          description: "Siswa telah berhasil diacak dan didistribusikan ke kelas.",
+        })
+      }).catch(async (err) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: 'classes',
           operation: 'update'
@@ -256,13 +266,12 @@ export default function ClassesPage() {
                   {[
                     'Keseimbangan Jenis Kelamin',
                     'Distribusi Nilai Akademik Seimbang',
+                    'Distribusi Sekolah Asal Seimbang',
                     'Kapasitas Maksimal Kelas'
                   ].map((pref) => (
                     <div key={pref} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border">
                       <span className="text-sm font-medium">{pref}</span>
-                      <div className="w-10 h-5 bg-primary rounded-full relative">
-                        <div className="absolute right-1 top-1 w-3 h-3 bg-white rounded-full"></div>
-                      </div>
+                      <Switch defaultChecked />
                     </div>
                   ))}
                 </div>
