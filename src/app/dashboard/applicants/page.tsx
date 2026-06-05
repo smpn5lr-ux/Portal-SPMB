@@ -64,8 +64,8 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import Link from 'next/link'
-import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase'
-import { collection, query, orderBy, addDoc, serverTimestamp, limit, doc, getDocs } from 'firebase/firestore'
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase'
+import { collection, query, orderBy, addDoc, serverTimestamp, limit, getDocs } from 'firebase/firestore'
 import { Applicant } from '@/lib/types'
 import { errorEmitter } from '@/firebase/error-emitter'
 import { FirestorePermissionError } from '@/firebase/errors'
@@ -102,7 +102,6 @@ const formSchema = z.object({
   parentPhone: z.string().min(10, "No. Telepon minimal 10 digit"),
   academicScore: z.string().optional(),
   distanceToSchoolKm: z.string().optional(),
-  
   livingWith: z.string().optional(),
   transportation: z.string().optional(),
   hobbies: z.string().optional(),

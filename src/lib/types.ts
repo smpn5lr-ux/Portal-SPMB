@@ -39,7 +39,7 @@ export interface Applicant {
   assignedClassId?: string;
   createdAt: string;
   
-  // Additional Dapodik Fields
+  // Bidang Tambahan Dapodik
   livingWith?: string;
   transportation?: string;
   hobbies?: string;
@@ -48,7 +48,7 @@ export interface Applicant {
   numberOfSiblings?: number;
   childOrder?: number;
   
-  // Detailed Parent Info
+  // Detail Orang Tua
   fatherName?: string;
   fatherNIK?: string;
   fatherOccupation?: string;
