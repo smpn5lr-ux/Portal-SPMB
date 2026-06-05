@@ -10,7 +10,8 @@
     "build": "NODE_ENV=production next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "push": "git add . && git commit -m 'Update Portal SPMB' && git push -u origin main"
   },
   "dependencies": {
     "@genkit-ai/google-genai": "^1.28.0",
