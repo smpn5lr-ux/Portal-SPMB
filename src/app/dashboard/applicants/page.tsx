@@ -117,14 +117,43 @@ const formSchema = z.object({
   childOrder: z.string().optional(),
 })
 
-const TEMPLATE_COLUMNS = [
-  "fullName", "NISN", "NIK", "familyCardNumber", "originSchool", 
-  "applicationPath", "gender", "birthPlace", "birthDate", "religion", 
-  "address", "parentName", "parentPhone", "academicScore", "distanceToSchoolKm",
-  "livingWith", "transportation", "hobbies", "registrantRelationship",
-  "fatherName", "fatherNIK", "fatherOccupation", "motherName", "motherNIK",
-  "motherOccupation", "numberOfSiblings", "childOrder"
-]
+// MAPPING FOR IMPORT/EXPORT
+const COLUMN_MAPPING: Record<string, string> = {
+  fullName: "Nama Lengkap",
+  NISN: "NISN",
+  NIK: "NIK",
+  familyCardNumber: "No Kartu Keluarga",
+  originSchool: "Asal Sekolah",
+  applicationPath: "Jalur Pendaftaran",
+  gender: "Jenis Kelamin",
+  birthPlace: "Tempat Lahir",
+  birthDate: "Tanggal Lahir",
+  religion: "Agama",
+  address: "Alamat",
+  parentName: "Nama Wali",
+  parentPhone: "No Telepon",
+  academicScore: "Skor Akademik",
+  distanceToSchoolKm: "Jarak (Km)",
+  livingWith: "Tinggal Dengan",
+  transportation: "Transportasi",
+  hobbies: "Hobi",
+  registrantRelationship: "Hubungan Pendaftar",
+  fatherName: "Nama Ayah",
+  fatherNIK: "NIK Ayah",
+  fatherOccupation: "Pekerjaan Ayah",
+  motherName: "Nama Ibu",
+  motherNIK: "NIK Ibu",
+  motherOccupation: "Pekerjaan Ibu",
+  numberOfSiblings: "Jumlah Saudara",
+  childOrder: "Anak Ke"
+}
+
+const REVERSE_MAPPING: Record<string, string> = Object.entries(COLUMN_MAPPING).reduce((acc, [key, val]) => {
+  acc[val] = key;
+  return acc;
+}, {} as Record<string, string>);
+
+const TEMPLATE_KEYS = Object.keys(COLUMN_MAPPING);
 
 export default function ApplicantsPage() {
   const [searchTerm, setSearchTerm] = useState('')
@@ -242,10 +271,12 @@ export default function ApplicantsPage() {
       }
     ]
 
+    const headers = TEMPLATE_KEYS.map(key => COLUMN_MAPPING[key]);
+
     if (format === 'csv') {
       const csvContent = [
-        TEMPLATE_COLUMNS.join(","),
-        ...sampleData.map(row => TEMPLATE_COLUMNS.map(col => `"${(row as any)[col] || ""}"`).join(","))
+        headers.join(","),
+        ...sampleData.map(row => TEMPLATE_KEYS.map(key => `"${(row as any)[key] || ""}"`).join(","))
       ].join("\n")
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
       const url = URL.createObjectURL(blob)
@@ -254,7 +285,14 @@ export default function ApplicantsPage() {
       link.setAttribute("download", "Templat_Impor_Siswa.csv")
       link.click()
     } else if (format === 'excel') {
-      const worksheet = XLSX.utils.json_to_sheet(sampleData, { header: TEMPLATE_COLUMNS })
+      const mappedData = sampleData.map(row => {
+        const newRow: any = {};
+        TEMPLATE_KEYS.forEach(key => {
+          newRow[COLUMN_MAPPING[key]] = (row as any)[key];
+        });
+        return newRow;
+      });
+      const worksheet = XLSX.utils.json_to_sheet(mappedData, { header: headers })
       const workbook = XLSX.utils.book_new()
       XLSX.utils.book_append_sheet(workbook, worksheet, "Templat Impor")
       XLSX.writeFile(workbook, "Templat_Impor_Siswa.xlsx")
@@ -266,10 +304,10 @@ export default function ApplicantsPage() {
       doc.setFontSize(10)
       doc.text("Gunakan kolom-kolom berikut dalam file CSV atau Excel Anda:", 14, 22)
       
-      const tableBody = TEMPLATE_COLUMNS.map(col => [
-        col, 
+      const tableBody = TEMPLATE_KEYS.map(key => [
+        COLUMN_MAPPING[key], 
         "Teks/Angka", 
-        ["fullName", "NISN", "NIK", "birthDate"].includes(col) ? "Wajib" : "Opsional"
+        ["fullName", "NISN", "NIK", "birthDate"].includes(key) ? "Wajib" : "Opsional"
       ])
       
       autoTable(doc, {
@@ -277,7 +315,7 @@ export default function ApplicantsPage() {
         body: tableBody,
         startY: 30,
         styles: { fontSize: 8 },
-        headStyles: { fillColor: [67, 97, 238] }
+        headStyles: { fillColor: [67, 97, 238] } // Blue header
       })
       doc.save("Panduan_Templat_Impor.pdf")
     }
@@ -322,7 +360,6 @@ export default function ApplicantsPage() {
       let successCount = 0
       let errorCount = 0
 
-      // Get initial sequence for import
       const q = query(collection(db, 'applicants'), orderBy('registrationSequence', 'desc'), limit(1));
       const snap = await getDocs(q);
       let currentMax = 0;
@@ -332,10 +369,19 @@ export default function ApplicantsPage() {
 
       for (const row of rows) {
         const values = row.split(',').map(v => v.trim().replace(/"/g, ''))
-        const data: any = {}
+        const rawData: any = {}
         headers.forEach((header, index) => {
-          data[header] = values[index]
+          rawData[header] = values[index]
         })
+
+        // Map Indonesian headers back to DB keys
+        const data: any = {};
+        Object.entries(rawData).forEach(([headerLabel, val]) => {
+          const dbKey = REVERSE_MAPPING[headerLabel];
+          if (dbKey) {
+            data[dbKey] = val;
+          }
+        });
 
         if (!data.NISN || !data.fullName) {
           errorCount++
@@ -387,7 +433,6 @@ export default function ApplicantsPage() {
     setSubmitting(true)
     
     try {
-      // Logic for strictly sequential registration numbers
       const q = query(collection(db, 'applicants'), orderBy('registrationSequence', 'desc'), limit(1));
       const snap = await getDocs(q);
       let nextSequence = 1;
@@ -499,7 +544,6 @@ export default function ApplicantsPage() {
                 <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 overflow-hidden">
                   <ScrollArea className="flex-1 px-8 py-6">
                     <div className="space-y-10 pb-10">
-                      {/* SECTION 1: IDENTITAS PRIBADI */}
                       <div className="space-y-6">
                         <div className="flex items-center gap-3 text-primary">
                           <div className="bg-primary/10 p-2 rounded-lg">
@@ -632,7 +676,6 @@ export default function ApplicantsPage() {
                         </div>
                       </div>
 
-                      {/* SECTION 2: DATA KELUARGA */}
                       <div className="space-y-6">
                         <div className="flex items-center gap-3 text-cyan-500">
                           <div className="bg-cyan-500/10 p-2 rounded-lg">
@@ -670,7 +713,6 @@ export default function ApplicantsPage() {
                         </div>
                       </div>
 
-                      {/* SECTION 3: DOMISILI */}
                       <div className="space-y-6">
                         <div className="flex items-center gap-3 text-amber-500">
                           <div className="bg-amber-500/10 p-2 rounded-lg">
@@ -767,7 +809,6 @@ export default function ApplicantsPage() {
                         </div>
                       </div>
 
-                      {/* SECTION 4: ORANG TUA */}
                       <div className="space-y-6">
                         <div className="flex items-center gap-3 text-pink-500">
                           <div className="bg-pink-500/10 p-2 rounded-lg">
@@ -776,7 +817,6 @@ export default function ApplicantsPage() {
                           <h3 className="font-bold uppercase tracking-widest text-sm">Bagian 4: Data Orang Tua / Wali</h3>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-muted/10 p-5 rounded-2xl border border-border/50">
-                          {/* Ayah */}
                           <div className="space-y-5 p-5 border rounded-2xl bg-card/50">
                             <div className="flex items-center gap-2 border-b pb-2">
                               <Badge variant="outline" className="text-primary border-primary/20 bg-primary/5">AYAH</Badge>
@@ -822,7 +862,6 @@ export default function ApplicantsPage() {
                             />
                           </div>
 
-                          {/* Ibu */}
                           <div className="space-y-5 p-5 border rounded-2xl bg-card/50">
                             <div className="flex items-center gap-2 border-b pb-2">
                               <Badge variant="outline" className="text-pink-500 border-pink-500/20 bg-pink-500/5">IBU</Badge>
@@ -908,7 +947,6 @@ export default function ApplicantsPage() {
                         </div>
                       </div>
 
-                      {/* SECTION 5: PENDIDIKAN */}
                       <div className="space-y-6">
                         <div className="flex items-center gap-3 text-green-500">
                           <div className="bg-green-500/10 p-2 rounded-lg">

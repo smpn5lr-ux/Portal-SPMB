@@ -203,7 +203,7 @@ export default function ReportsPage() {
         body: body,
         startY: 30,
         styles: { fontSize: 7, cellPadding: 1 },
-        headStyles: { fillColor: [67, 97, 238] }
+        headStyles: { fillColor: [67, 97, 238] } // Biru (Primary Blue)
       })
 
       doc.save(`Laporan_PPDB_${new Date().toISOString().split('T')[0]}.pdf`)
@@ -286,7 +286,7 @@ export default function ReportsPage() {
 
               <DialogFooter className="flex-col sm:flex-row gap-2 border-t pt-6">
                 <div className="flex-1 text-[10px] text-muted-foreground italic flex items-center">
-                  * Format PDF disarankan menggunakan orientasi landscape.
+                  * Format PDF menggunakan orientasi landscape dengan judul tabel biru.
                 </div>
                 <div className="flex gap-2">
                   <Button 
