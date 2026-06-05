@@ -234,14 +234,14 @@ export default function ApplicantsPage() {
                 <Plus className="w-4 h-4" /> Tambah Pendaftar
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[800px] h-[90vh] p-0 overflow-hidden border-border/50 bg-card">
-              <DialogHeader className="p-6 pb-0">
+            <DialogContent className="sm:max-w-[800px] h-[90vh] p-0 overflow-hidden border-border/50 bg-card flex flex-col">
+              <DialogHeader className="p-6 pb-2">
                 <DialogTitle className="font-headline text-2xl">Formulir Pendaftaran Dapodik</DialogTitle>
                 <DialogDescription>Lengkapi seluruh informasi calon siswa sesuai dokumen resmi.</DialogDescription>
               </DialogHeader>
               
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full">
+                <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 overflow-hidden">
                   <ScrollArea className="flex-1 px-6 py-4">
                     <div className="space-y-8 pb-8">
                       {/* Section: Identitas Pribadi */}
@@ -530,8 +530,8 @@ export default function ApplicantsPage() {
                     </div>
                   </ScrollArea>
 
-                  <div className="p-6 border-t bg-card">
-                    <DialogFooter>
+                  <div className="p-6 border-t bg-card shrink-0">
+                    <DialogFooter className="flex flex-row items-center justify-end gap-2">
                       <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={submitting}>
                         Batal
                       </Button>
