@@ -259,6 +259,7 @@ export default function ApplicantDetailPage() {
                       <h4 className="text-[11px] font-bold uppercase tracking-[0.2em]">Data Orang Tua / Wali</h4>
                     </div>
                     <div className="space-y-4">
+                      {/* TAMPILKAN WALI HANYA JIKA ADA DATA */}
                       {applicant.guardianName && (
                         <div className="bg-orange-500/5 p-4 rounded-xl border border-orange-500/20">
                           <div className="flex items-center gap-2 mb-2">

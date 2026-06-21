@@ -205,10 +205,10 @@ export default function ApplicantsPage() {
     },
   })
 
-  // Periksa apakah butuh data wali
-  const livingWith = form.watch('livingWith')
-  const relationship = form.watch('registrantRelationship')
-  const showGuardianInfo = livingWith === 'Wali' || relationship === 'Wali'
+  // Periksa apakah butuh data wali - Dinamis berdasarkan input
+  const livingWithWatcher = form.watch('livingWith')
+  const relationshipWatcher = form.watch('registrantRelationship')
+  const showGuardianInfo = livingWithWatcher === 'Wali' || relationshipWatcher === 'Wali'
 
   const applicantsQuery = useMemoFirebase(() => {
     if (!db) return null
@@ -319,6 +319,7 @@ export default function ApplicantsPage() {
       const npsn = systemSettings?.npsn || "-"
       const academicYear = systemSettings?.academicYear || "2024/2025"
 
+      // KOP SURAT RESMI PADA PDF TEMPLAT
       doc.setFontSize(14)
       doc.setTextColor(0, 0, 0)
       doc.setFont("helvetica", "bold")
@@ -975,7 +976,7 @@ export default function ApplicantsPage() {
                             />
                           </div>
 
-                          {/* IDENTITAS WALI (MUNCUL JIKA PILIH WALI) */}
+                          {/* IDENTITAS WALI - DINAMIS: HANYA MUNCUL JIKA PILIH WALI */}
                           {showGuardianInfo && (
                             <div className="md:col-span-2 space-y-6 animate-in slide-in-from-top-4 duration-300">
                               <div className="flex items-center gap-3 text-orange-500">
