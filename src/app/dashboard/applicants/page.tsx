@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo, useRef } from 'react'
@@ -64,8 +63,8 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import Link from 'next/link'
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase'
-import { collection, query, orderBy, addDoc, serverTimestamp, limit, getDocs } from 'firebase/firestore'
+import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase'
+import { collection, query, orderBy, addDoc, serverTimestamp, limit, getDocs, doc } from 'firebase/firestore'
 import { Applicant } from '@/lib/types'
 import { errorEmitter } from '@/firebase/error-emitter'
 import { FirestorePermissionError } from '@/firebase/errors'
@@ -171,7 +170,13 @@ export default function ApplicantsPage() {
     )
   }, [db])
 
+  const settingsRef = useMemoFirebase(() => {
+    if (!db) return null
+    return doc(db, 'settings', 'system')
+  }, [db])
+
   const { data: applicants, loading } = useCollection<Applicant>(applicantsQuery)
+  const { data: systemSettings } = useDoc<any>(settingsRef)
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -290,13 +295,33 @@ export default function ApplicantsPage() {
       const { default: autoTable } = await import('jspdf-autotable')
       const doc = new jsPDF('landscape')
       
-      doc.setFontSize(16)
+      const schoolName = systemSettings?.schoolName || "PORTAL SPMB"
+      const npsn = systemSettings?.npsn || "-"
+      const academicYear = systemSettings?.academicYear || "2024/2025"
+
+      // KOP SURAT
+      doc.setFontSize(20)
+      doc.setTextColor(0, 0, 0)
+      doc.setFont("helvetica", "bold")
+      doc.text(schoolName.toUpperCase(), 148, 18, { align: "center" })
+      
+      doc.setFontSize(10)
+      doc.setFont("helvetica", "normal")
+      doc.text(`NPSN: ${npsn} | Tahun Ajaran ${academicYear}`, 148, 24, { align: "center" })
+      doc.setLineWidth(0.5)
+      doc.line(14, 28, 283, 28)
+      doc.setLineWidth(0.1)
+      doc.line(14, 29, 283, 29)
+
+      doc.setFontSize(14)
       doc.setTextColor(67, 97, 238)
-      doc.text("Panduan Templat Impor Data Calon Murid", 14, 15)
+      doc.setFont("helvetica", "bold")
+      doc.text("PANDUAN TEMPLAT IMPOR DATA CALON MURID", 148, 38, { align: "center" })
       
       doc.setFontSize(10)
       doc.setTextColor(100)
-      doc.text("Gunakan kolom-kolom berikut dalam file CSV atau Excel Anda agar sistem dapat membaca data dengan baik.", 14, 22)
+      doc.setFont("helvetica", "normal")
+      doc.text("Gunakan kolom-kolom berikut dalam file CSV atau Excel Anda agar sistem dapat membaca data dengan baik.", 14, 46)
       
       const tableBody = TEMPLATE_KEYS.map(col => [
         COLUMN_MAPPING[col], 
@@ -307,15 +332,21 @@ export default function ApplicantsPage() {
       autoTable(doc, {
         head: [['Nama Kolom', 'Tipe Data', 'Status']],
         body: tableBody,
-        startY: 30,
+        startY: 53,
         styles: { fontSize: 8, font: 'helvetica' },
         headStyles: { 
           fillColor: [67, 97, 238],
           textColor: [255, 255, 255],
-          fontStyle: 'bold'
+          fontStyle: 'bold',
+          halign: 'center'
+        },
+        columnStyles: {
+          0: { cellWidth: 100 },
+          1: { cellWidth: 80, halign: 'center' },
+          2: { cellWidth: 60, halign: 'center' }
         }
       })
-      doc.save("Panduan_Templat_Impor_Murid.pdf")
+      doc.save(`Panduan_Templat_Impor_Murid_${schoolName.replace(/\s+/g, '_')}.pdf`)
     }
     
     toast({
