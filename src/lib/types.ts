@@ -1,3 +1,4 @@
+
 export type AdmissionPath = 'Zonasi' | 'Prestasi' | 'Afirmasi' | 'Perpindahan Orang Tua';
 
 export type VerificationStatus = 'Belum Diverifikasi' | 'Lengkap' | 'Perlu Perbaikan' | 'Ditolak';
@@ -14,12 +15,16 @@ export interface Applicant {
   registrationSequence: number;
   NISN: string;
   NIK: string;
+  familyCardNumber: string;
+  aktaLahirNumber?: string;
   fullName: string;
   birthPlace: string;
   birthDate: string;
   gender: 'Laki-laki' | 'Perempuan';
   religion: string;
   address: string;
+  rt?: string;
+  rw?: string;
   kelurahan?: string;
   kecamatan?: string;
   propinsi?: string;
@@ -27,8 +32,6 @@ export interface Applicant {
   parentPhone: string;
   parentEmail?: string;
   originSchool: string;
-  familyCardNumber: string;
-  applicationPath: AdmissionPath;
   photoUrl?: string;
   documents: {
     name: string;
@@ -47,8 +50,8 @@ export interface Applicant {
   createdAt: string;
   
   // Bidang Tambahan Dapodik & Periodik
-  livingWith?: string;
-  transportation?: string;
+  livingWith?: 'Bersama Orang Tua' | 'Wali' | 'Asrama' | 'Kos';
+  transportation?: 'Jalan Kaki' | 'Motor' | 'Mobil' | 'Angkot/Kendaraan Umum';
   hobbies?: string;
   studentPhone?: string;
   numberOfSiblings?: number;
@@ -67,7 +70,7 @@ export interface Applicant {
   usParticipantNumber?: string;
   ijazahSerialNumber?: string;
   
-  // Detail Orang Tua & Wali (Sesuai Gambar)
+  // Detail Orang Tua & Wali
   fatherName?: string;
   fatherNIK?: string;
   fatherBirthYear?: string;

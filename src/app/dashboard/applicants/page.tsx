@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo, useRef } from 'react'
@@ -26,7 +27,8 @@ import {
   ClipboardList,
   Heart,
   Briefcase,
-  Wallet
+  Wallet,
+  Phone
 } from "lucide-react"
 import { 
   Table, 
@@ -96,6 +98,7 @@ const formSchema = z.object({
   NISN: z.string().length(10, "NISN harus 10 digit"),
   NIK: z.string().length(16, "NIK harus 16 digit"),
   familyCardNumber: z.string().length(16, "No. KK harus 16 digit"),
+  aktaLahirNumber: z.string().optional(),
   originSchool: z.string().min(2, "Asal sekolah harus diisi"),
   applicationPath: z.enum(['Zonasi', 'Prestasi', 'Afirmasi', 'Perpindahan Orang Tua']),
   gender: z.enum(['Laki-laki', 'Perempuan']),
@@ -103,6 +106,8 @@ const formSchema = z.object({
   birthDate: z.string().min(1, "Tanggal lahir harus diisi"),
   religion: z.string().min(1, "Agama harus dipilih"),
   address: z.string().min(5, "Alamat lengkap harus diisi"),
+  rt: z.string().optional(),
+  rw: z.string().optional(),
   kelurahan: z.string().optional(),
   kecamatan: z.string().optional(),
   propinsi: z.string().optional(),
@@ -111,8 +116,8 @@ const formSchema = z.object({
   parentEmail: z.string().email("Email tidak valid").optional().or(z.literal('')),
   academicScore: z.string().optional(),
   distanceToSchoolKm: z.string().optional(),
-  livingWith: z.string().optional(),
-  transportation: z.string().optional(),
+  livingWith: z.enum(['Bersama Orang Tua', 'Wali', 'Asrama', 'Kos']),
+  transportation: z.enum(['Jalan Kaki', 'Motor', 'Mobil', 'Angkot/Kendaraan Umum']),
   hobbies: z.string().optional(),
   studentPhone: z.string().optional(),
   registrantRelationship: z.string().optional(),
@@ -153,45 +158,15 @@ const formSchema = z.object({
   ijazahSerialNumber: z.string().optional(),
 })
 
-const COLUMN_MAPPING: Record<string, string> = {
-  fullName: "Nama Lengkap",
-  NISN: "NISN",
-  NIK: "NIK",
-  familyCardNumber: "No Kartu Keluarga",
-  originSchool: "Asal Sekolah",
-  applicationPath: "Jalur Pendaftaran",
-  gender: "Jenis Kelamin",
-  birthPlace: "Tempat Lahir",
-  birthDate: "Tanggal Lahir",
-  religion: "Agama",
-  address: "Alamat",
-  parentName: "Nama Orang Tua",
-  parentPhone: "No Telepon",
-  academicScore: "Skor Akademik",
-  distanceToSchoolKm: "Jarak (Km)"
-}
-
-const TEMPLATE_KEYS = Object.keys(COLUMN_MAPPING);
-
-const EDUCATION_OPTIONS = [
-  'Tidak Sekolah', 'SD', 'SMP', 'SMA', 'S1', 'S2', 'S3'
-]
-
-const OCCUPATION_OPTIONS = [
-  'Tidak bekerja', 'Petani/Nelayan', 'ASN', 'Peg. swasta', 'Pengusaha', 'Pensiun'
-]
-
-const INCOME_OPTIONS = [
-  '< Rp. 500,000', 'Rp. 500,000 - 999,999', 'Rp. 1,000,000 - Rp. 3,000,000', 'Rp. 3,000,000 - 5,000,000'
-]
+const EDUCATION_OPTIONS = ['Tidak Sekolah', 'SD', 'SMP', 'SMA', 'S1', 'S2', 'S3']
+const OCCUPATION_OPTIONS = ['Tidak bekerja', 'Petani/Nelayan', 'ASN', 'Peg. swasta', 'Pengusaha', 'Pensiun']
+const INCOME_OPTIONS = ['< Rp. 500,000', 'Rp. 500,000 - 999,999', 'Rp. 1,000,000 - Rp. 3,000,000', 'Rp. 3,000,000 - 5,000,000']
 
 export default function ApplicantsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [isImporting, setIsImporting] = useState(false)
   const [isScanning, setIsScanning] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const scanInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
   const db = useFirestore()
@@ -203,6 +178,7 @@ export default function ApplicantsPage() {
       NISN: "",
       NIK: "",
       familyCardNumber: "",
+      aktaLahirNumber: "",
       originSchool: "",
       applicationPath: "Zonasi",
       gender: "Laki-laki",
@@ -210,6 +186,8 @@ export default function ApplicantsPage() {
       birthDate: "",
       religion: "Islam",
       address: "",
+      rt: "",
+      rw: "",
       kelurahan: "",
       kecamatan: "",
       propinsi: "",
@@ -260,20 +238,10 @@ export default function ApplicantsPage() {
 
   const applicantsQuery = useMemoFirebase(() => {
     if (!db) return null
-    return query(
-      collection(db, 'applicants'), 
-      orderBy('registrationSequence', 'asc'),
-      limit(200) 
-    )
-  }, [db])
-
-  const settingsRef = useMemoFirebase(() => {
-    if (!db) return null
-    return doc(db, 'settings', 'system')
+    return query(collection(db, 'applicants'), orderBy('registrationSequence', 'asc'), limit(200))
   }, [db])
 
   const { data: applicants, loading } = useCollection<Applicant>(applicantsQuery)
-  const { data: systemSettings } = useDoc<any>(settingsRef)
 
   const filteredApplicants = useMemo(() => {
     if (!applicants) return []
@@ -306,71 +274,6 @@ export default function ApplicantsPage() {
       } finally {
         setIsScanning(false)
         if (scanInputRef.current) scanInputRef.current.value = ''
-      }
-    }
-    reader.readAsDataURL(file)
-  }
-
-  const handleDownloadTemplate = async (format: 'csv' | 'excel' | 'pdf') => {
-    const headers = ["No.", ...TEMPLATE_KEYS.map(key => COLUMN_MAPPING[key])];
-    const dinasName = systemSettings?.dinasName || "DINAS PENDIDIKAN"
-    const schoolName = systemSettings?.schoolName || "PORTAL SPMB"
-    const academicYear = systemSettings?.academicYear || "2024/2025"
-    const npsn = systemSettings?.npsn || "-"
-
-    if (format === 'csv' || format === 'excel') {
-      const sampleData = [
-        headers,
-        ["1", "Contoh Murid", "0123456789", "3201234567890001", "3201234567890002", "SDN Contoh 01", "Zonasi", "Laki-laki", "Jakarta", "2012-05-15", "Islam", "Jl. Contoh No. 1", "Wali Contoh", "081234567890", "90", "0.5"]
-      ]
-      const worksheet = XLSX.utils.aoa_to_sheet(sampleData)
-      const workbook = XLSX.utils.book_new()
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Templat Impor")
-      XLSX.writeFile(workbook, `Templat_Impor_Murid.${format === 'csv' ? 'csv' : 'xlsx'}`)
-    } else if (format === 'pdf') {
-       const { default: jsPDF } = await import('jspdf')
-       const { default: autoTable } = await import('jspdf-autotable')
-       const doc = new jsPDF('landscape')
-       doc.setFont("helvetica", "bold").text(dinasName.toUpperCase(), 148, 15, { align: "center" })
-       doc.setFontSize(20).text(schoolName.toUpperCase(), 148, 22, { align: "center" })
-       doc.setFontSize(10).setFont("helvetica", "normal").text(`NPSN: ${npsn} | Tahun Ajaran ${academicYear}`, 148, 28, { align: "center" })
-       doc.line(14, 32, 283, 32)
-       doc.setFontSize(14).setFont("helvetica", "bold").text("PANDUAN IMPOR DATA MURID BARU", 14, 42)
-       autoTable(doc, { head: [headers], body: [], startY: 52, theme: 'grid' })
-       doc.save(`Templat_Panduan_Impor.pdf`)
-    }
-  }
-
-  const handleImportClick = () => fileInputRef.current?.click()
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !db) return
-    setIsImporting(true)
-    const reader = new FileReader()
-    reader.onload = async (event) => {
-      const data = new Uint8Array(event.target?.result as ArrayBuffer)
-      const workbook = XLSX.read(data, { type: 'array' })
-      const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]])
-      try {
-        for (const row of jsonData as any[]) {
-          const mappedRow: any = {}
-          TEMPLATE_KEYS.forEach(key => mappedRow[key] = row[COLUMN_MAPPING[key]] || "")
-          await addDoc(collection(db, 'applicants'), {
-            ...mappedRow,
-            registrationNumber: `REG-IMP-${Math.random().toString(36).substr(2, 5).toUpperCase()}`,
-            verificationStatus: 'Belum Diverifikasi',
-            admissionStatus: 'pending',
-            createdAt: new Date().toISOString(),
-            serverCreatedAt: serverTimestamp()
-          })
-        }
-        toast({ title: "Impor Berhasil", description: "Data murid telah ditambahkan." })
-      } catch (err) {
-        toast({ variant: "destructive", title: "Impor Gagal" })
-      } finally {
-        setIsImporting(false)
-        if (fileInputRef.current) fileInputRef.current.value = ''
       }
     }
     reader.readAsDataURL(file)
@@ -414,21 +317,7 @@ export default function ApplicantsPage() {
           <p className="text-muted-foreground mt-1">Kelola pendaftar baru sesuai standar Dapodik.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".csv,.xlsx" className="hidden" />
           <input type="file" ref={scanInputRef} onChange={handleScanForm} accept="image/*" className="hidden" />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2 border-primary/20 text-primary hover:bg-primary/5">
-                <FileDown className="w-4 h-4" /> Templat <ChevronDown className="w-3 h-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleDownloadTemplate('csv')}>Format CSV</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleDownloadTemplate('excel')}>Format Excel</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleDownloadTemplate('pdf')}>Panduan PDF</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button variant="outline" className="gap-2" onClick={handleImportClick} disabled={isImporting}>Impor Data</Button>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2 bg-primary"><Plus className="w-4 h-4" /> Tambah Murid</Button>
@@ -448,7 +337,7 @@ export default function ApplicantsPage() {
                 <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 overflow-hidden">
                   <ScrollArea className="flex-1 px-8 py-6">
                     <div className="space-y-10 pb-10">
-                      {/* Bagian 1: Identitas */}
+                      {/* Bagian 1: Identitas Pribadi */}
                       <div className="space-y-4">
                         <h3 className="font-bold uppercase tracking-widest text-sm text-primary flex items-center gap-2"><User className="w-4 h-4" /> Bagian 1: Identitas Pribadi</h3>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-muted/10 p-6 rounded-2xl border">
@@ -464,16 +353,78 @@ export default function ApplicantsPage() {
                           <FormField control={form.control} name="NIK" render={({ field }) => (
                             <FormItem><FormLabel>NIK</FormLabel><FormControl><Input placeholder="16 Digit" {...field} /></FormControl><FormMessage /></FormItem>
                           )} />
+                          <FormField control={form.control} name="familyCardNumber" render={({ field }) => (
+                            <FormItem><FormLabel>No. Kartu Keluarga</FormLabel><FormControl><Input placeholder="16 Digit" {...field} /></FormControl><FormMessage /></FormItem>
+                          )} />
                           <FormField control={form.control} name="birthPlace" render={({ field }) => (
                             <FormItem><FormLabel>Tempat Lahir</FormLabel><FormControl><Input placeholder="Kota/Kab" {...field} /></FormControl><FormMessage /></FormItem>
                           )} />
                           <FormField control={form.control} name="birthDate" render={({ field }) => (
                             <FormItem><FormLabel>Tanggal Lahir</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
                           )} />
+                          <FormField control={form.control} name="aktaLahirNumber" render={({ field }) => (
+                            <FormItem className="md:col-span-2"><FormLabel>No. Reg Akta Lahir</FormLabel><FormControl><Input placeholder="Sesuai Akta Lahir" {...field} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                          <FormField control={form.control} name="religion" render={({ field }) => (
+                            <FormItem><FormLabel>Agama</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Islam">Islam</SelectItem><SelectItem value="Katolik">Katolik</SelectItem><SelectItem value="Kristen">Kristen</SelectItem><SelectItem value="Hindu">Hindu</SelectItem><SelectItem value="Budha">Budha</SelectItem></SelectContent></Select><FormMessage /></FormItem>
+                          )} />
                         </div>
                       </div>
 
-                      {/* Bagian 4: Keluarga LENGKAP Sesuai Gambar */}
+                      {/* Alamat & Tempat Tinggal */}
+                      <div className="space-y-4">
+                        <h3 className="font-bold uppercase tracking-widest text-sm text-amber-500 flex items-center gap-2"><MapPin className="w-4 h-4" /> Bagian 2: Alamat & Domisili</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 bg-muted/10 p-6 rounded-2xl border">
+                          <FormField control={form.control} name="address" render={({ field }) => (
+                            <FormItem className="md:col-span-4"><FormLabel>Alamat Lengkap</FormLabel><FormControl><Input placeholder="Nama Jalan / Kampung" {...field} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                          <FormField control={form.control} name="rt" render={({ field }) => (
+                            <FormItem><FormLabel>RT</FormLabel><FormControl><Input placeholder="00" {...field} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                          <FormField control={form.control} name="rw" render={({ field }) => (
+                            <FormItem><FormLabel>RW</FormLabel><FormControl><Input placeholder="00" {...field} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                          <FormField control={form.control} name="kelurahan" render={({ field }) => (
+                            <FormItem><FormLabel>Kelurahan/Desa</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                          <FormField control={form.control} name="kecamatan" render={({ field }) => (
+                            <FormItem><FormLabel>Kecamatan</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                          <FormField control={form.control} name="propinsi" render={({ field }) => (
+                            <FormItem className="md:col-span-2"><FormLabel>Provinsi</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                          <FormField control={form.control} name="livingWith" render={({ field }) => (
+                            <FormItem className="md:col-span-1"><FormLabel>Tempat Tinggal</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Bersama Orang Tua">Bersama Orang Tua</SelectItem><SelectItem value="Wali">Wali</SelectItem><SelectItem value="Asrama">Asrama</SelectItem><SelectItem value="Kos">Kos</SelectItem></SelectContent></Select><FormMessage /></FormItem>
+                          )} />
+                          <FormField control={form.control} name="transportation" render={({ field }) => (
+                            <FormItem className="md:col-span-1"><FormLabel>Transportasi</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Jalan Kaki">Jalan Kaki</SelectItem><SelectItem value="Motor">Motor</SelectItem><SelectItem value="Mobil">Mobil</SelectItem><SelectItem value="Angkot/Kendaraan Umum">Angkot/Kendaraan Umum</SelectItem></SelectContent></Select><FormMessage /></FormItem>
+                          )} />
+                        </div>
+                      </div>
+
+                      {/* Data Periodik & Kontak */}
+                      <div className="space-y-4">
+                        <h3 className="font-bold uppercase tracking-widest text-sm text-green-500 flex items-center gap-2"><Scale className="w-4 h-4" /> Bagian 3: Data Periodik & Kontak</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-muted/10 p-6 rounded-2xl border">
+                          <FormField control={form.control} name="childOrder" render={({ field }) => (
+                            <FormItem><FormLabel>Anak Ke-</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                          <FormField control={form.control} name="studentPhone" render={({ field }) => (
+                            <FormItem className="md:col-span-2"><FormLabel>No. HP Siswa</FormLabel><FormControl><Input placeholder="08..." {...field} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                          <FormField control={form.control} name="heightCm" render={({ field }) => (
+                            <FormItem><FormLabel>Tinggi Badan (cm)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                          <FormField control={form.control} name="weightKg" render={({ field }) => (
+                            <FormItem><FormLabel>Berat Badan (kg)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                          <FormField control={form.control} name="travelTimeMinutes" render={({ field }) => (
+                            <FormItem><FormLabel>Waktu Tempuh (menit)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                        </div>
+                      </div>
+
+                      {/* Data Orang Tua */}
                       <div className="space-y-4">
                         <h3 className="font-bold uppercase tracking-widest text-sm text-pink-500 flex items-center gap-2"><UsersIcon className="w-4 h-4" /> Bagian 4: Data Orang Tua / Wali</h3>
                         <div className="space-y-6">
@@ -526,64 +477,6 @@ export default function ApplicantsPage() {
                                 <FormItem><FormLabel>Penghasilan</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{INCOME_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                              )} />
                           </div>
-
-                          {/* KONDISIONAL WALI */}
-                          <div className="space-y-4">
-                            <FormField control={form.control} name="livingWith" render={({ field }) => (
-                               <FormItem><FormLabel>Tinggal Dengan</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Bersama Orang Tua">Bersama Orang Tua</SelectItem><SelectItem value="Wali">Wali</SelectItem><SelectItem value="Asrama">Asrama</SelectItem></SelectContent></Select></FormItem>
-                            )} />
-                            
-                            {showGuardianInfo && (
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-orange-500/5 p-6 rounded-2xl border border-orange-500/20 animate-in slide-in-from-top duration-300">
-                                <div className="md:col-span-3 flex items-center gap-2 border-b border-orange-500/20 pb-2 mb-2">
-                                  <Badge className="bg-orange-500/20 text-orange-500 border-none">WALI MURID</Badge>
-                                </div>
-                                <FormField control={form.control} name="guardianName" render={({ field }) => (
-                                   <FormItem><FormLabel>Nama Wali</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                                )} />
-                                <FormField control={form.control} name="guardianNIK" render={({ field }) => (
-                                   <FormItem><FormLabel>NIK Wali</FormLabel><FormControl><Input placeholder="16 Digit" {...field} /></FormControl><FormMessage /></FormItem>
-                                )} />
-                                <FormField control={form.control} name="guardianBirthYear" render={({ field }) => (
-                                   <FormItem><FormLabel>Tahun Lahir</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                                )} />
-                                <FormField control={form.control} name="guardianEducation" render={({ field }) => (
-                                   <FormItem><FormLabel>Pendidikan</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{EDUCATION_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
-                                )} />
-                                <FormField control={form.control} name="guardianOccupation" render={({ field }) => (
-                                   <FormItem><FormLabel>Pekerjaan</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{OCCUPATION_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
-                                )} />
-                                <FormField control={form.control} name="guardianIncome" render={({ field }) => (
-                                   <FormItem><FormLabel>Penghasilan</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{INCOME_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
-                                )} />
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Bagian 5: Data Periodik & Kesejahteraan */}
-                      <div className="space-y-4">
-                        <h3 className="font-bold uppercase tracking-widest text-sm text-green-500 flex items-center gap-2"><Scale className="w-4 h-4" /> Bagian 5: Data Periodik & Kesejahteraan</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-muted/10 p-6 rounded-2xl border">
-                           <FormField control={form.control} name="heightCm" render={({ field }) => (
-                              <FormItem><FormLabel>Tinggi Badan (cm)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                           )} />
-                           <FormField control={form.control} name="weightKg" render={({ field }) => (
-                              <FormItem><FormLabel>Berat Badan (kg)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                           )} />
-                           <FormField control={form.control} name="numberOfSiblings" render={({ field }) => (
-                              <FormItem><FormLabel>Jumlah Saudara</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                           )} />
-                           <FormField control={form.control} name="travelTimeMinutes" render={({ field }) => (
-                              <FormItem><FormLabel>Waktu Tempuh (Menit)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                           )} />
-                           <FormField control={form.control} name="welfareType" render={({ field }) => (
-                              <FormItem><FormLabel>Jenis Kesejahteraan</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="PIP">PIP</SelectItem><SelectItem value="PKH">PKH</SelectItem><SelectItem value="KKS">KKS</SelectItem><SelectItem value="KPS">KPS</SelectItem></SelectContent></Select><FormMessage /></FormItem>
-                           )} />
-                           <FormField control={form.control} name="welfareCardNumber" render={({ field }) => (
-                              <FormItem><FormLabel>Nomor Kartu</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                           )} />
                         </div>
                       </div>
                     </div>
