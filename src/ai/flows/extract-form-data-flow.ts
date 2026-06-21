@@ -32,6 +32,15 @@ const ExtractFormDataOutputSchema = z.object({
   studentPhone: z.string().optional().describe("Nomor HP murid"),
   numberOfSiblings: z.string().optional().describe("Jumlah saudara kandung"),
   
+  // Data Sekolah Asal
+  originSchool: z.string().optional().describe("Nama SD Asal"),
+  originSchoolAddress: z.string().optional().describe("Alamat Sekolah Asal"),
+  originSchoolKelurahan: z.string().optional().describe("Kelurahan Sekolah Asal"),
+  originSchoolKecamatan: z.string().optional().describe("Kecamatan Sekolah Asal"),
+  originSchoolProvinsi: z.string().optional().describe("Provinsi Sekolah Asal"),
+  usParticipantNumber: z.string().optional().describe("Nomor Peserta US sesuai Ijazah/SKL"),
+  ijazahSerialNumber: z.string().optional().describe("Nomor Seri Ijazah"),
+
   // Data Orang Tua
   fatherName: z.string().optional().describe("Nama Ayah Kandung"),
   fatherNIK: z.string().optional().describe("NIK Ayah"),
@@ -60,9 +69,7 @@ const ExtractFormDataOutputSchema = z.object({
   weightKg: z.string().optional().describe("Berat badan dalam kg"),
   distanceToSchoolKm: z.string().optional().describe("Jarak tempuh ke sekolah dalam km"),
   travelTimeMinutes: z.string().optional().describe("Waktu tempuh ke sekolah dalam menit"),
-  originSchool: z.string().optional().describe("Nama sekolah asal (SD/MI)"),
   registrationType: z.enum(['Murid Baru', 'Mutasi', 'Mengulang']).optional().describe("Jenis pendaftaran"),
-  ijazahSerialNumber: z.string().optional().describe("Nomor Seri Ijazah sebelumnya"),
 });
 
 const ExtractFormDataInputSchema = z.object({
@@ -87,24 +94,24 @@ const extractFormDataFlow = ai.defineFlow(
       
       The form follows the Indonesian Dapodik (Data Pokok Pendidikan) standard.
       
-      Specifically, for Section A (DATA PESERTA DIDIK):
-      - Extract Full Name (Nama Lengkap)
-      - Gender (Jenis Kelamin) - map to 'Laki-laki' or 'Perempuan'
-      - NISN, NIK, No KK
-      - No Reg Akta Lahir (aktaLahirNumber)
-      - Birth Place & Date
-      - Religion (Agama)
-      - Full Address (Alamat), RT, RW, Kelurahan, Kecamatan, Provinsi
-      - Living With (Tempat Tinggal) - map carefully to provided enum
-      - Transportation (Moda Transportasi) - map carefully to provided enum
-      - Child Order (Anak Ke)
-      - Student Phone (No HP Siswa)
+      Specifically, extract the following:
+      1. DATA PESERTA DIDIK (Full Name, Gender, NISN, NIK, KK, Birth Details, Address RT/RW, Religion, etc.)
+      2. SEKOLAH ASAL:
+         - Nama SD Asal
+         - Alamat (Sekolah)
+         - Kelurahan (Sekolah)
+         - Kecamatan (Sekolah)
+         - Provinsi (Sekolah)
+         - Nomor Peserta US (Nomor Peserta Ujian Sekolah sesuai Ijazah/SKL)
+         - Nomor Seri Ijazah
+      3. DATA ORANG TUA/WALI (Names, NIK, Birth Year, Education, Occupation, Income)
+      4. DATA PERIODIK (Height, Weight, Distance, Travel Time)
 
       Instructions:
-      - Read the handwriting or printed text with high accuracy.
-      - Map the values carefully to the provided JSON schema.
-      - Convert dates to YYYY-MM-DD format if possible.
-      - Be extremely precise with ID numbers like NIK (16 digits) and NISN (10 digits).
+      - Read handwriting with high accuracy.
+      - Map values precisely to the provided JSON schema.
+      - Use YYYY-MM-DD for dates.
+      - Capture ID numbers (NIK, NISN) with 100% precision.
 
       Photo: {{media url=photoDataUri}}`,
       input: input,

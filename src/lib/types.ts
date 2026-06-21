@@ -32,6 +32,12 @@ export interface Applicant {
   parentPhone: string;
   parentEmail?: string;
   originSchool: string;
+  originSchoolAddress?: string;
+  originSchoolKelurahan?: string;
+  originSchoolKecamatan?: string;
+  originSchoolProvinsi?: string;
+  usParticipantNumber?: string;
+  ijazahSerialNumber?: string;
   photoUrl?: string;
   documents: {
     name: string;
@@ -67,8 +73,7 @@ export interface Applicant {
   registrationType?: 'Murid Baru' | 'Mutasi' | 'Mengulang';
   NIPD?: string;
   registrationDate?: string;
-  usParticipantNumber?: string;
-  ijazahSerialNumber?: string;
+  usParticipantNumber_old?: string; // backup if needed
   
   // Detail Orang Tua & Wali
   fatherName?: string;

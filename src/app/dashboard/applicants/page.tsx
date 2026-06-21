@@ -28,7 +28,8 @@ import {
   Heart,
   Briefcase,
   Wallet,
-  Phone
+  Phone,
+  School
 } from "lucide-react"
 import { 
   Table, 
@@ -100,6 +101,12 @@ const formSchema = z.object({
   familyCardNumber: z.string().length(16, "No. KK harus 16 digit"),
   aktaLahirNumber: z.string().optional(),
   originSchool: z.string().min(2, "Asal sekolah harus diisi"),
+  originSchoolAddress: z.string().optional(),
+  originSchoolKelurahan: z.string().optional(),
+  originSchoolKecamatan: z.string().optional(),
+  originSchoolProvinsi: z.string().optional(),
+  usParticipantNumber: z.string().optional(),
+  ijazahSerialNumber: z.string().optional(),
   applicationPath: z.enum(['Zonasi', 'Prestasi', 'Afirmasi', 'Perpindahan Orang Tua']),
   gender: z.enum(['Laki-laki', 'Perempuan']),
   birthPlace: z.string().min(2, "Tempat lahir harus diisi"),
@@ -155,7 +162,6 @@ const formSchema = z.object({
   welfareCardNumber: z.string().optional(),
   welfareCardName: z.string().optional(),
   registrationType: z.enum(['Murid Baru', 'Mutasi', 'Mengulang']).default('Murid Baru'),
-  ijazahSerialNumber: z.string().optional(),
 })
 
 const EDUCATION_OPTIONS = ['Tidak Sekolah', 'SD', 'SMP', 'SMA', 'S1', 'S2', 'S3']
@@ -180,6 +186,12 @@ export default function ApplicantsPage() {
       familyCardNumber: "",
       aktaLahirNumber: "",
       originSchool: "",
+      originSchoolAddress: "",
+      originSchoolKelurahan: "",
+      originSchoolKecamatan: "",
+      originSchoolProvinsi: "",
+      usParticipantNumber: "",
+      ijazahSerialNumber: "",
       applicationPath: "Zonasi",
       gender: "Laki-laki",
       birthPlace: "",
@@ -228,7 +240,6 @@ export default function ApplicantsPage() {
       welfareCardNumber: "",
       welfareCardName: "",
       registrationType: "Murid Baru",
-      ijazahSerialNumber: "",
     },
   })
 
@@ -371,9 +382,37 @@ export default function ApplicantsPage() {
                         </div>
                       </div>
 
+                      {/* Bagian 2: Sekolah Asal */}
+                      <div className="space-y-4">
+                        <h3 className="font-bold uppercase tracking-widest text-sm text-cyan-500 flex items-center gap-2"><School className="w-4 h-4" /> Bagian 2: Sekolah Asal</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 bg-muted/10 p-6 rounded-2xl border">
+                          <FormField control={form.control} name="originSchool" render={({ field }) => (
+                            <FormItem className="md:col-span-2"><FormLabel>Nama SD Asal</FormLabel><FormControl><Input placeholder="Contoh: SDN Menteng 01" {...field} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                          <FormField control={form.control} name="originSchoolAddress" render={({ field }) => (
+                            <FormItem className="md:col-span-2"><FormLabel>Alamat Sekolah</FormLabel><FormControl><Input placeholder="Jl. Raya..." {...field} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                          <FormField control={form.control} name="originSchoolKelurahan" render={({ field }) => (
+                            <FormItem><FormLabel>Kelurahan</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                          <FormField control={form.control} name="originSchoolKecamatan" render={({ field }) => (
+                            <FormItem><FormLabel>Kecamatan</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                          <FormField control={form.control} name="originSchoolProvinsi" render={({ field }) => (
+                            <FormItem className="md:col-span-2"><FormLabel>Provinsi</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                          <FormField control={form.control} name="usParticipantNumber" render={({ field }) => (
+                            <FormItem className="md:col-span-2"><FormLabel>No. Peserta US (Sesuai Ijazah)</FormLabel><FormControl><Input placeholder="Masukkan nomor peserta..." {...field} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                          <FormField control={form.control} name="ijazahSerialNumber" render={({ field }) => (
+                            <FormItem className="md:col-span-2"><FormLabel>No. Seri Ijazah</FormLabel><FormControl><Input placeholder="Masukkan nomor seri..." {...field} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                        </div>
+                      </div>
+
                       {/* Alamat & Tempat Tinggal */}
                       <div className="space-y-4">
-                        <h3 className="font-bold uppercase tracking-widest text-sm text-amber-500 flex items-center gap-2"><MapPin className="w-4 h-4" /> Bagian 2: Alamat & Domisili</h3>
+                        <h3 className="font-bold uppercase tracking-widest text-sm text-amber-500 flex items-center gap-2"><MapPin className="w-4 h-4" /> Bagian 3: Alamat & Domisili</h3>
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 bg-muted/10 p-6 rounded-2xl border">
                           <FormField control={form.control} name="address" render={({ field }) => (
                             <FormItem className="md:col-span-4"><FormLabel>Alamat Lengkap</FormLabel><FormControl><Input placeholder="Nama Jalan / Kampung" {...field} /></FormControl><FormMessage /></FormItem>
@@ -404,7 +443,7 @@ export default function ApplicantsPage() {
 
                       {/* Data Periodik & Kontak */}
                       <div className="space-y-4">
-                        <h3 className="font-bold uppercase tracking-widest text-sm text-green-500 flex items-center gap-2"><Scale className="w-4 h-4" /> Bagian 3: Data Periodik & Kontak</h3>
+                        <h3 className="font-bold uppercase tracking-widest text-sm text-green-500 flex items-center gap-2"><Scale className="w-4 h-4" /> Bagian 4: Data Periodik & Kontak</h3>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-muted/10 p-6 rounded-2xl border">
                           <FormField control={form.control} name="childOrder" render={({ field }) => (
                             <FormItem><FormLabel>Anak Ke-</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
@@ -426,7 +465,7 @@ export default function ApplicantsPage() {
 
                       {/* Data Orang Tua */}
                       <div className="space-y-4">
-                        <h3 className="font-bold uppercase tracking-widest text-sm text-pink-500 flex items-center gap-2"><UsersIcon className="w-4 h-4" /> Bagian 4: Data Orang Tua / Wali</h3>
+                        <h3 className="font-bold uppercase tracking-widest text-sm text-pink-500 flex items-center gap-2"><UsersIcon className="w-4 h-4" /> Bagian 5: Data Orang Tua / Wali</h3>
                         <div className="space-y-6">
                           {/* AYAH */}
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-muted/10 p-6 rounded-2xl border">
