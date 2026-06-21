@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A Genkit flow for extracting student registration data from a manual form image.
@@ -9,10 +8,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-
-const ExtractFormDataInputSchema = z.object({
-  photoDataUri: z.string().describe("A photo of the manual registration form, as a data URI that must include a MIME type and use Base64 encoding."),
-});
 
 const ExtractFormDataOutputSchema = z.object({
   fullName: z.string().optional().describe("Nama lengkap sesuai Akte Kelahiran"),
@@ -41,15 +36,22 @@ const ExtractFormDataOutputSchema = z.object({
   guardianName: z.string().optional().describe("Nama Wali"),
   guardianNIK: z.string().optional().describe("NIK Wali"),
   guardianOccupation: z.string().optional().describe("Pekerjaan Wali"),
-  registrantRelationship: z.string().optional().describe("Hubungan pendaftar dengan murid (Ayah/Ibu/Wali)"),
   parentPhone: z.string().optional().describe("Nomor HP orang tua/wali"),
   parentEmail: z.string().optional().describe("Email orang tua/wali"),
   heightCm: z.string().optional().describe("Tinggi badan dalam cm"),
   weightKg: z.string().optional().describe("Berat badan dalam kg"),
+  distanceToSchoolKm: z.string().optional().describe("Jarak tempuh ke sekolah dalam km"),
   travelTimeMinutes: z.string().optional().describe("Waktu tempuh ke sekolah dalam menit"),
   originSchool: z.string().optional().describe("Nama sekolah asal (SD/MI)"),
   registrationType: z.enum(['Murid Baru', 'Mutasi', 'Mengulang']).optional().describe("Jenis pendaftaran"),
   ijazahSerialNumber: z.string().optional().describe("Nomor Seri Ijazah sebelumnya"),
+  welfareType: z.string().optional().describe("Jenis kesejahteraan (PIP, PKH, KKS, KPS)"),
+  welfareCardNumber: z.string().optional().describe("Nomor kartu kesejahteraan"),
+  welfareCardName: z.string().optional().describe("Nama di kartu kesejahteraan"),
+});
+
+const ExtractFormDataInputSchema = z.object({
+  photoDataUri: z.string().describe("A photo of the manual registration form, as a data URI."),
 });
 
 export async function extractFormData(input: { photoDataUri: string }) {
@@ -72,8 +74,9 @@ const extractFormDataFlow = ai.defineFlow(
       1. Identitas Peserta Didik (Name, NISN, NIK, Birth info, Gender, Religion)
       2. Data Alamat (Address, Kelurahan, Kecamatan, Province, Living with, Transportation)
       3. Data Ayah/Ibu Kandung & Wali (Names, NIKs, Occupations)
-      4. Data Periodik (Height, Weight, Travel Time, Child info)
-      5. Registrasi (Entry type, Origin school, Ijazah info)
+      4. DATA PERIODIK (Tinggi Badan, Berat Badan, Jarak Tempuh, Waktu Tempuh, Jumlah Saudara)
+      5. KESEJAHTERAAN (Jenis Kesejahteraan: PIP/PKH/KKS/KPS, Nomor Kartu, Nama di Kartu)
+      6. Registrasi (Entry type, Origin school, Ijazah info)
 
       Instructions:
       - Read the handwriting or printed text with high accuracy.
@@ -81,8 +84,7 @@ const extractFormDataFlow = ai.defineFlow(
       - Convert dates to YYYY-MM-DD format if possible.
       - If a field is illegible or not present, leave it empty.
       - Be extremely precise with ID numbers like NIK (16 digits) and NISN (10 digits).
-      - Ensure 'gender' is strictly 'Laki-laki' or 'Perempuan'.
-      - Ensure 'registrationType' is 'Murid Baru', 'Mutasi', or 'Mengulang'.
+      - For "Jenis Kesejahteraan", look for checked boxes like PIP, PKH, KKS, or KPS.
 
       Photo: {{media url=photoDataUri}}`,
       input: input,
