@@ -35,6 +35,10 @@ const extractFormDataFlow = ai.defineFlow(
     outputSchema: ExtractFormDataOutputSchema,
   },
   async (input) => {
+    // Ensure the data URI is properly formatted for Genkit
+    const mimeMatch = input.photoDataUri.match(/^data:([^;]+);base64,/);
+    const contentType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+
     const { output } = await ai.generate({
       model: 'googleai/gemini-1.5-flash',
       prompt: [
@@ -53,7 +57,7 @@ const extractFormDataFlow = ai.defineFlow(
         {
           media: {
             url: input.photoDataUri,
-            contentType: 'image/jpeg'
+            contentType: contentType
           }
         }
       ],

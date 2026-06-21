@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useRef } from 'react'
 import { 
-  Search, Plus, Loader2, Camera, Download, User, MapPin, Briefcase, Eye 
+  Search, Plus, Loader2, Camera, Eye 
 } from "lucide-react"
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
@@ -25,8 +25,8 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import Link from 'next/link'
-import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase'
-import { collection, query, orderBy, addDoc, limit, getDocs, doc } from 'firebase/firestore'
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase'
+import { collection, query, orderBy, addDoc, limit, getDocs } from 'firebase/firestore'
 import { Applicant } from '@/lib/types'
 import { errorEmitter } from '@/firebase/error-emitter'
 import { FirestorePermissionError } from '@/firebase/errors'
@@ -114,7 +114,7 @@ export default function ApplicantsPage() {
     try {
       const q = query(collection(db, 'applicants'), orderBy('registrationSequence', 'desc'), limit(1));
       const snap = await getDocs(q);
-      const nextSequence = snap.empty ? 1 : (snap.docs[0].data().registrationSequence || 0) + 1;
+      const nextSequence = snap.empty ? 1 : (Number(snap.docs[0].data().registrationSequence) || 0) + 1;
       
       const newApplicant = {
         ...values,
@@ -147,8 +147,8 @@ export default function ApplicantsPage() {
           <DialogTrigger asChild>
             <Button className="gap-2"><Plus className="w-4 h-4" /> Murid Baru</Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[800px] max-h-[90vh] p-0 flex flex-col">
-            <DialogHeader className="p-6 pb-2 border-b flex flex-row items-center justify-between">
+          <DialogContent className="sm:max-w-[800px] h-[90vh] p-0 flex flex-col overflow-hidden">
+            <DialogHeader className="p-6 pb-2 border-b flex flex-row items-center justify-between shrink-0">
               <div>
                 <DialogTitle>Formulir Pendaftaran</DialogTitle>
                 <DialogDescription>Gunakan Scan AI untuk membaca formulir manual.</DialogDescription>
@@ -159,9 +159,9 @@ export default function ApplicantsPage() {
             </DialogHeader>
             <input type="file" ref={scanInputRef} onChange={handleScanForm} accept="image/*" className="hidden" />
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 overflow-hidden flex flex-col">
-                <ScrollArea className="flex-1 px-8 py-6">
-                  <div className="space-y-8">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col min-h-0">
+                <ScrollArea className="flex-1">
+                  <div className="p-8 space-y-8">
                     <section className="space-y-4">
                       <h3 className="text-sm font-bold uppercase tracking-widest text-primary border-b pb-1">I. Identitas Murid</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -206,7 +206,7 @@ export default function ApplicantsPage() {
                     </section>
                   </div>
                 </ScrollArea>
-                <DialogFooter className="p-6 border-t bg-muted/20">
+                <DialogFooter className="p-6 border-t bg-muted/20 shrink-0">
                   <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Batal</Button>
                   <Button type="submit" disabled={submitting}>
                     {submitting && <Loader2 className="w-4 h-4 animate-spin mr-2" />} Simpan Data
