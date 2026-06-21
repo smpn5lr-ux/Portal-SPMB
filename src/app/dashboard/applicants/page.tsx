@@ -262,21 +262,30 @@ export default function ApplicantsPage() {
       try {
         const result = await extractFormData({ photoDataUri: base64 })
         if (result) {
+          // Log result for debugging
+          console.log("AI Extraction Result:", result);
+          
           Object.entries(result).forEach(([key, value]) => {
-            if (value) {
+            if (value && key in form.getValues()) {
               form.setValue(key as any, value)
             }
-          })
+          });
+
+          // Special handling for parents to ensure names are correctly mapped for validation if needed
+          if (result.parentPhone) form.setValue('parentPhone', result.parentPhone);
+          if (result.guardianName) form.setValue('guardianName', result.guardianName);
+
           toast({
             title: "Scan Berhasil",
-            description: "Data formulir manual telah diekstrak. Silakan tinjau kembali.",
+            description: "Data formulir manual telah diekstrak. Silakan tinjau dan lengkapi data yang kurang.",
           })
         }
-      } catch (err) {
+      } catch (err: any) {
+        console.error("Scan Error:", err);
         toast({
           variant: "destructive",
           title: "Scan Gagal",
-          description: "Gagal membaca formulir. Pastikan foto jelas.",
+          description: "Gagal membaca formulir. Pastikan foto jelas dan terang.",
         })
       } finally {
         setIsScanning(false)
