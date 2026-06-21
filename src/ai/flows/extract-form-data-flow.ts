@@ -18,7 +18,7 @@ const ExtractFormDataOutputSchema = z.object({
   aktaLahirNumber: z.string().optional().describe("Nomor Registrasi Akta Lahir"),
   birthPlace: z.string().optional().describe("Tempat lahir"),
   birthDate: z.string().optional().describe("Tanggal lahir format YYYY-MM-DD"),
-  religion: z.string().optional().describe("Agama (Islam, Katolik, Kristen, dll)"),
+  religion: z.string().optional().describe("Agama (Katolik, Islam, dll)"),
   address: z.string().optional().describe("Alamat lengkap (Jalan/Kampung)"),
   rt: z.string().optional().describe("RT"),
   rw: z.string().optional().describe("RW"),
@@ -91,7 +91,7 @@ const extractFormDataFlow = ai.defineFlow(
     const contentType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
 
     const { output } = await ai.generate({
-      model: 'googleai/gemini-1.5-flash',
+      model: 'gemini-1.5-flash',
       prompt: [
         {
           text: `Anda adalah pakar Administrasi Sekolah dan OCR (Optical Character Recognition) profesional.
