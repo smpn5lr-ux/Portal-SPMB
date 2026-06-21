@@ -89,24 +89,23 @@ const extractFormDataFlow = ai.defineFlow(
     const { output } = await ai.generate({
       model: 'googleai/gemini-2.0-flash-exp',
       prompt: `Anda adalah pakar Administrasi Sekolah dan OCR (Optical Character Recognition).
-      Tugas Anda adalah mengekstrak data dari gambar formulir pendaftaran sekolah manual (format Dapodik Indonesia).
+      Tugas Anda adalah mengekstrak data dari gambar formulir pendaftaran sekolah manual.
 
-      INSTRUKSI KHUSUS UNTUK TEKS DALAM KOTAK (BLOK):
-      - Nama Lengkap sering ditulis di dalam kotak-kotak kecil per huruf. Baca setiap kotak dengan teliti dan gabungkan menjadi satu kalimat nama lengkap yang benar (contoh: [Y][O][S][E]... dibaca YOSEFINA).
-      - Jika ada spasi antar kata (kotak kosong), pastikan nama dipisahkan dengan spasi.
+      PRINSIP UTAMA:
+      1. JANGAN MENEBAK: Jika tulisan tangan buram, tidak jelas, atau terpotong, biarkan field tersebut KOSONG (null).
+      2. HANYA DATA JELAS: Hanya ambil data yang benar-benar Anda yakini 100% akurat.
+      3. AKURASI NOMOR: Nomor NIK, NISN, dan Nomor KK sangat krusial. Jika ada satu digit pun yang tidak jelas, jangan isi field nomor tersebut.
       
-      INSTRUKSI UMUM:
-      1. AKURASI NOMOR: Nomor NIK, NISN, dan Nomor KK harus diekstrak dengan ketepatan 100%. Periksa setiap digit dengan teliti.
-      2. TULISAN TANGAN: Identifikasi tulisan tangan dengan sangat hati-hati. Jika tulisan tidak terbaca, JANGAN MENEBAK. Kosongkan saja field tersebut.
-      3. PILIHAN (CHECKBOX/BULATAN): Perhatikan tanda centang (V), silang (X), atau lingkaran pada pilihan yang tersedia. Ambil nilai teks yang ditandai.
-      4. FORMAT TANGGAL: Konversi tanggal lahir ke format YYYY-MM-DD.
-      5. JANGAN BERHALUSINASI: Hanya ambil data yang benar-benar ada di gambar. Jika field kosong di formulir, jangan isi di JSON.
+      INSTRUKSI KHUSUS UNTUK TEKS DALAM KOTAK (BLOK):
+      - Nama Lengkap biasanya ditulis dalam kotak per huruf. 
+      - Baca setiap kotak secara horizontal.
+      - Pastikan spasi antar kata diidentifikasi dengan benar (biasanya berupa kotak kosong di antara kata).
+      - Contoh: [Y][O][S][E]...[ ]...[D][E][S]... harus dibaca "YOSEFINA DESWITA...".
 
-      STRUKTUR FORMULIR:
-      - Bagian A: DATA PESERTA DIDIK (Nama, NISN, NIK, Alamat, Akta Lahir, dll)
-      - Bagian B: SEKOLAH ASAL (Nama Sekolah, Alamat, No Ijazah)
-      - Bagian C: DATA ORANG TUA/WALI (Nama, NIK, Pendidikan, Pekerjaan, Penghasilan)
-      - Bagian D: DATA PERIODIK (Tinggi, Berat, Jarak, Waktu)
+      INSTRUKSI UMUM:
+      - PILIHAN (CHECKBOX/BULATAN): Hanya ambil nilai jika tanda (V, X, atau lingkaran) terlihat sangat jelas pada salah satu pilihan.
+      - FORMAT TANGGAL: Konversi ke format YYYY-MM-DD jika terbaca jelas.
+      - Jika gambar terlalu gelap atau buram secara keseluruhan, kembalikan objek kosong.
 
       Photo: {{media url=photoDataUri}}`,
       input: input,
