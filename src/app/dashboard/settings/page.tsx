@@ -80,6 +80,42 @@ export default function SettingsPage() {
     }
   }, [schoolsData])
 
+  const handleQuotaChange = (key: string, newValue: number) => {
+    const keys = ["quotaZonasi", "quotaPrestasi", "quotaAfirmasi", "quotaPerpindahan"];
+    const otherKeys = keys.filter(k => k !== key);
+    
+    // Sisa persentase yang harus dibagi ke yang lain
+    const remaining = 100 - newValue;
+    
+    // Total nilai saat ini dari slider lainnya untuk perhitungan proporsional
+    const othersTotal = otherKeys.reduce((sum, k) => sum + (localConfig[k] || 0), 0);
+    
+    let updatedConfig = { ...localConfig, [key]: newValue };
+
+    if (othersTotal === 0) {
+      // Jika semua yang lain 0, bagi rata sisa persentase
+      const share = Math.floor(remaining / otherKeys.length);
+      otherKeys.forEach((k, i) => {
+        updatedConfig[k] = i === otherKeys.length - 1 ? remaining - (share * (otherKeys.length - 1)) : share;
+      });
+    } else {
+      // Distribusi proporsional berdasarkan nilai saat ini
+      let currentSum = newValue;
+      otherKeys.forEach((k, i) => {
+        if (i === otherKeys.length - 1) {
+          // Elemen terakhir mengambil sisa untuk memastikan total tepat 100
+          updatedConfig[k] = Math.max(0, 100 - currentSum);
+        } else {
+          const share = Math.round((localConfig[k] / othersTotal) * remaining);
+          updatedConfig[k] = share;
+          currentSum += share;
+        }
+      });
+    }
+
+    setLocalConfig(updatedConfig);
+  };
+
   const handleSaveConfig = () => {
     if (!db || !settingsRef) return
     setIsSaving(true)
@@ -241,6 +277,7 @@ export default function SettingsPage() {
               <div className="flex items-center gap-2">
                 <Percent className="w-5 h-5 text-accent" />
                 <CardTitle className="font-headline text-lg">Distribusi Kuota</CardTitle>
+                <CardDescription>Total distribusi harus 100%.</CardDescription>
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -259,10 +296,19 @@ export default function SettingsPage() {
                       value={[localConfig[item.key]]} 
                       max={100} 
                       step={1}
-                      onValueChange={([v]) => setLocalConfig({...localConfig, [item.key]: v})}
+                      onValueChange={([v]) => handleQuotaChange(item.key, v)}
                     />
                   </div>
                 ))}
+                
+                <div className="pt-4 border-t">
+                   <div className="flex justify-between items-center">
+                     <span className="text-xs font-bold uppercase text-muted-foreground">Total Kuota</span>
+                     <Badge variant={Object.keys(localConfig).filter(k => k.startsWith('quota')).reduce((s, k) => s + localConfig[k], 0) === 100 ? "default" : "destructive"} className="font-mono">
+                        {Object.keys(localConfig).filter(k => k.startsWith('quota')).reduce((s, k) => s + localConfig[k], 0)}%
+                     </Badge>
+                   </div>
+                </div>
             </CardContent>
           </Card>
 
@@ -273,7 +319,7 @@ export default function SettingsPage() {
                 <div>
                   <h4 className="font-bold text-sm">Validitas Data</h4>
                   <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    Pastikan total kuota mencapai 100% dan daftar sekolah sudah benar sebelum periode pendaftaran dimulai.
+                    Sistem akan otomatis menyeimbangkan kuota lain saat Anda mengubah satu parameter untuk menjaga total tetap 100%.
                   </p>
                 </div>
               </div>
