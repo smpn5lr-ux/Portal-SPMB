@@ -9,7 +9,6 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { gemini15Flash } from '@genkit-ai/google-genai';
 import { z } from 'zod';
 
 const ExtractFormDataOutputSchema = z.object({
@@ -94,24 +93,25 @@ const extractFormDataFlow = ai.defineFlow(
     const contentType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
 
     const { output } = await ai.generate({
-      model: gemini15Flash,
+      model: 'googleai/gemini-1.5-flash',
       prompt: [
         {
-          text: `Anda adalah pakar Administrasi Sekolah dan OCR (Optical Character Recognition) profesional.
-          Tugas Anda adalah mengekstrak data dari gambar formulir pendaftaran sekolah manual dengan tingkat akurasi 100%.
+          text: `Anda adalah pakar Administrasi Sekolah dan OCR (Optical Character Recognition) profesional dengan akurasi mutlak.
+          Tugas Anda adalah mengekstrak data dari gambar formulir pendaftaran sekolah manual.
 
-          ATURAN KETAT UNTUK MENGHINDARI HALUSINASI (TEBAKAN):
-          1. DILARANG KERAS MENEBAK. Ambil data HANYA jika karakter terlihat 100% JELAS.
-          2. Jika tulisan tangan buram, meragukan, atau sulit dibaca, biarkan kolom tersebut KOSONG (undefined).
-          3. Untuk Nama yang tertulis di dalam KOTAK-KOTAK karakter:
-             - Baca huruf demi huruf per kotak dengan sangat teliti.
-             - Identifikasi spasi (kotak kosong) dengan benar agar nama tidak menyambung.
-          4. Untuk NIK, NISN, dan No KK: Verifikasi setiap digit angka. Jangan menebak angka yang mirip (seperti 1 dan 7, atau 0 dan 8). Jika ragu pada satu angka saja, kosongkan seluruh kolom nomor tersebut.
-          5. Untuk Pilihan (Pendidikan/Pekerjaan/Agama/Transportasi/Tempat Tinggal): Hanya pilih jika ada tanda (X) atau centang yang JELAS berada di dalam kotak pilihan yang dimaksud.
-          6. JANGAN memberikan data default atau data buatan sendiri jika tidak ada di gambar.
-          7. Pastikan Agama 'Katolik' dipilih hanya jika kotak Katolik ditandai secara jelas.
-
-          Prioritas utama adalah KEBENARAN DATA. Lebih baik mengembalikan formulir yang kosong daripada formulir berisi data yang salah hasil tebakan.`
+          ATURAN KETAT UNTUK MENCEGAH TEBAKAN (HALLUCINATION):
+          1. JANGAN PERNAH MENEBAK. Jika sebuah kata, angka, atau karakter tidak terlihat 100% jelas, biarkan kolom tersebut KOSONG (undefined).
+          2. Untuk Nama yang tertulis di dalam KOTAK-KOTAK karakter (seperti YOSEFINA DESWITA ATUENTIA OLUT):
+             - Baca satu per satu huruf di dalam setiap kotak.
+             - Jika ada kotak yang coretannya tidak jelas menyerupai huruf tertentu, jangan diasumsikan.
+             - Pastikan spasi (kotak kosong antara kata) diidentifikasi dengan benar.
+          3. Untuk Angka (NIK, NISN, No KK):
+             - Verifikasi setiap digit. Jika ada satu angka saja yang sulit dibedakan (misal antara 1 dan 7, atau 0 dan 8), maka KOSONGKAN seluruh field nomor tersebut.
+             - Jangan mencoba melengkapi nomor jika digitnya kurang dari standar (NIK 16 digit, NISN 10 digit).
+          4. Untuk Pilihan (Jenis Kelamin, Tempat Tinggal, Transportasi, Agama):
+             - Hanya pilih opsi jika tanda (X) atau centang benar-benar berada di dalam kotak pilihan tersebut secara eksplisit.
+          5. PRIORITAS UTAMA: Kebenaran data jauh lebih penting daripada kelengkapan. Lebih baik field kosong daripada berisi data yang salah akibat tebakan AI.
+          6. JANGAN berikan data default. Jika kotak "Katolik" tidak dicentang secara jelas, jangan asumsikan itu Katolik meskipun itu default aplikasi.`
         },
         {
           media: {
