@@ -9,16 +9,10 @@ import {
   Loader2,
   Camera,
   Download,
-  FileText,
   User,
   MapPin,
-  Users as UsersIcon,
-  Phone,
-  School,
-  Calendar,
-  CreditCard,
   Briefcase,
-  Baby
+  Calendar
 } from "lucide-react"
 import { 
   Table, 
@@ -61,7 +55,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import Link from 'next/link'
 import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase'
-import { collection, query, orderBy, addDoc, serverTimestamp, limit, getDocs, doc } from 'firebase/firestore'
+import { collection, query, orderBy, addDoc, limit, getDocs, doc } from 'firebase/firestore'
 import { Applicant } from '@/lib/types'
 import { errorEmitter } from '@/firebase/error-emitter'
 import { FirestorePermissionError } from '@/firebase/errors'
@@ -170,7 +164,6 @@ export default function ApplicantsPage() {
     const dinasName = systemSettings?.dinasName || "DINAS PENDIDIKAN"
     const academicYear = systemSettings?.academicYear || "2024/2025"
 
-    // Header / Kop Surat
     doc.setFontSize(11)
     doc.setFont("helvetica", "bold")
     doc.text(dinasName.toUpperCase(), 105, 15, { align: "center" })
@@ -181,7 +174,6 @@ export default function ApplicantsPage() {
     doc.text(`FORMULIR PENDAFTARAN PESERTA DIDIK BARU TAHUN PELAJARAN ${academicYear}`, 105, 30, { align: "center" })
     doc.line(20, 33, 190, 33)
 
-    // Data Utama
     doc.setFontSize(11)
     doc.setFont("helvetica", "bold")
     doc.text("I. IDENTITAS CALON PESERTA DIDIK", 20, 45)
@@ -208,56 +200,6 @@ export default function ApplicantsPage() {
       columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 } }
     })
 
-    // Data Orang Tua
-    const currentY = (doc as any).lastAutoTable.finalY + 10
-    doc.setFont("helvetica", "bold")
-    doc.text("II. DATA ORANG TUA / WALI", 20, currentY)
-
-    const dataOrangTua = [
-      ["Nama Ayah Kandung", applicant.fatherName || "-"],
-      ["Nama Ibu Kandung", applicant.motherName || "-"],
-      ["Nama Wali (Jika ada)", applicant.guardianName || "-"],
-      ["No. Telepon Orang Tua", applicant.parentPhone]
-    ]
-
-    autoTable(doc, {
-      body: dataOrangTua,
-      startY: currentY + 5,
-      theme: 'plain',
-      styles: { fontSize: 10, cellPadding: 1.5 },
-      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 } }
-    })
-
-    // Data Pendaftaran
-    const regY = (doc as any).lastAutoTable.finalY + 10
-    doc.setFont("helvetica", "bold")
-    doc.text("III. DATA REGISTRASI & PENDIDIKAN", 20, regY)
-
-    const dataReg = [
-      ["Asal Sekolah (SD/MI)", applicant.originSchool],
-      ["No. Seri Ijazah", applicant.ijazahSerialNumber || "-"],
-      ["Jalur Pendaftaran", applicant.applicationPath],
-      ["No. Pendaftaran", applicant.registrationNumber || "-"]
-    ]
-
-    autoTable(doc, {
-      body: dataReg,
-      startY: regY + 5,
-      theme: 'plain',
-      styles: { fontSize: 10, cellPadding: 1.5 },
-      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 } }
-    })
-
-    // Footer / Tanda Tangan
-    const footerY = (doc as any).lastAutoTable.finalY + 25
-    doc.setFontSize(10)
-    doc.setFont("helvetica", "normal")
-    doc.text(`${systemSettings?.location || 'Jakarta'}, ${new Date().toLocaleDateString('id-ID')}`, 140, footerY - 5)
-    doc.text("Orang Tua / Wali Murid,", 20, footerY)
-    doc.text("Panitia PPDB,", 140, footerY)
-    doc.text("(............................)", 20, footerY + 25)
-    doc.text("(............................)", 140, footerY + 25)
-
     doc.save(`Formulir_PPDB_${applicant.fullName.replace(/\s+/g, '_')}.pdf`)
     toast({ title: "Formulir PDF Berhasil Diunduh" })
   }
@@ -277,11 +219,11 @@ export default function ApplicantsPage() {
               form.setValue(key as any, value)
             }
           })
-          toast({ title: "Scan Berhasil", description: "Hanya data yang terbaca 100% jelas yang diisi otomatis." })
+          toast({ title: "Scan Selesai", description: "Hanya data yang terbaca sangat jelas yang diisi otomatis." })
         }
       } catch (err: any) {
         console.error(err)
-        toast({ variant: "destructive", title: "Scan Gagal", description: "Pastikan gambar tajam dan tidak buram." })
+        toast({ variant: "destructive", title: "Scan Gagal", description: "Pastikan gambar tajam dan pencahayaan cukup." })
       } finally {
         setIsScanning(false)
       }
@@ -332,7 +274,7 @@ export default function ApplicantsPage() {
                 <Plus className="w-4 h-4" /> Formulir Baru
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[900px] max-h-[90vh] p-0 flex flex-col border-border/50 bg-card">
+            <DialogContent className="sm:max-w-[900px] h-[90vh] p-0 flex flex-col border-border/50 bg-card">
               <DialogHeader className="p-6 pb-2 border-b flex flex-row items-center justify-between">
                 <div>
                   <DialogTitle className="font-headline text-2xl">Formulir Pendaftaran Dapodik</DialogTitle>
@@ -344,9 +286,9 @@ export default function ApplicantsPage() {
                 </Button>
               </DialogHeader>
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 overflow-hidden">
-                  <ScrollArea className="flex-1 px-8 py-6">
-                    <div className="space-y-10 pb-12">
+                <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col min-h-0 flex-1 overflow-hidden">
+                  <ScrollArea className="flex-1">
+                    <div className="px-8 py-6 space-y-10 pb-12">
                       {/* Bagian 1: Identitas */}
                       <div className="space-y-6">
                         <div className="flex items-center gap-2 text-primary border-b border-primary/20 pb-2">
@@ -355,7 +297,7 @@ export default function ApplicantsPage() {
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                           <FormField control={form.control} name="fullName" render={({ field }) => (
-                            <FormItem className="md:col-span-2 lg:col-span-1"><FormLabel>Nama Lengkap (Sesuai Ijazah/Akte)</FormLabel><FormControl><Input placeholder="Contoh: BUDI SANTOSO" {...field} className="uppercase" /></FormControl><FormMessage /></FormItem>
+                            <FormItem className="md:col-span-2 lg:col-span-1"><FormLabel>Nama Lengkap (Sesuai Ijazah/Akte)</FormLabel><FormControl><Input placeholder="CONTOH: BUDI SANTOSO" {...field} className="uppercase" /></FormControl><FormMessage /></FormItem>
                           )} />
                           <FormField control={form.control} name="gender" render={({ field }) => (
                             <FormItem><FormLabel>Jenis Kelamin</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Laki-laki">Laki-laki</SelectItem><SelectItem value="Perempuan">Perempuan</SelectItem></SelectContent></Select><FormMessage /></FormItem>

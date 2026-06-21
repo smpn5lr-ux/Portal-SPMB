@@ -3,7 +3,7 @@
 /**
  * @fileOverview A Genkit flow for extracting student registration data from a manual form image.
  * 
- * ATURAN KETAT: AI dilarang menebak data. Jika tidak jelas atau meragukan, biarkan kosong (undefined).
+ * ATURAN KETAT: AI dilarang keras menebak data. Jika tidak jelas atau meragukan, biarkan kosong (undefined).
  * Akurasi pembacaan karakter adalah prioritas utama.
  */
 
@@ -11,11 +11,11 @@ import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
 const ExtractFormDataOutputSchema = z.object({
-  fullName: z.string().optional().describe("Nama lengkap pendaftar. Baca karakter per kotak dengan sangat teliti."),
+  fullName: z.string().optional().describe("Nama lengkap pendaftar. Baca karakter per kotak dengan sangat teliti. Jangan menebak."),
   gender: z.enum(['Laki-laki', 'Perempuan']).optional().describe("Jenis Kelamin"),
-  NISN: z.string().optional().describe("10 digit Nomor Induk Siswa Nasional"),
-  NIK: z.string().optional().describe("16 digit Nomor Induk Kependudukan Murid"),
-  familyCardNumber: z.string().optional().describe("16 digit Nomor Kartu Keluarga"),
+  NISN: z.string().optional().describe("10 digit Nomor Induk Siswa Nasional. Kosongkan jika meragukan."),
+  NIK: z.string().optional().describe("16 digit Nomor Induk Kependudukan Murid. Kosongkan jika meragukan."),
+  familyCardNumber: z.string().optional().describe("16 digit Nomor Kartu Keluarga. Kosongkan jika meragukan."),
   birthPlace: z.string().optional().describe("Tempat lahir"),
   birthDate: z.string().optional().describe("Tanggal lahir format YYYY-MM-DD"),
   religion: z.string().optional().describe("Agama"),
@@ -50,13 +50,13 @@ const extractFormDataFlow = ai.defineFlow(
           text: `Anda adalah pakar OCR yang sangat teliti. Tugas Anda adalah mengekstrak data dari formulir pendaftaran sekolah manual.
           
           ATURAN KRITIKAL:
-          1. JANGAN PERNAH MENEBAK. Jika tulisan tangan buram, terpotong, atau meragukan, biarkan kolom tersebut KOSONG (undefined).
+          1. JANGAN PERNAH MENEBAK. Jika tulisan tangan buram, coretan, terpotong, atau meragukan, biarkan kolom tersebut KOSONG (undefined).
           2. Baca Nama dalam kotak karakter per kotak. Pastikan spasi antar kata terbaca dengan benar.
           3. Untuk Identitas Angka (NISN, NIK, KK): Jika ada satu digit pun yang tidak terbaca jelas, kosongkan seluruh kolom nomor tersebut.
           4. Agama harus dipilih dari: Islam, Kristen, Katolik, Hindu, Budha, Khonghucu.
           5. Tanggal lahir harus dalam format YYYY-MM-DD.
           
-          Data yang tidak terbaca 100% jelas harus diabaikan demi integritas database.`
+          Data yang tidak terbaca 100% jelas harus diabaikan demi integritas database. Lebih baik kosong daripada salah data.`
         },
         {
           media: {
