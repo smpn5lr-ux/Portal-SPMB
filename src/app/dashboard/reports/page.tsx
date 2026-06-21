@@ -92,6 +92,10 @@ export default function ReportsPage() {
   const { data: applicants, loading } = useCollection<Applicant>(applicantsQuery)
   const { data: systemSettings } = useDoc<any>(settingsRef)
 
+  const dinasName = systemSettings?.dinasName || "DINAS PENDIDIKAN"
+  const schoolName = systemSettings?.schoolName || "PORTAL SPMB"
+  const academicYear = systemSettings?.academicYear || "2024/2025"
+
   const stats = useMemo(() => {
     if (!applicants) return { total: 0, avgScore: 0, remainingQuota: 0, acceptedCount: 0, totalQuota: systemSettings?.totalQuota || 250 }
     const total = applicants.length
@@ -102,7 +106,6 @@ export default function ReportsPage() {
     const acceptedCount = applicants.filter(a => a.admissionStatus === 'accepted').length
     const totalQuota = systemSettings?.totalQuota || 250
     const remainingQuota = Math.max(0, totalQuota - acceptedCount)
-    
     return { total, avgScore, remainingQuota, acceptedCount, totalQuota }
   }, [applicants, systemSettings])
 
@@ -155,7 +158,6 @@ export default function ReportsPage() {
         headers.join(","),
         ...data.map(row => Object.values(row).map(v => `"${v}"`).join(","))
       ].join("\n")
-
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
       const url = URL.createObjectURL(blob)
       const link = document.createElement("a")
@@ -195,24 +197,33 @@ export default function ReportsPage() {
     try {
       const { default: jsPDF } = await import('jspdf')
       const { default: autoTable } = await import('jspdf-autotable')
-      
       const doc = new jsPDF('landscape')
+      
+      // KOP SURAT
+      doc.setFontSize(12)
+      doc.setFont("helvetica", "bold")
+      doc.setTextColor(0, 0, 0)
+      doc.text(dinasName.toUpperCase(), 148, 12, { align: "center" })
+      doc.setFontSize(20)
+      doc.text(schoolName.toUpperCase(), 148, 19, { align: "center" })
+      doc.setFontSize(10)
+      doc.setFont("helvetica", "normal")
+      doc.text(`Tahun Ajaran: ${academicYear} | Dicetak pada: ${new Date().toLocaleString('id-ID')}`, 148, 25, { align: "center" })
+      doc.line(14, 28, 283, 28)
+
       const data = getExportData()
       const headers = [Object.keys(data[0])]
       const body = data.map(item => Object.values(item))
 
-      doc.setFontSize(18)
+      doc.setFontSize(14)
       doc.setTextColor(67, 97, 238)
-      doc.text(`Laporan Penerimaan Murid Baru (${systemSettings?.schoolName || 'Portal SPMB'})`, 14, 15)
-      
-      doc.setFontSize(10)
-      doc.setTextColor(100)
-      doc.text(`Tahun Ajaran: ${systemSettings?.academicYear || '2024/2025'} | Dicetak pada: ${new Date().toLocaleString('id-ID')}`, 14, 22)
+      doc.setFont("helvetica", "bold")
+      doc.text(`Laporan Rekapitulasi Penerimaan Murid Baru`, 14, 35)
       
       autoTable(doc, {
         head: headers,
         body: body,
-        startY: 30,
+        startY: 40,
         theme: 'striped',
         styles: { fontSize: 7, cellPadding: 2, font: 'helvetica' },
         headStyles: { 
@@ -228,7 +239,6 @@ export default function ReportsPage() {
       toast({ title: "Ekspor Berhasil", description: "Laporan PDF telah diunduh." })
       setIsDownloadDialogOpen(false)
     } catch (error) {
-      console.error(error)
       toast({ variant: "destructive", title: "Error", description: "Gagal ekspor PDF." })
     } finally {
       setIsExporting(false)
@@ -236,13 +246,8 @@ export default function ReportsPage() {
   }
 
   const toggleColumn = (id: string) => {
-    setSelectedColumns(prev => 
-      prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
-    )
+    setSelectedColumns(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id])
   }
-
-  const selectAll = () => setSelectedColumns(EXPORT_COLUMNS.map(c => c.id))
-  const selectNone = () => setSelectedColumns([])
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -269,53 +274,20 @@ export default function ReportsPage() {
                   Pilih kolom data murid yang ingin Anda sertakan dalam dokumen ekspor.
                 </DialogDescription>
               </DialogHeader>
-              
               <div className="py-4">
-                <div className="flex items-center justify-between mb-4 px-1">
-                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Kolom Tersedia ({selectedColumns.length})</span>
-                  <div className="flex gap-2">
-                    <Button variant="ghost" size="sm" onClick={selectAll} className="text-[10px] h-7">Pilih Semua</Button>
-                    <Button variant="ghost" size="sm" onClick={selectNone} className="text-[10px] h-7 text-destructive">Hapus Semua</Button>
-                  </div>
-                </div>
-                
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 bg-muted/20 rounded-xl border border-border/50 max-h-[300px] overflow-y-auto">
                   {EXPORT_COLUMNS.map((col) => (
-                    <div key={col.id} className="flex items-center space-x-2 p-1 hover:bg-background/50 rounded transition-colors">
-                      <Checkbox 
-                        id={`col-${col.id}`} 
-                        checked={selectedColumns.includes(col.id)}
-                        onCheckedChange={() => toggleColumn(col.id)}
-                      />
-                      <Label 
-                        htmlFor={`col-${col.id}`}
-                        className="text-xs font-medium cursor-pointer leading-none"
-                      >
-                        {col.label}
-                      </Label>
+                    <div key={col.id} className="flex items-center space-x-2">
+                      <Checkbox id={`col-${col.id}`} checked={selectedColumns.includes(col.id)} onCheckedChange={() => toggleColumn(col.id)} />
+                      <Label htmlFor={`col-${col.id}`} className="text-xs font-medium cursor-pointer">{col.label}</Label>
                     </div>
                   ))}
                 </div>
               </div>
-
-              <DialogFooter className="flex-col sm:flex-row gap-2 border-t pt-6">
-                <div className="flex-1 text-[10px] text-muted-foreground italic flex items-center">
-                  * Laporan akan disusun secara profesional dalam Bahasa Indonesia.
-                </div>
-                <div className="flex gap-2">
-                  <Button onClick={handleExportCSV} disabled={isExporting || selectedColumns.length === 0} variant="outline" className="gap-2">
-                    {isExporting ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileCode className="w-3 h-3" />}
-                    CSV
-                  </Button>
-                  <Button onClick={handleExportExcel} disabled={isExporting || selectedColumns.length === 0} variant="outline" className="gap-2 border-green-500/20 text-green-500">
-                    {isExporting ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileSpreadsheet className="w-3 h-3" />}
-                    Excel
-                  </Button>
-                  <Button onClick={handleExportPDF} disabled={isExporting || selectedColumns.length === 0} className="gap-2">
-                    {isExporting ? <Loader2 className="w-3 h-3 animate-spin" /> : <FilePdf className="w-3 h-3" />}
-                    PDF
-                  </Button>
-                </div>
+              <DialogFooter className="flex gap-2">
+                <Button onClick={handleExportCSV} disabled={isExporting} variant="outline" className="gap-2"><FileCode className="w-3 h-3" /> CSV</Button>
+                <Button onClick={handleExportExcel} disabled={isExporting} variant="outline" className="gap-2 border-green-500/20 text-green-500"><FileSpreadsheet className="w-3 h-3" /> Excel</Button>
+                <Button onClick={handleExportPDF} disabled={isExporting} className="gap-2"><FilePdf className="w-3 h-3" /> PDF</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -331,12 +303,9 @@ export default function ReportsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-4xl font-bold">{loading ? "..." : stats.total}</div>
-            <p className="text-xs text-green-500 mt-1 font-bold flex items-center gap-1">
-              <TrendingUp className="w-3 h-3" /> Sinkron Firestore Live
-            </p>
+            <p className="text-xs text-green-500 mt-1 font-bold flex items-center gap-1"><TrendingUp className="w-3 h-3" /> Sinkron Firestore Live</p>
           </CardContent>
         </Card>
-        
         <Card className="border-border/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
@@ -348,7 +317,6 @@ export default function ReportsPage() {
             <p className="text-xs text-muted-foreground mt-1">Berdasarkan pendaftar Jalur Prestasi</p>
           </CardContent>
         </Card>
-
         <Card className="border-border/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
@@ -357,9 +325,7 @@ export default function ReportsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-4xl font-bold">{loading ? "..." : stats.remainingQuota}</div>
-            <p className="text-xs text-amber-500 mt-1 font-bold">
-              Kuota Terisi: {stats.acceptedCount} / {stats.totalQuota}
-            </p>
+            <p className="text-xs text-amber-500 mt-1 font-bold">Kuota Terisi: {stats.acceptedCount} / {stats.totalQuota}</p>
           </CardContent>
         </Card>
       </div>
@@ -367,119 +333,38 @@ export default function ReportsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="border-border/50">
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="font-headline text-lg">Asal Sekolah Dasar Terbanyak</CardTitle>
-                <CardDescription>Penyebaran murid berdasarkan sekolah dasar asal mereka.</CardDescription>
-              </div>
-              <BarChart3 className="w-5 h-5 text-muted-foreground/50" />
-            </div>
+            <CardTitle className="font-headline text-lg">Asal Sekolah Dasar Terbanyak</CardTitle>
           </CardHeader>
           <CardContent className="h-[300px]">
-            {loading ? (
-              <div className="w-full h-full flex items-center justify-center"><Loader2 className="animate-spin" /></div>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={schoolData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="hsl(var(--border))" />
-                  <XAxis type="number" hide />
-                  <YAxis 
-                    dataKey="name" 
-                    type="category" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    width={120}
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
-                  />
-                  <Tooltip 
-                    cursor={{ fill: 'hsl(var(--muted)/0.3)' }}
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
-                      borderColor: 'hsl(var(--border))',
-                      borderRadius: '8px'
-                    }}
-                  />
-                  <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} barSize={24} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={schoolData} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="hsl(var(--border))" />
+                <XAxis type="number" hide />
+                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={120} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
+                <Tooltip cursor={{ fill: 'hsl(var(--muted)/0.3)' }} contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }} />
+                <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} barSize={24} />
+              </BarChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
-
         <Card className="border-border/50">
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="font-headline text-lg">Demografi Usia Murid</CardTitle>
-                <CardDescription>Distribusi umur calon murid baru berdasarkan data kelahiran.</CardDescription>
-              </div>
-              <PieIcon className="w-5 h-5 text-muted-foreground/50" />
-            </div>
+            <CardTitle className="font-headline text-lg">Demografi Usia Murid</CardTitle>
           </CardHeader>
           <CardContent className="h-[300px] flex items-center">
-            {loading ? (
-              <div className="w-full h-full flex items-center justify-center"><Loader2 className="animate-spin" /></div>
-            ) : (
-              <>
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={ageData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={70}
-                      outerRadius={100}
-                      paddingAngle={8}
-                      dataKey="value"
-                    >
-                      {ageData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="space-y-4 pr-8">
-                  {ageData.map((age, i) => (
-                    <div key={age.name} className="flex items-center gap-3">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                      <div>
-                        <p className="text-xs font-bold whitespace-nowrap">{age.name}</p>
-                        <p className="text-[10px] text-muted-foreground">{age.value}%</p>
-                      </div>
-                    </div>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={ageData} cx="50%" cy="50%" innerRadius={70} outerRadius={100} paddingAngle={8} dataKey="value">
+                  {ageData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
-                </div>
-              </>
-            )}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle className="font-headline text-lg">Histori Ekspor Data</CardTitle>
-          <CardDescription>Daftar riwayat unduhan laporan pendaftaran murid.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 rounded-xl border border-border hover:bg-muted/30 transition-colors">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                  <Download className="w-5 h-5 text-muted-foreground" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold">Laporan Master Murid PPDB</p>
-                  <p className="text-xs text-muted-foreground">Oleh Sistem • Sinkron Firestore Real-time</p>
-                </div>
-              </div>
-              <Button onClick={() => setIsDownloadDialogOpen(true)} variant="ghost" size="sm" className="text-primary font-bold">
-                Unduh Sekarang
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }

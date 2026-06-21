@@ -16,7 +16,8 @@ import {
   Loader2,
   Plus,
   Trash2,
-  CalendarDays
+  CalendarDays,
+  Map
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -51,6 +52,7 @@ export default function SettingsPage() {
 
   const [localConfig, setLocalConfig] = useState<any>({
     schoolName: "SMP Negeri 1 Jakarta",
+    dinasName: "DINAS PENDIDIKAN PROVINSI DKI JAKARTA",
     npsn: "20123456",
     academicYear: "2024/2025",
     totalQuota: 250,
@@ -83,27 +85,19 @@ export default function SettingsPage() {
   const handleQuotaChange = (key: string, newValue: number) => {
     const keys = ["quotaZonasi", "quotaPrestasi", "quotaAfirmasi", "quotaPerpindahan"];
     const otherKeys = keys.filter(k => k !== key);
-    
-    // Sisa persentase yang harus dibagi ke yang lain
     const remaining = 100 - newValue;
-    
-    // Total nilai saat ini dari slider lainnya untuk perhitungan proporsional
     const othersTotal = otherKeys.reduce((sum, k) => sum + (localConfig[k] || 0), 0);
-    
     let updatedConfig = { ...localConfig, [key]: newValue };
 
     if (othersTotal === 0) {
-      // Jika semua yang lain 0, bagi rata sisa persentase
       const share = Math.floor(remaining / otherKeys.length);
       otherKeys.forEach((k, i) => {
         updatedConfig[k] = i === otherKeys.length - 1 ? remaining - (share * (otherKeys.length - 1)) : share;
       });
     } else {
-      // Distribusi proporsional berdasarkan nilai saat ini
       let currentSum = newValue;
       otherKeys.forEach((k, i) => {
         if (i === otherKeys.length - 1) {
-          // Elemen terakhir mengambil sisa untuk memastikan total tepat 100
           updatedConfig[k] = Math.max(0, 100 - currentSum);
         } else {
           const share = Math.round((localConfig[k] / othersTotal) * remaining);
@@ -112,7 +106,6 @@ export default function SettingsPage() {
         }
       });
     }
-
     setLocalConfig(updatedConfig);
   };
 
@@ -199,6 +192,16 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2 space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1">
+                    <Map className="w-3 h-3" /> Dinas Pendidikan
+                  </label>
+                  <Input 
+                    value={localConfig.dinasName}
+                    onChange={(e) => setLocalConfig({...localConfig, dinasName: e.target.value})}
+                    placeholder="Contoh: DINAS PENDIDIKAN PROVINSI DKI JAKARTA" 
+                  />
+                </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Nama Sekolah</label>
                   <Input 
@@ -300,7 +303,6 @@ export default function SettingsPage() {
                     />
                   </div>
                 ))}
-                
                 <div className="pt-4 border-t">
                    <div className="flex justify-between items-center">
                      <span className="text-xs font-bold uppercase text-muted-foreground">Total Kuota</span>

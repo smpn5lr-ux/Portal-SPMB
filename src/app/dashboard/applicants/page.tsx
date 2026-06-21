@@ -296,33 +296,37 @@ export default function ApplicantsPage() {
       const { default: autoTable } = await import('jspdf-autotable')
       const doc = new jsPDF('landscape')
       
+      const dinasName = systemSettings?.dinasName || "DINAS PENDIDIKAN"
       const schoolName = systemSettings?.schoolName || "PORTAL SPMB"
       const npsn = systemSettings?.npsn || "-"
       const academicYear = systemSettings?.academicYear || "2024/2025"
 
       // KOP SURAT
-      doc.setFontSize(20)
+      doc.setFontSize(14)
       doc.setTextColor(0, 0, 0)
       doc.setFont("helvetica", "bold")
-      doc.text(schoolName.toUpperCase(), 148, 18, { align: "center" })
+      doc.text(dinasName.toUpperCase(), 148, 15, { align: "center" })
+      
+      doc.setFontSize(20)
+      doc.text(schoolName.toUpperCase(), 148, 22, { align: "center" })
       
       doc.setFontSize(10)
       doc.setFont("helvetica", "normal")
-      doc.text(`NPSN: ${npsn} | Tahun Ajaran ${academicYear}`, 148, 24, { align: "center" })
+      doc.text(`NPSN: ${npsn} | Tahun Ajaran ${academicYear}`, 148, 28, { align: "center" })
       doc.setLineWidth(0.5)
-      doc.line(14, 28, 283, 28)
+      doc.line(14, 32, 283, 32)
       doc.setLineWidth(0.1)
-      doc.line(14, 29, 283, 29)
+      doc.line(14, 33, 283, 33)
 
       doc.setFontSize(14)
       doc.setTextColor(67, 97, 238)
       doc.setFont("helvetica", "bold")
-      doc.text("PANDUAN TEMPLAT IMPOR DATA CALON MURID", 148, 38, { align: "center" })
+      doc.text("PANDUAN TEMPLAT IMPOR DATA CALON MURID", 148, 42, { align: "center" })
       
       doc.setFontSize(10)
       doc.setTextColor(100)
       doc.setFont("helvetica", "normal")
-      doc.text("Gunakan kolom-kolom berikut dalam file CSV atau Excel Anda agar sistem dapat membaca data dengan baik.", 14, 46)
+      doc.text("Gunakan kolom-kolom berikut dalam file CSV atau Excel Anda agar sistem dapat membaca data dengan baik.", 14, 50)
       
       const tableBody = TEMPLATE_KEYS.map(col => [
         COLUMN_MAPPING[col], 
@@ -333,7 +337,7 @@ export default function ApplicantsPage() {
       autoTable(doc, {
         head: [['Nama Kolom', 'Tipe Data', 'Status']],
         body: tableBody,
-        startY: 53,
+        startY: 57,
         styles: { fontSize: 8, font: 'helvetica' },
         headStyles: { 
           fillColor: [67, 97, 238],

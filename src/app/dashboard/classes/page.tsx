@@ -108,6 +108,8 @@ export default function ClassesPage() {
   const { data: systemSettings } = useDoc<any>(settingsRef)
 
   const academicYear = systemSettings?.academicYear || "2024/2025"
+  const dinasName = systemSettings?.dinasName || "DINAS PENDIDIKAN"
+  const schoolName = systemSettings?.schoolName || "PORTAL SPMB"
 
   const form = useForm<z.infer<typeof classFormSchema>>({
     resolver: zodResolver(classFormSchema),
@@ -139,12 +141,10 @@ export default function ClassesPage() {
 
   const onClassSubmit = (values: z.infer<typeof classFormSchema>) => {
     if (!db || submitting || !classes) return
-
     const isDuplicateName = classes.some(cls => 
       cls.name.toLowerCase() === values.name.toLowerCase() && 
       (!editingClass || cls.id !== editingClass.id)
     )
-
     if (isDuplicateName) {
       toast({
         variant: "destructive",
@@ -153,16 +153,13 @@ export default function ClassesPage() {
       })
       return
     }
-
     setSubmitting(true)
-
     const classData = {
       name: values.name,
       gradeLevel: parseInt(values.gradeLevel),
       homeroomTeacher: values.homeroomTeacher || "",
       capacity: parseInt(values.capacity),
     }
-
     if (editingClass) {
       const classRef = doc(db, 'classes', editingClass.id)
       updateDoc(classRef, classData)
@@ -226,25 +223,20 @@ export default function ClassesPage() {
   const handleShuffle = () => {
     if (!applicants || !classes || !db) return
     setIsShuffling(true)
-    
     setTimeout(async () => {
       let acceptedStudents = applicants.filter(a => a.admissionStatus === 'accepted')
       acceptedStudents = [...acceptedStudents].sort(() => Math.random() - 0.5)
-      
       const batch = writeBatch(db)
-      
       classes.forEach((cls, idx) => {
         const perClass = Math.ceil(acceptedStudents.length / classes.length)
         const classStudents = acceptedStudents.slice(idx * perClass, (idx + 1) * perClass)
         const studentIds = classStudents.map(s => s.id)
-        
         const classRef = doc(db, 'classes', cls.id)
         batch.update(classRef, {
           currentEnrollment: studentIds.length,
           students: studentIds
         })
       })
-
       batch.commit().then(() => {
         toast({
           title: "Distribusi Selesai",
@@ -264,7 +256,6 @@ export default function ClassesPage() {
     if (!applicants) return
     setIsExporting(true)
     const students = getStudentsInClass(cls.students)
-    
     try {
       if (format === 'excel') {
         const data = students.map((s, idx) => ({
@@ -278,59 +269,70 @@ export default function ClassesPage() {
         const workbook = XLSX.utils.book_new()
         XLSX.utils.book_append_sheet(workbook, worksheet, `Kelas ${cls.name}`)
         XLSX.writeFile(workbook, `Daftar_Murid_Kelas_${cls.name}.xlsx`)
-      } else if (format === 'pdf') {
+      } else {
         const { default: jsPDF } = await import('jspdf')
         const { default: autoTable } = await import('jspdf-autotable')
         const doc = new jsPDF()
-        doc.setFontSize(16)
-        doc.setTextColor(67, 97, 238)
-        doc.text(`Daftar Murid Kelas ${cls.name}`, 14, 15)
+        
+        // KOP SURAT
         doc.setFontSize(10)
-        doc.setTextColor(100)
-        doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'} | Total: ${students.length} Murid`, 14, 22)
-        
-        const body = students.map((s, idx) => [idx + 1, s.fullName, s.NISN, s.gender, s.originSchool])
-        autoTable(doc, {
-          head: [['No.', 'Nama Lengkap', 'NISN', 'Jenis Kelamin', 'Sekolah Asal']],
-          body: body,
-          startY: 30,
-          headStyles: { fillColor: [67, 97, 238] }
-        })
-        doc.save(`Daftar_Murid_Kelas_${cls.name}.pdf`)
-      } else if (format === 'attendance') {
-        const { default: jsPDF } = await import('jspdf')
-        const { default: autoTable } = await import('jspdf-autotable')
-        const doc = new jsPDF()
+        doc.setFont("helvetica", "bold")
+        doc.text(dinasName.toUpperCase(), 105, 12, { align: "center" })
         doc.setFontSize(16)
-        doc.setTextColor(67, 97, 238)
-        doc.text(`DAFTAR HADIR MURID BARU - KELAS ${cls.name}`, 14, 15)
-        doc.setFontSize(10)
-        doc.setTextColor(100)
-        doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'} | Tahun Ajaran ${academicYear}`, 14, 22)
-        
-        const body = students.map((s, idx) => [
-          idx + 1, 
-          s.fullName, 
-          s.NISN, 
-          s.gender === 'Laki-laki' ? 'L' : 'P',
-          idx % 2 === 0 ? `${idx + 1}. ....................` : '',
-          idx % 2 !== 0 ? `${idx + 1}. ....................` : ''
-        ])
-        
-        autoTable(doc, {
-          head: [['No.', 'Nama Lengkap', 'NISN', 'L/P', 'Tanda Tangan', '']],
-          body: body,
-          startY: 30,
-          headStyles: { fillColor: [67, 97, 238], halign: 'center' },
-          columnStyles: {
-            0: { cellWidth: 10, halign: 'center' },
-            3: { cellWidth: 15, halign: 'center' },
-            4: { cellWidth: 35 },
-            5: { cellWidth: 35 }
-          },
-          styles: { minCellHeight: 12, verticalAlign: 'middle' }
-        })
-        doc.save(`Daftar_Hadir_Kelas_${cls.name}.pdf`)
+        doc.text(schoolName.toUpperCase(), 105, 18, { align: "center" })
+        doc.setFontSize(8)
+        doc.setFont("helvetica", "normal")
+        doc.text(`Tahun Ajaran ${academicYear}`, 105, 23, { align: "center" })
+        doc.line(14, 25, 196, 25)
+
+        if (format === 'pdf') {
+          doc.setFontSize(14)
+          doc.setTextColor(67, 97, 238)
+          doc.setFont("helvetica", "bold")
+          doc.text(`Daftar Murid Kelas ${cls.name}`, 14, 32)
+          doc.setFontSize(10)
+          doc.setTextColor(100)
+          doc.setFont("helvetica", "normal")
+          doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'} | Total: ${students.length} Murid`, 14, 38)
+          const body = students.map((s, idx) => [idx + 1, s.fullName, s.NISN, s.gender, s.originSchool])
+          autoTable(doc, {
+            head: [['No.', 'Nama Lengkap', 'NISN', 'Jenis Kelamin', 'Sekolah Asal']],
+            body: body,
+            startY: 44,
+            headStyles: { fillColor: [67, 97, 238] }
+          })
+        } else if (format === 'attendance') {
+          doc.setFontSize(14)
+          doc.setTextColor(67, 97, 238)
+          doc.setFont("helvetica", "bold")
+          doc.text(`DAFTAR HADIR MURID BARU - KELAS ${cls.name}`, 14, 32)
+          doc.setFontSize(10)
+          doc.setTextColor(100)
+          doc.setFont("helvetica", "normal")
+          doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'} | Tahun Ajaran ${academicYear}`, 14, 38)
+          const body = students.map((s, idx) => [
+            idx + 1, 
+            s.fullName, 
+            s.NISN, 
+            s.gender === 'Laki-laki' ? 'L' : 'P',
+            idx % 2 === 0 ? `${idx + 1}. ....................` : '',
+            idx % 2 !== 0 ? `${idx + 1}. ....................` : ''
+          ])
+          autoTable(doc, {
+            head: [['No.', 'Nama Lengkap', 'NISN', 'L/P', 'Tanda Tangan', '']],
+            body: body,
+            startY: 44,
+            headStyles: { fillColor: [67, 97, 238], halign: 'center' },
+            columnStyles: {
+              0: { cellWidth: 10, halign: 'center' },
+              3: { cellWidth: 15, halign: 'center' },
+              4: { cellWidth: 35 },
+              5: { cellWidth: 35 }
+            },
+            styles: { minCellHeight: 12, verticalAlign: 'middle' }
+          })
+        }
+        doc.save(`${format === 'attendance' ? 'Daftar_Hadir' : 'Daftar_Murid'}_Kelas_${cls.name}.pdf`)
       }
       toast({ title: "Ekspor Berhasil", description: `Data kelas ${cls.name} telah diunduh.` })
     } catch (err) {
@@ -343,7 +345,6 @@ export default function ClassesPage() {
   const handleExportAllClasses = async (format: 'excel' | 'pdf' | 'attendance') => {
     if (!classes || !applicants) return
     setIsExporting(true)
-
     try {
       if (format === 'excel') {
         const workbook = XLSX.utils.book_new()
@@ -364,34 +365,46 @@ export default function ClassesPage() {
         const { default: jsPDF } = await import('jspdf')
         const { default: autoTable } = await import('jspdf-autotable')
         const doc = new jsPDF()
-        
         classes.forEach((cls, idx) => {
           if (idx > 0) doc.addPage()
           const students = getStudentsInClass(cls.students)
           
+          // KOP SURAT
+          doc.setFontSize(10)
+          doc.setFont("helvetica", "bold")
+          doc.text(dinasName.toUpperCase(), 105, 12, { align: "center" })
+          doc.setFontSize(16)
+          doc.text(schoolName.toUpperCase(), 105, 18, { align: "center" })
+          doc.setFontSize(8)
+          doc.setFont("helvetica", "normal")
+          doc.text(`Tahun Ajaran ${academicYear}`, 105, 23, { align: "center" })
+          doc.line(14, 25, 196, 25)
+
           if (format === 'pdf') {
-            doc.setFontSize(16)
+            doc.setFontSize(14)
             doc.setTextColor(67, 97, 238)
-            doc.text(`Daftar Murid Kelas ${cls.name}`, 14, 15)
+            doc.setFont("helvetica", "bold")
+            doc.text(`Daftar Murid Kelas ${cls.name}`, 14, 32)
             doc.setFontSize(10)
             doc.setTextColor(100)
-            doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'} | Total: ${students.length} Murid`, 14, 22)
-            
-            const body = students.map((s, idx) => [idx + 1, s.fullName, s.NISN, s.gender, s.originSchool])
+            doc.setFont("helvetica", "normal")
+            doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'} | Total: ${students.length} Murid`, 14, 38)
+            const body = students.map((s, studentIdx) => [studentIdx + 1, s.fullName, s.NISN, s.gender, s.originSchool])
             autoTable(doc, {
               head: [['No.', 'Nama Lengkap', 'NISN', 'Jenis Kelamin', 'Sekolah Asal']],
               body: body,
-              startY: 30,
+              startY: 44,
               headStyles: { fillColor: [67, 97, 238] }
             })
           } else if (format === 'attendance') {
-            doc.setFontSize(16)
+            doc.setFontSize(14)
             doc.setTextColor(67, 97, 238)
-            doc.text(`DAFTAR HADIR MURID BARU - KELAS ${cls.name}`, 14, 15)
+            doc.setFont("helvetica", "bold")
+            doc.text(`DAFTAR HADIR MURID BARU - KELAS ${cls.name}`, 14, 32)
             doc.setFontSize(10)
             doc.setTextColor(100)
-            doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'} | Tahun Ajaran ${academicYear}`, 14, 22)
-            
+            doc.setFont("helvetica", "normal")
+            doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'} | Tahun Ajaran ${academicYear}`, 14, 38)
             const body = students.map((s, studentIdx) => [
               studentIdx + 1, 
               s.fullName, 
@@ -400,11 +413,10 @@ export default function ClassesPage() {
               studentIdx % 2 === 0 ? `${studentIdx + 1}. ....................` : '',
               studentIdx % 2 !== 0 ? `${studentIdx + 1}. ....................` : ''
             ])
-            
             autoTable(doc, {
               head: [['No.', 'Nama Lengkap', 'NISN', 'L/P', 'Tanda Tangan', '']],
               body: body,
-              startY: 30,
+              startY: 44,
               headStyles: { fillColor: [67, 97, 238], halign: 'center' },
               columnStyles: {
                 0: { cellWidth: 10, halign: 'center' },
@@ -630,12 +642,6 @@ export default function ClassesPage() {
             </CardContent>
           </Card>
         ))}
-        {classes?.length === 0 && (
-          <div className="col-span-full py-12 text-center border-2 border-dashed border-border rounded-xl">
-             <LayoutGrid className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-             <p className="text-muted-foreground">Belum ada kelas yang terdaftar. Silakan tambah kelas baru.</p>
-          </div>
-        )}
       </div>
 
       <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
@@ -701,13 +707,6 @@ export default function ClassesPage() {
                       <TableCell className="text-xs text-muted-foreground">{student.originSchool}</TableCell>
                     </TableRow>
                   ))}
-                  {selectedClassForView?.students.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={5} className="h-32 text-center text-muted-foreground italic">
-                        Belum ada murid yang didistribusikan ke kelas ini.
-                      </TableCell>
-                    </TableRow>
-                  )}
                 </TableBody>
               </Table>
             </ScrollArea>
@@ -717,21 +716,6 @@ export default function ClassesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {isShuffling && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="text-center space-y-6">
-            <div className="relative inline-block">
-              <div className="w-24 h-24 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-              <Shuffle className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 text-primary" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-headline font-bold">Mengacak Distribusi Kelas...</h2>
-              <p className="text-muted-foreground mt-2">Menyeimbangkan data murid yang diterima di database.</p>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
