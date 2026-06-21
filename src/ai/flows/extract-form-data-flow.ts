@@ -87,16 +87,21 @@ const extractFormDataFlow = ai.defineFlow(
   },
   async (input) => {
     const { output } = await ai.generate({
-      model: 'googleai/gemini-2.0-flash-exp',
-      prompt: `Anda adalah pakar Administrasi Sekolah dan OCR (Optical Character Recognition).
-      Tugas Anda adalah mengekstrak data dari gambar formulir pendaftaran sekolah manual.
+      model: 'googleai/gemini-1.5-flash',
+      prompt: `Anda adalah pakar Administrasi Sekolah dan OCR (Optical Character Recognition) profesional.
+      Tugas Anda adalah mengekstrak data dari gambar formulir pendaftaran sekolah manual dengan tingkat akurasi 100%.
 
-      PENTING:
-      - Baca setiap bagian dengan teliti, terutama teks dalam kotak per-karakter.
-      - Jika ada teks yang terlihat JELAS (seperti Nama atau NISN), pastikan Anda mengekstraknya.
-      - JANGAN menyerah jika hanya sebagian data yang tidak jelas. Ambil semua data yang BISA dibaca.
-      - Identifikasi spasi pada nama yang tertulis dalam kotak (kotak kosong = spasi).
-      - Untuk checkbox atau pilihan, identifikasi tanda silang (X) atau centang (V).
+      ATURAN KETAT UNTUK AKURASI:
+      1. HANYA ambil data yang terlihat JELAS dan PASTI. 
+      2. Jika tulisan tangan buram, tidak terbaca, atau Anda ragu meskipun hanya sedikit, biarkan field tersebut KOSONG (undefined). JANGAN PERNAH MENEBAK DATA.
+      3. Untuk Nama yang tertulis dalam KOTAK-KOTAK (blok karakter):
+         - Baca setiap karakter per kotak dengan teliti.
+         - Kotak kosong di antara kata adalah spasi.
+         - Pastikan spasi antar kata terjaga.
+      4. Verifikasi Nomor (NIK, NISN, No. KK): Harus tepat sesuai yang tertulis. Jika karakter nomor meragukan, biarkan kosong.
+      5. Pilihan (Checkbox/Radio): Hanya identifikasi jika ada tanda (X) atau (V) yang jelas pada pilihan tersebut.
+
+      Prioritaskan kebenaran data daripada kelengkapan. Jika data tidak jelas, lebih baik kosong daripada salah.
 
       Photo: {{media url=photoDataUri}}`,
       input: input,
