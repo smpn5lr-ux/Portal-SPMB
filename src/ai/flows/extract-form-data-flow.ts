@@ -4,13 +4,16 @@
  * 
  * This flow uses vision capabilities to read handwritten or printed school registration forms
  * and maps them to the Dapodik-compatible schema used in the application.
+ * 
+ * ATURAN KETAT: AI dilarang menebak data. Jika tidak jelas, biarkan kosong.
  */
 
 import { ai } from '@/ai/genkit';
+import { gemini15Flash } from '@genkit-ai/google-genai';
 import { z } from 'zod';
 
 const ExtractFormDataOutputSchema = z.object({
-  fullName: z.string().optional().describe("Nama lengkap sesuai Akte Kelahiran"),
+  fullName: z.string().optional().describe("Nama lengkap sesuai Akte Kelahiran. Baca kotak per kotak dengan teliti."),
   gender: z.enum(['Laki-laki', 'Perempuan']).optional().describe("Jenis Kelamin"),
   NISN: z.string().optional().describe("10 digit Nomor Induk Siswa Nasional"),
   NIK: z.string().optional().describe("16 digit Nomor Induk Kependudukan Murid"),
@@ -91,7 +94,7 @@ const extractFormDataFlow = ai.defineFlow(
     const contentType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
 
     const { output } = await ai.generate({
-      model: 'googleai/gemini-1.5-flash',
+      model: gemini15Flash,
       prompt: [
         {
           text: `Anda adalah pakar Administrasi Sekolah dan OCR (Optical Character Recognition) profesional.
@@ -103,12 +106,12 @@ const extractFormDataFlow = ai.defineFlow(
           3. Untuk Nama yang tertulis di dalam KOTAK-KOTAK karakter:
              - Baca huruf demi huruf per kotak dengan sangat teliti.
              - Identifikasi spasi (kotak kosong) dengan benar agar nama tidak menyambung.
-             - Contoh: Jika ada kotak kosong antara nama depan dan tengah, pastikan ada spasi di hasilnya.
-          4. Untuk NIK dan NISN: Verifikasi setiap digit angka. Jangan menebak angka yang mirip (seperti 1 dan 7, atau 0 dan 8). Jika ragu pada satu angka saja, kosongkan seluruh kolom nomor tersebut.
-          5. Untuk Pilihan (Pendidikan/Pekerjaan/Agama): Hanya pilih jika ada tanda (X) atau centang yang JELAS berada di dalam kotak pilihan yang dimaksud.
-          6. JANGAN memberikan data default atau data buatan sendiri.
+          4. Untuk NIK, NISN, dan No KK: Verifikasi setiap digit angka. Jangan menebak angka yang mirip (seperti 1 dan 7, atau 0 dan 8). Jika ragu pada satu angka saja, kosongkan seluruh kolom nomor tersebut.
+          5. Untuk Pilihan (Pendidikan/Pekerjaan/Agama/Transportasi/Tempat Tinggal): Hanya pilih jika ada tanda (X) atau centang yang JELAS berada di dalam kotak pilihan yang dimaksud.
+          6. JANGAN memberikan data default atau data buatan sendiri jika tidak ada di gambar.
+          7. Pastikan Agama 'Katolik' dipilih hanya jika kotak Katolik ditandai secara jelas.
 
-          Prioritas utama adalah KEBENARAN DATA. Lebih baik mengembalikan formulir yang setengah kosong daripada formulir berisi data yang salah.`
+          Prioritas utama adalah KEBENARAN DATA. Lebih baik mengembalikan formulir yang kosong daripada formulir berisi data yang salah hasil tebakan.`
         },
         {
           media: {
