@@ -262,7 +262,6 @@ export default function ApplicantsPage() {
       try {
         const result = await extractFormData({ photoDataUri: base64 })
         if (result) {
-          // Log result for debugging
           console.log("AI Extraction Result:", result);
           
           Object.entries(result).forEach(([key, value]) => {
@@ -271,7 +270,6 @@ export default function ApplicantsPage() {
             }
           });
 
-          // Special handling for parents to ensure names are correctly mapped for validation if needed
           if (result.parentPhone) form.setValue('parentPhone', result.parentPhone);
           if (result.guardianName) form.setValue('guardianName', result.guardianName);
 
@@ -285,7 +283,7 @@ export default function ApplicantsPage() {
         toast({
           variant: "destructive",
           title: "Scan Gagal",
-          description: "Gagal membaca formulir. Pastikan foto jelas dan terang.",
+          description: "Gagal membaca formulir. Pastikan foto jelas dan berukuran di bawah 10MB.",
         })
       } finally {
         setIsScanning(false)
@@ -501,7 +499,7 @@ export default function ApplicantsPage() {
                             <FormItem><FormLabel>NIK Murid</FormLabel><FormControl><Input placeholder="16 Digit" {...field} maxLength={16} /></FormControl><FormMessage /></FormItem>
                           )} />
                           <FormField control={form.control} name="birthPlace" render={({ field }) => (
-                            <FormItem><FormLabel>Tempat Lahir</FormLabel><FormControl><Input placeholder="Kota/Kab" {...field} /></FormControl><FormMessage /></FormItem>
+                            <FormItem><FormLabel>Tempat Lahir</FormLabel><FormControl><Input placeholder="Kota/Kab" {...field} /></FormControl><FormMessage /></FormMessage /></FormItem>
                           )} />
                           <FormField control={form.control} name="birthDate" render={({ field }) => (
                             <FormItem><FormLabel>Tanggal Lahir</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>

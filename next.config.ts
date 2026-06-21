@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   experimental: {
+    serverActions: {
+      bodySizeLimit: '10mb',
+    },
     allowedDevOrigins: [
       '6000-firebase-studio-1780665152844.cluster-m7dwy2bmizezqukxkuxd55k5ka.cloudworkstations.dev',
       '*.cloudworkstations.dev'
