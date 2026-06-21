@@ -87,23 +87,26 @@ const extractFormDataFlow = ai.defineFlow(
   },
   async (input) => {
     const { output } = await ai.generate({
-      model: 'googleai/gemini-2.0-flash-exp', // Menggunakan model terbaru untuk akurasi penglihatan lebih baik
+      model: 'googleai/gemini-2.0-flash-exp',
       prompt: `Anda adalah pakar Administrasi Sekolah dan OCR (Optical Character Recognition).
       Tugas Anda adalah mengekstrak data dari gambar formulir pendaftaran sekolah manual (format Dapodik Indonesia).
 
-      INSTRUKSI SANGAT PENTING:
+      INSTRUKSI KHUSUS UNTUK TEKS DALAM KOTAK (BLOK):
+      - Nama Lengkap sering ditulis di dalam kotak-kotak kecil per huruf. Baca setiap kotak dengan teliti dan gabungkan menjadi satu kalimat nama lengkap yang benar (contoh: [Y][O][S][E]... dibaca YOSEFINA).
+      - Jika ada spasi antar kata (kotak kosong), pastikan nama dipisahkan dengan spasi.
+      
+      INSTRUKSI UMUM:
       1. AKURASI NOMOR: Nomor NIK, NISN, dan Nomor KK harus diekstrak dengan ketepatan 100%. Periksa setiap digit dengan teliti.
-      2. TULISAN TANGAN: Identifikasi tulisan tangan dengan sangat hati-hati. Jika tulisan tidak terbaca, JANGAN MENEBAK. Kosongkan saja field tersebut atau jangan sertakan dalam output.
-      3. PILIHAN (CHECKBOX/BULATAN): Perhatikan tanda centang (V), silang (X), atau lingkaran pada pilihan yang tersedia (contoh: Jenis Kelamin, Pendidikan, Pekerjaan). Ambil nilai yang ditandai oleh pendaftar.
+      2. TULISAN TANGAN: Identifikasi tulisan tangan dengan sangat hati-hati. Jika tulisan tidak terbaca, JANGAN MENEBAK. Kosongkan saja field tersebut.
+      3. PILIHAN (CHECKBOX/BULATAN): Perhatikan tanda centang (V), silang (X), atau lingkaran pada pilihan yang tersedia. Ambil nilai teks yang ditandai.
       4. FORMAT TANGGAL: Konversi tanggal lahir ke format YYYY-MM-DD.
-      5. NILAI PILIHAN (ENUM): Pastikan nilai yang Anda ambil untuk field kategori (seperti Pendidikan/Pekerjaan) sesuai dengan pilihan teks yang ada di formulir (tanpa nomor urut).
-      6. JANGAN BERHALUSINASI: Hanya ambil data yang benar-benar ada di gambar. Jika field kosong di formulir, kosongkan di output JSON.
+      5. JANGAN BERHALUSINASI: Hanya ambil data yang benar-benar ada di gambar. Jika field kosong di formulir, jangan isi di JSON.
 
       STRUKTUR FORMULIR:
-      - Bagian A: DATA PESERTA DIDIK (Nama, NISN, NIK, Alamat, RT/RW, Akta Lahir, dll)
-      - Bagian B: SEKOLAH ASAL (Nama Sekolah, Alamat, No Ijazah, No Peserta US)
-      - Bagian C: DATA ORANG TUA/WALI (Ayah, Ibu, Wali - Nama, NIK, Pendidikan, Pekerjaan, Penghasilan)
-      - Bagian D: DATA PERIODIK (Tinggi, Berat, Jarak, Waktu Tempuh)
+      - Bagian A: DATA PESERTA DIDIK (Nama, NISN, NIK, Alamat, Akta Lahir, dll)
+      - Bagian B: SEKOLAH ASAL (Nama Sekolah, Alamat, No Ijazah)
+      - Bagian C: DATA ORANG TUA/WALI (Nama, NIK, Pendidikan, Pekerjaan, Penghasilan)
+      - Bagian D: DATA PERIODIK (Tinggi, Berat, Jarak, Waktu)
 
       Photo: {{media url=photoDataUri}}`,
       input: input,
