@@ -91,25 +91,24 @@ const extractFormDataFlow = ai.defineFlow(
       prompt: `Anda adalah pakar Administrasi Sekolah dan OCR (Optical Character Recognition).
       Tugas Anda adalah mengekstrak data dari gambar formulir pendaftaran sekolah manual.
 
-      PRINSIP UTAMA:
-      1. JANGAN MENEBAK: Jika tulisan tangan buram, tidak jelas, atau terpotong, biarkan field tersebut KOSONG (null).
-      2. HANYA DATA JELAS: Hanya ambil data yang benar-benar Anda yakini 100% akurat.
-      3. AKURASI NOMOR: Nomor NIK, NISN, dan Nomor KK sangat krusial. Jika ada satu digit pun yang tidak jelas, jangan isi field nomor tersebut.
-      
-      INSTRUKSI KHUSUS UNTUK TEKS DALAM KOTAK (BLOK):
-      - Nama Lengkap biasanya ditulis dalam kotak per huruf. 
-      - Baca setiap kotak secara horizontal.
-      - Pastikan spasi antar kata diidentifikasi dengan benar (biasanya berupa kotak kosong di antara kata).
-      - Contoh: [Y][O][S][E]...[ ]...[D][E][S]... harus dibaca "YOSEFINA DESWITA...".
-
-      INSTRUKSI UMUM:
-      - PILIHAN (CHECKBOX/BULATAN): Hanya ambil nilai jika tanda (V, X, atau lingkaran) terlihat sangat jelas pada salah satu pilihan.
-      - FORMAT TANGGAL: Konversi ke format YYYY-MM-DD jika terbaca jelas.
-      - Jika gambar terlalu gelap atau buram secara keseluruhan, kembalikan objek kosong.
+      PENTING:
+      - Baca setiap bagian dengan teliti, terutama teks dalam kotak per-karakter.
+      - Jika ada teks yang terlihat JELAS (seperti Nama atau NISN), pastikan Anda mengekstraknya.
+      - JANGAN menyerah jika hanya sebagian data yang tidak jelas. Ambil semua data yang BISA dibaca.
+      - Identifikasi spasi pada nama yang tertulis dalam kotak (kotak kosong = spasi).
+      - Untuk checkbox atau pilihan, identifikasi tanda silang (X) atau centang (V).
 
       Photo: {{media url=photoDataUri}}`,
       input: input,
-      output: { schema: ExtractFormDataOutputSchema }
+      output: { schema: ExtractFormDataOutputSchema },
+      config: {
+        safetySettings: [
+          { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+          { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+          { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+          { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+        ]
+      }
     });
     return output!;
   }

@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo, useRef } from 'react'
@@ -266,6 +265,12 @@ export default function ApplicantsPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
+    // Cek ukuran file (Max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ variant: "destructive", title: "File Terlalu Besar", description: "Maksimal ukuran foto adalah 10MB." })
+      return
+    }
+
     setIsScanning(true)
     const reader = new FileReader()
     reader.onload = async (event) => {
@@ -273,19 +278,31 @@ export default function ApplicantsPage() {
       try {
         const result = await extractFormData({ photoDataUri: base64 })
         if (result) {
+          // Hanya set nilai jika ada data yang terbaca
           Object.entries(result).forEach(([key, value]) => {
-            if (value && key in form.getValues()) {
+            if (value !== undefined && value !== null && value !== "" && key in form.getValues()) {
               form.setValue(key as any, value)
             }
           });
-          toast({ title: "Scan Berhasil", description: "Data formulir manual telah diekstrak secara otomatis." })
+          toast({ title: "Scan Berhasil", description: "Data yang terbaca telah dimasukkan ke formulir." })
+        } else {
+          toast({ variant: "destructive", title: "Scan Kosong", description: "AI tidak dapat menemukan data yang jelas. Coba foto ulang." })
         }
       } catch (err: any) {
-        toast({ variant: "destructive", title: "Scan Gagal", description: "Pastikan foto jelas dan terang." })
+        console.error("Scan error:", err)
+        toast({ 
+          variant: "destructive", 
+          title: "Scan Gagal", 
+          description: "Gagal memproses gambar. Pastikan koneksi stabil dan foto tidak buram." 
+        })
       } finally {
         setIsScanning(false)
         if (scanInputRef.current) scanInputRef.current.value = ''
       }
+    }
+    reader.onerror = () => {
+      setIsScanning(false)
+      toast({ variant: "destructive", title: "Gagal Membaca File", description: "Terjadi kesalahan saat membaca file gambar." })
     }
     reader.readAsDataURL(file)
   }
