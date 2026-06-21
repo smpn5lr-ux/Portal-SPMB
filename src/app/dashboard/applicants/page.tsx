@@ -116,6 +116,7 @@ const formSchema = z.object({
   childOrder: z.string().optional(),
 })
 
+// MAPPING UNTUK EKSPOR DAN IMPOR (HARUS SAMA PERSIS DENGAN LABEL DI CSV/EXCEL)
 const COLUMN_MAPPING: Record<string, string> = {
   fullName: "Nama Lengkap",
   NISN: "NISN",
@@ -179,39 +180,6 @@ export default function ApplicantsPage() {
   const { data: applicants, loading } = useCollection<Applicant>(applicantsQuery)
   const { data: systemSettings } = useDoc<any>(settingsRef)
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      fullName: "",
-      NISN: "",
-      NIK: "",
-      familyCardNumber: "",
-      originSchool: "",
-      applicationPath: "Zonasi",
-      gender: "Laki-laki",
-      birthPlace: "",
-      birthDate: "",
-      religion: "Katolik",
-      address: "",
-      parentName: "",
-      parentPhone: "",
-      academicScore: "0",
-      distanceToSchoolKm: "0",
-      livingWith: "Bersama Orang Tua",
-      transportation: "Jalan Kaki",
-      hobbies: "",
-      registrantRelationship: "Ayah",
-      fatherName: "",
-      fatherNIK: "",
-      fatherOccupation: "",
-      motherName: "",
-      motherNIK: "",
-      motherOccupation: "",
-      numberOfSiblings: "1",
-      childOrder: "1",
-    },
-  })
-
   const filteredApplicants = useMemo(() => {
     if (!applicants) return []
     return applicants.filter(a => 
@@ -245,7 +213,7 @@ export default function ApplicantsPage() {
         gender: "Laki-laki",
         birthPlace: "Jakarta",
         birthDate: "2012-05-15",
-        religion: "Katolik",
+        religion: "Islam",
         address: "Jl. Merdeka No. 10",
         parentName: "Agus Santoso",
         parentPhone: "081234567890",
@@ -378,7 +346,7 @@ export default function ApplicantsPage() {
         return
       }
 
-      const lines = text.split('\n').filter(line => line.trim() !== '')
+      const lines = text.split(/\r?\n/).filter(line => line.trim() !== '')
       if (lines.length < 2) {
         toast({
           variant: "destructive",
@@ -389,11 +357,13 @@ export default function ApplicantsPage() {
         return
       }
 
-      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
+      // Parsing header (menghapus tanda kutip)
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''))
       const rows = lines.slice(1)
       let successCount = 0
       let errorCount = 0
 
+      // Cari nomor urut terakhir
       const q = query(collection(db, 'applicants'), orderBy('registrationSequence', 'desc'), limit(1));
       const snap = await getDocs(q);
       let currentMax = 0;
@@ -402,12 +372,13 @@ export default function ApplicantsPage() {
       }
 
       for (const row of rows) {
-        const values = row.split(',').map(v => v.trim().replace(/"/g, ''))
+        const values = row.split(',').map(v => v.trim().replace(/^"|"$/g, ''))
         const rawData: any = {}
         headers.forEach((header, index) => {
           rawData[header] = values[index]
         })
 
+        // Pemetaan balik ke field database
         const data: any = {};
         Object.entries(rawData).forEach(([headerLabel, val]) => {
           const dbKey = REVERSE_MAPPING[headerLabel];
@@ -684,7 +655,7 @@ export default function ApplicantsPage() {
                                     </SelectTrigger>
                                   </FormControl>
                                   <SelectContent>
-                                    {['Katolik', 'Islam', 'Kristen', 'Hindu', 'Budha', 'Khonghucu', 'Lainnya'].map(r => (
+                                    {['Islam', 'Katolik', 'Kristen', 'Hindu', 'Budha', 'Khonghucu', 'Lainnya'].map(r => (
                                       <SelectItem key={r} value={r}>{r}</SelectItem>
                                     ))}
                                   </SelectContent>

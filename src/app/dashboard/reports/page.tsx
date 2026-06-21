@@ -95,6 +95,7 @@ export default function ReportsPage() {
   const dinasName = systemSettings?.dinasName || "DINAS PENDIDIKAN"
   const schoolName = systemSettings?.schoolName || "PORTAL SPMB"
   const academicYear = systemSettings?.academicYear || "2024/2025"
+  const npsn = systemSettings?.npsn || "-"
 
   const stats = useMemo(() => {
     if (!applicants) return { total: 0, avgScore: 0, remainingQuota: 0, acceptedCount: 0, totalQuota: systemSettings?.totalQuota || 250 }
@@ -208,7 +209,7 @@ export default function ReportsPage() {
       doc.text(schoolName.toUpperCase(), 148, 19, { align: "center" })
       doc.setFontSize(10)
       doc.setFont("helvetica", "normal")
-      doc.text(`Tahun Ajaran: ${academicYear} | Dicetak pada: ${new Date().toLocaleString('id-ID')}`, 148, 25, { align: "center" })
+      doc.text(`NPSN: ${npsn} | Tahun Ajaran ${academicYear}`, 148, 25, { align: "center" })
       doc.line(14, 28, 283, 28)
 
       const data = getExportData()

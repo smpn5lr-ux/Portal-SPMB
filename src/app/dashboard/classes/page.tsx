@@ -110,6 +110,7 @@ export default function ClassesPage() {
   const academicYear = systemSettings?.academicYear || "2024/2025"
   const dinasName = systemSettings?.dinasName || "DINAS PENDIDIKAN"
   const schoolName = systemSettings?.schoolName || "PORTAL SPMB"
+  const npsn = systemSettings?.npsn || "-"
 
   const form = useForm<z.infer<typeof classFormSchema>>({
     resolver: zodResolver(classFormSchema),
@@ -282,7 +283,7 @@ export default function ClassesPage() {
         doc.text(schoolName.toUpperCase(), 105, 18, { align: "center" })
         doc.setFontSize(8)
         doc.setFont("helvetica", "normal")
-        doc.text(`Tahun Ajaran ${academicYear}`, 105, 23, { align: "center" })
+        doc.text(`NPSN: ${npsn} | Tahun Ajaran ${academicYear}`, 105, 23, { align: "center" })
         doc.line(14, 25, 196, 25)
 
         if (format === 'pdf') {
@@ -377,7 +378,7 @@ export default function ClassesPage() {
           doc.text(schoolName.toUpperCase(), 105, 18, { align: "center" })
           doc.setFontSize(8)
           doc.setFont("helvetica", "normal")
-          doc.text(`Tahun Ajaran ${academicYear}`, 105, 23, { align: "center" })
+          doc.text(`NPSN: ${npsn} | Tahun Ajaran ${academicYear}`, 105, 23, { align: "center" })
           doc.line(14, 25, 196, 25)
 
           if (format === 'pdf') {
