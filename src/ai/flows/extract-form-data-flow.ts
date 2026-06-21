@@ -7,7 +7,7 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 
 const ExtractFormDataOutputSchema = z.object({
   fullName: z.string().optional().describe("Nama lengkap sesuai Akte Kelahiran"),
@@ -87,21 +87,21 @@ const extractFormDataFlow = ai.defineFlow(
   },
   async (input) => {
     const { output } = await ai.generate({
-      model: 'googleai/gemini-1.5-flash',
       prompt: `Anda adalah pakar Administrasi Sekolah dan OCR (Optical Character Recognition) profesional.
       Tugas Anda adalah mengekstrak data dari gambar formulir pendaftaran sekolah manual dengan tingkat akurasi 100%.
 
       ATURAN KETAT UNTUK AKURASI:
-      1. HANYA ambil data yang terlihat JELAS dan PASTI. 
-      2. Jika tulisan tangan buram, tidak terbaca, atau Anda ragu meskipun hanya sedikit, biarkan field tersebut KOSONG (undefined). JANGAN PERNAH MENEBAK DATA.
-      3. Untuk Nama yang tertulis dalam KOTAK-KOTAK (blok karakter):
+      1. HANYA ambil data yang terlihat 100% JELAS dan PASTI. 
+      2. JANGAN PERNAH MENEBAK DATA. Jika tulisan tangan buram, tidak terbaca, dicoret secara membingungkan, atau Anda ragu meskipun hanya sedikit, biarkan field tersebut KOSONG (undefined).
+      3. Lebih baik data KOSONG daripada memberikan data yang SALAH atau hasil TEBAKAN.
+      4. Untuk Nama yang tertulis dalam KOTAK-KOTAK (blok karakter):
          - Baca setiap karakter per kotak dengan teliti.
          - Kotak kosong di antara kata adalah spasi.
-         - Pastikan spasi antar kata terjaga.
-      4. Verifikasi Nomor (NIK, NISN, No. KK): Harus tepat sesuai yang tertulis. Jika karakter nomor meragukan, biarkan kosong.
-      5. Pilihan (Checkbox/Radio): Hanya identifikasi jika ada tanda (X) atau (V) yang jelas pada pilihan tersebut.
+         - Pastikan spasi antar kata terjaga sesuai kotak yang dikosongkan.
+      5. Verifikasi Nomor (NIK, NISN, No. KK): Karakter angka harus tepat. Jika ada angka yang mirip (misal 1 dan 7, atau 0 dan 8) dan tidak bisa dipastikan, kosongkan saja.
+      6. Pilihan (Checkbox/Radio): Hanya identifikasi jika ada tanda (X) atau (V) atau arsiran yang benar-benar JELAS pada pilihan tersebut.
 
-      Prioritaskan kebenaran data daripada kelengkapan. Jika data tidak jelas, lebih baik kosong daripada salah.
+      Prioritaskan kebenaran data di atas segalanya. Jika hanya sebagian kecil data yang jelas, hanya ekstrak bagian itu saja.
 
       Photo: {{media url=photoDataUri}}`,
       input: input,
