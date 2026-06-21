@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo, useRef } from 'react'
@@ -175,15 +174,15 @@ const COLUMN_MAPPING: Record<string, string> = {
 const TEMPLATE_KEYS = Object.keys(COLUMN_MAPPING);
 
 const EDUCATION_OPTIONS = [
-  '01, Tidak Sekolah', '02, SD', '03, SMP', '04, SMA', '05, S1', '06, S2', '07, S3'
+  'Tidak Sekolah', 'SD', 'SMP', 'SMA', 'S1', 'S2', 'S3'
 ]
 
 const OCCUPATION_OPTIONS = [
-  '01, Tidak bekerja', '02, Petani/Nelayan', '03, ASN', '04, Peg. swasta', '05, Pengusaha', '06, Pensiun'
+  'Tidak bekerja', 'Petani/Nelayan', 'ASN', 'Peg. swasta', 'Pengusaha', 'Pensiun'
 ]
 
 const INCOME_OPTIONS = [
-  '01, < Rp. 500,000', '02, Rp. 500,000 - 999,999', '03, Rp. 1,000,000 - Rp. 3,000,000', '04, Rp. 3,000,000 - 5,000,000'
+  '< Rp. 500,000', 'Rp. 500,000 - 999,999', 'Rp. 1,000,000 - Rp. 3,000,000', 'Rp. 3,000,000 - 5,000,000'
 ]
 
 export default function ApplicantsPage() {
@@ -227,15 +226,15 @@ export default function ApplicantsPage() {
       fatherName: "",
       fatherNIK: "",
       fatherBirthYear: "",
-      fatherEducation: "03, SMP",
-      fatherOccupation: "02, Petani/Nelayan",
-      fatherIncome: "03, Rp. 1,000,000 - Rp. 3,000,000",
+      fatherEducation: "SMP",
+      fatherOccupation: "Petani/Nelayan",
+      fatherIncome: "Rp. 1,000,000 - Rp. 3,000,000",
       motherName: "",
       motherNIK: "",
       motherBirthYear: "",
-      motherEducation: "03, SMP",
-      motherOccupation: "01, Tidak bekerja",
-      motherIncome: "01, < Rp. 500,000",
+      motherEducation: "SMP",
+      motherOccupation: "Tidak bekerja",
+      motherIncome: "< Rp. 500,000",
       guardianName: "",
       guardianNIK: "",
       guardianBirthYear: "",
@@ -247,7 +246,7 @@ export default function ApplicantsPage() {
       heightCm: "",
       weightKg: "",
       travelTimeMinutes: "",
-      welfareType: "01, PIP",
+      welfareType: "PIP",
       welfareCardNumber: "",
       welfareCardName: "",
       registrationType: "Murid Baru",
@@ -466,7 +465,10 @@ export default function ApplicantsPage() {
                             <FormItem><FormLabel>NIK</FormLabel><FormControl><Input placeholder="16 Digit" {...field} /></FormControl><FormMessage /></FormItem>
                           )} />
                           <FormField control={form.control} name="birthPlace" render={({ field }) => (
-                            <FormItem><FormLabel>Tempat Lahir</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            <FormItem><FormLabel>Tempat Lahir</FormLabel><FormControl><Input placeholder="Kota/Kab" {...field} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                          <FormField control={form.control} name="birthDate" render={({ field }) => (
+                            <FormItem><FormLabel>Tanggal Lahir</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
                           )} />
                         </div>
                       </div>
@@ -577,7 +579,7 @@ export default function ApplicantsPage() {
                               <FormItem><FormLabel>Waktu Tempuh (Menit)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                            )} />
                            <FormField control={form.control} name="welfareType" render={({ field }) => (
-                              <FormItem><FormLabel>Jenis Kesejahteraan</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="01, PIP">01, PIP</SelectItem><SelectItem value="02, PKH">02, PKH</SelectItem><SelectItem value="03, KKS">03, KKS</SelectItem><SelectItem value="04, KPS">04, KPS</SelectItem></SelectContent></Select><FormMessage /></FormItem>
+                              <FormItem><FormLabel>Jenis Kesejahteraan</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="PIP">PIP</SelectItem><SelectItem value="PKH">PKH</SelectItem><SelectItem value="KKS">KKS</SelectItem><SelectItem value="KPS">KPS</SelectItem></SelectContent></Select><FormMessage /></FormItem>
                            )} />
                            <FormField control={form.control} name="welfareCardNumber" render={({ field }) => (
                               <FormItem><FormLabel>Nomor Kartu</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
