@@ -91,23 +91,24 @@ const extractFormDataFlow = ai.defineFlow(
     const contentType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
 
     const { output } = await ai.generate({
-      model: 'googleai/gemini-2.5-flash',
+      model: 'googleai/gemini-1.5-flash',
       prompt: [
         {
           text: `Anda adalah pakar Administrasi Sekolah dan OCR (Optical Character Recognition) profesional.
           Tugas Anda adalah mengekstrak data dari gambar formulir pendaftaran sekolah manual dengan tingkat akurasi 100%.
 
-          ATURAN KETAT UNTUK MENGHINDARI TEBAKAN (HALLUCINATION):
-          1. HANYA ambil data yang terlihat 100% JELAS dan PASTI pada gambar.
-          2. JANGAN PERNAH MENEBAK DATA. Jika tulisan tangan buram, tidak terbaca, dicoret, atau Anda ragu meskipun hanya sedikit, biarkan field tersebut KOSONG (undefined).
-          3. Lebih baik memberikan data KOSONG daripada memberikan data yang SALAH atau hasil TEBAKAN.
-          4. Untuk Nama atau Nomor yang tertulis dalam KOTAK-KOTAK (blok karakter):
-             - Baca setiap karakter per kotak dengan teliti.
-             - Pastikan spasi antar kata sesuai dengan kotak yang dikosongkan.
-          5. Verifikasi Nomor (NIK, NISN, No. KK): Karakter angka harus tepat. Jangan mencoba menebak angka yang mirip (misal 1 dan 7). Jika tidak yakin, kosongkan.
-          6. Pilihan (Pendidikan/Pekerjaan/Penghasilan): Hanya identifikasi jika ada tanda (X) atau (V) yang benar-benar JELAS pada kotak pilihan tersebut.
+          ATURAN KETAT UNTUK MENGHINDARI HALUSINASI (TEBAKAN):
+          1. DILARANG KERAS MENEBAK. Ambil data HANYA jika karakter terlihat 100% JELAS.
+          2. Jika tulisan tangan buram, meragukan, atau sulit dibaca, biarkan kolom tersebut KOSONG (undefined).
+          3. Untuk Nama yang tertulis di dalam KOTAK-KOTAK karakter:
+             - Baca huruf demi huruf per kotak dengan sangat teliti.
+             - Identifikasi spasi (kotak kosong) dengan benar agar nama tidak menyambung.
+             - Contoh: Jika ada kotak kosong antara nama depan dan tengah, pastikan ada spasi di hasilnya.
+          4. Untuk NIK dan NISN: Verifikasi setiap digit angka. Jangan menebak angka yang mirip (seperti 1 dan 7, atau 0 dan 8). Jika ragu pada satu angka saja, kosongkan seluruh kolom nomor tersebut.
+          5. Untuk Pilihan (Pendidikan/Pekerjaan/Agama): Hanya pilih jika ada tanda (X) atau centang yang JELAS berada di dalam kotak pilihan yang dimaksud.
+          6. JANGAN memberikan data default atau data buatan sendiri.
 
-          Prioritaskan kebenaran data di atas segalanya. Jika hanya sedikit data yang jelas, hanya ekstrak bagian itu saja.`
+          Prioritas utama adalah KEBENARAN DATA. Lebih baik mengembalikan formulir yang setengah kosong daripada formulir berisi data yang salah.`
         },
         {
           media: {
