@@ -107,16 +107,15 @@ const formSchema = z.object({
   hobbies: z.string().optional(),
   registrantRelationship: z.string().optional(),
   fatherName: z.string().optional(),
-  fatherNIK: z.string().length(16, "NIK Ayah harus 16 digit").or(z.string().length(0)),
+  fatherNIK: z.string().optional(),
   fatherOccupation: z.string().optional(),
   motherName: z.string().optional(),
-  motherNIK: z.string().length(16, "NIK Ibu harus 16 digit").or(z.string().length(0)),
+  motherNIK: z.string().optional(),
   motherOccupation: z.string().optional(),
   numberOfSiblings: z.string().optional(),
   childOrder: z.string().optional(),
 })
 
-// MAPPING UNTUK EKSPOR DAN IMPOR (HARUS SAMA PERSIS DENGAN LABEL DI CSV/EXCEL)
 const COLUMN_MAPPING: Record<string, string> = {
   fullName: "Nama Lengkap",
   NISN: "NISN",
@@ -163,12 +162,45 @@ export default function ApplicantsPage() {
   const { toast } = useToast()
   const db = useFirestore()
 
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      fullName: "",
+      NISN: "",
+      NIK: "",
+      familyCardNumber: "",
+      originSchool: "",
+      applicationPath: "Zonasi",
+      gender: "Laki-laki",
+      birthPlace: "",
+      birthDate: "",
+      religion: "Islam",
+      address: "",
+      parentName: "",
+      parentPhone: "",
+      academicScore: "",
+      distanceToSchoolKm: "",
+      livingWith: "",
+      transportation: "",
+      hobbies: "",
+      registrantRelationship: "",
+      fatherName: "",
+      fatherNIK: "",
+      fatherOccupation: "",
+      motherName: "",
+      motherNIK: "",
+      motherOccupation: "",
+      numberOfSiblings: "",
+      childOrder: "",
+    },
+  })
+
   const applicantsQuery = useMemoFirebase(() => {
     if (!db) return null
     return query(
       collection(db, 'applicants'), 
       orderBy('registrationSequence', 'asc'),
-      limit(100) 
+      limit(200) 
     )
   }, [db])
 
@@ -269,7 +301,6 @@ export default function ApplicantsPage() {
       const npsn = systemSettings?.npsn || "-"
       const academicYear = systemSettings?.academicYear || "2024/2025"
 
-      // KOP SURAT
       doc.setFontSize(14)
       doc.setTextColor(0, 0, 0)
       doc.setFont("helvetica", "bold")
@@ -340,111 +371,88 @@ export default function ApplicantsPage() {
     const reader = new FileReader()
 
     reader.onload = async (event) => {
-      const text = event.target?.result as string
-      if (!text) {
-        setIsImporting(false)
-        return
-      }
+      try {
+        const dataBuffer = event.target?.result
+        if (!dataBuffer) return
 
-      const lines = text.split(/\r?\n/).filter(line => line.trim() !== '')
-      if (lines.length < 2) {
-        toast({
-          variant: "destructive",
-          title: "Format Salah",
-          description: "File tidak memiliki data pendaftar.",
-        })
-        setIsImporting(false)
-        return
-      }
+        const workbook = XLSX.read(dataBuffer, { type: 'binary' })
+        const firstSheetName = workbook.SheetNames[0]
+        const worksheet = workbook.Sheets[firstSheetName]
+        const jsonData = XLSX.utils.sheet_to_json(worksheet)
 
-      // Parsing header (menghapus tanda kutip)
-      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''))
-      const rows = lines.slice(1)
-      let successCount = 0
-      let errorCount = 0
+        if (jsonData.length === 0) {
+          toast({ variant: "destructive", title: "File Kosong", description: "Tidak ada data pendaftar dalam file." })
+          setIsImporting(false)
+          return
+        }
 
-      // Cari nomor urut terakhir
-      const q = query(collection(db, 'applicants'), orderBy('registrationSequence', 'desc'), limit(1));
-      const snap = await getDocs(q);
-      let currentMax = 0;
-      if (!snap.empty) {
-        currentMax = snap.docs[0].data().registrationSequence || 0;
-      }
+        const q = query(collection(db, 'applicants'), orderBy('registrationSequence', 'desc'), limit(1));
+        const snap = await getDocs(q);
+        let currentMax = snap.empty ? 0 : snap.docs[0].data().registrationSequence || 0;
 
-      for (const row of rows) {
-        const values = row.split(',').map(v => v.trim().replace(/^"|"$/g, ''))
-        const rawData: any = {}
-        headers.forEach((header, index) => {
-          rawData[header] = values[index]
-        })
+        let successCount = 0
+        let errorCount = 0
 
-        // Pemetaan balik ke field database
-        const data: any = {};
-        Object.entries(rawData).forEach(([headerLabel, val]) => {
-          const dbKey = REVERSE_MAPPING[headerLabel];
-          if (dbKey) {
-            data[dbKey] = val;
+        for (const row of jsonData as any[]) {
+          const mappedData: any = {}
+          Object.entries(row).forEach(([label, value]) => {
+            const dbKey = REVERSE_MAPPING[label.trim()]
+            if (dbKey) mappedData[dbKey] = value?.toString().trim()
+          })
+
+          if (!mappedData.NISN || !mappedData.fullName) {
+            errorCount++
+            continue
           }
-        });
 
-        if (!data.NISN || !data.fullName) {
-          errorCount++
-          continue
-        }
+          currentMax++
+          const registrationNumber = `REG-2024-${currentMax.toString().padStart(4, '0')}`
+          const ageYears = calculateAge(mappedData.birthDate)
 
-        currentMax++;
-        const registrationNumber = `REG-2024-${currentMax.toString().padStart(4, '0')}`
-        const ageYears = calculateAge(data.birthDate)
+          const newApplicant = {
+            ...mappedData,
+            registrationNumber,
+            registrationSequence: currentMax,
+            ageYears,
+            academicScore: mappedData.academicScore ? parseFloat(mappedData.academicScore) : 0,
+            distanceToSchoolKm: mappedData.distanceToSchoolKm ? parseFloat(mappedData.distanceToSchoolKm) : 0,
+            numberOfSiblings: mappedData.numberOfSiblings ? parseInt(mappedData.numberOfSiblings) : 1,
+            childOrder: mappedData.childOrder ? parseInt(mappedData.childOrder) : 1,
+            verificationStatus: 'Belum Diverifikasi',
+            admissionStatus: 'pending',
+            createdAt: new Date().toISOString(),
+            serverCreatedAt: serverTimestamp(),
+            documents: []
+          }
 
-        const newApplicant = {
-          ...data,
-          registrationNumber,
-          registrationSequence: currentMax,
-          ageYears,
-          academicScore: data.academicScore ? parseFloat(data.academicScore) : 0,
-          distanceToSchoolKm: data.distanceToSchoolKm ? parseFloat(data.distanceToSchoolKm) : 0,
-          numberOfSiblings: data.numberOfSiblings ? parseInt(data.numberOfSiblings) : 1,
-          childOrder: data.childOrder ? parseInt(data.childOrder) : 1,
-          verificationStatus: 'Belum Diverifikasi',
-          admissionStatus: 'pending',
-          createdAt: new Date().toISOString(),
-          serverCreatedAt: serverTimestamp(),
-          documents: []
-        }
-
-        try {
           await addDoc(collection(db, 'applicants'), newApplicant)
           successCount++
-        } catch (err) {
-          errorCount++
         }
-      }
 
-      toast({
-        title: "Impor Selesai",
-        description: `Berhasil mengimpor ${successCount} murid. Gagal: ${errorCount}.`,
-      })
-      setIsImporting(false)
-      if (fileInputRef.current) fileInputRef.current.value = ''
+        toast({
+          title: "Impor Selesai",
+          description: `Berhasil mengimpor ${successCount} murid. Gagal: ${errorCount}.`,
+        })
+      } catch (err) {
+        console.error(err)
+        toast({ variant: "destructive", title: "Error", description: "Gagal memproses file impor." })
+      } finally {
+        setIsImporting(false)
+        if (fileInputRef.current) fileInputRef.current.value = ''
+      }
     }
 
-    reader.readAsText(file)
+    reader.readAsBinaryString(file)
   }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!db || submitting) return
-
     setSubmitting(true)
     
     try {
       const q = query(collection(db, 'applicants'), orderBy('registrationSequence', 'desc'), limit(1));
       const snap = await getDocs(q);
-      let nextSequence = 1;
-      
-      if (!snap.empty) {
-        const lastDoc = snap.docs[0].data();
-        nextSequence = (lastDoc.registrationSequence || 0) + 1;
-      }
+      const nextSequence = snap.empty ? 1 : (snap.docs[0].data().registrationSequence || 0) + 1;
 
       const registrationNumber = `REG-2024-${nextSequence.toString().padStart(4, '0')}`
       const ageYears = calculateAge(values.birthDate)
@@ -471,7 +479,7 @@ export default function ApplicantsPage() {
       form.reset()
       toast({
         title: "Data Disimpan",
-        description: `Murid ${values.fullName} berhasil didaftarkan dengan nomor urut #${nextSequence}.`,
+        description: `Murid ${values.fullName} berhasil didaftarkan.`,
       })
     } catch (error: any) {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
@@ -495,7 +503,7 @@ export default function ApplicantsPage() {
             type="file" 
             ref={fileInputRef} 
             onChange={handleFileChange} 
-            accept=".csv" 
+            accept=".csv,.xlsx,.xls" 
             className="hidden" 
           />
           
