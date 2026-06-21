@@ -37,6 +37,9 @@
         "motherName": { "type": "string" },
         "motherNIK": { "type": "string" },
         "motherOccupation": { "type": "string" },
+        "guardianName": { "type": "string" },
+        "guardianNIK": { "type": "string" },
+        "guardianOccupation": { "type": "string" },
         "numberOfSiblings": { "type": "number" },
         "childOrder": { "type": "number" }
       },

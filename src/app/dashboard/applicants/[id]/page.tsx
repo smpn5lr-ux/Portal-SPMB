@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState } from 'react'
@@ -18,7 +19,8 @@ import {
   Briefcase,
   Users as UsersIcon,
   Layers,
-  Smartphone
+  Smartphone,
+  ShieldCheck
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -250,13 +252,27 @@ export default function ApplicantDetailPage() {
                 </div>
 
                 <div className="space-y-8">
-                  {/* DATA ORANG TUA */}
+                  {/* DATA ORANG TUA / WALI */}
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 text-pink-500 border-b pb-2">
                       <UsersIcon className="w-4 h-4" />
                       <h4 className="text-[11px] font-bold uppercase tracking-[0.2em]">Data Orang Tua / Wali</h4>
                     </div>
                     <div className="space-y-4">
+                      {applicant.guardianName && (
+                        <div className="bg-orange-500/5 p-4 rounded-xl border border-orange-500/20">
+                          <div className="flex items-center gap-2 mb-2">
+                             <ShieldCheck className="w-3 h-3 text-orange-500" />
+                             <Badge variant="outline" className="text-[10px] bg-orange-500/5 text-orange-500">WALI SISWA</Badge>
+                          </div>
+                          <p className="text-sm font-bold">{applicant.guardianName}</p>
+                          <p className="text-[10px] font-mono text-muted-foreground mt-1">NIK: {applicant.guardianNIK || '-'}</p>
+                          <p className="text-xs text-muted-foreground mt-2 flex items-center gap-2">
+                            <Briefcase className="w-3 h-3" /> {applicant.guardianOccupation || '-'}
+                          </p>
+                        </div>
+                      )}
+                      
                       <div className="bg-muted/30 p-4 rounded-xl border border-border/50">
                         <Badge variant="outline" className="mb-2 text-[10px] bg-primary/5 text-primary">AYAH</Badge>
                         <p className="text-sm font-bold">{applicant.fatherName || applicant.parentName}</p>

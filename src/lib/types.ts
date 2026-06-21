@@ -48,13 +48,16 @@ export interface Applicant {
   numberOfSiblings?: number;
   childOrder?: number;
   
-  // Detail Orang Tua
+  // Detail Orang Tua & Wali
   fatherName?: string;
   fatherNIK?: string;
   fatherOccupation?: string;
   motherName?: string;
   motherNIK?: string;
   motherOccupation?: string;
+  guardianName?: string;
+  guardianNIK?: string;
+  guardianOccupation?: string;
   parentIncomeRange?: string;
 }
 

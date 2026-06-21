@@ -16,7 +16,8 @@ import {
   Layers,
   Smartphone,
   FileDown,
-  ChevronDown
+  ChevronDown,
+  ShieldCheck
 } from "lucide-react"
 import { 
   Table, 
@@ -112,6 +113,9 @@ const formSchema = z.object({
   motherName: z.string().optional(),
   motherNIK: z.string().optional(),
   motherOccupation: z.string().optional(),
+  guardianName: z.string().optional(),
+  guardianNIK: z.string().optional(),
+  guardianOccupation: z.string().optional(),
   numberOfSiblings: z.string().optional(),
   childOrder: z.string().optional(),
 })
@@ -142,6 +146,9 @@ const COLUMN_MAPPING: Record<string, string> = {
   motherName: "Nama Ibu",
   motherNIK: "NIK Ibu",
   motherOccupation: "Pekerjaan Ibu",
+  guardianName: "Nama Wali Siswa",
+  guardianNIK: "NIK Wali Siswa",
+  guardianOccupation: "Pekerjaan Wali Siswa",
   numberOfSiblings: "Jumlah Saudara",
   childOrder: "Anak Ke"
 }
@@ -180,20 +187,28 @@ export default function ApplicantsPage() {
       parentPhone: "",
       academicScore: "",
       distanceToSchoolKm: "",
-      livingWith: "",
-      transportation: "",
+      livingWith: "Bersama Orang Tua",
+      transportation: "Jalan Kaki",
       hobbies: "",
-      registrantRelationship: "",
+      registrantRelationship: "Ayah",
       fatherName: "",
       fatherNIK: "",
       fatherOccupation: "",
       motherName: "",
       motherNIK: "",
       motherOccupation: "",
-      numberOfSiblings: "",
-      childOrder: "",
+      guardianName: "",
+      guardianNIK: "",
+      guardianOccupation: "",
+      numberOfSiblings: "1",
+      childOrder: "1",
     },
   })
+
+  // Periksa apakah butuh data wali
+  const livingWith = form.watch('livingWith')
+  const relationship = form.watch('registrantRelationship')
+  const showGuardianInfo = livingWith === 'Wali' || relationship === 'Wali'
 
   const applicantsQuery = useMemoFirebase(() => {
     if (!db) return null
@@ -261,6 +276,9 @@ export default function ApplicantsPage() {
         motherName: "Siti Aminah",
         motherNIK: "3201234567890004",
         motherOccupation: "Ibu Rumah Tangga",
+        guardianName: "",
+        guardianNIK: "",
+        guardianOccupation: "",
         numberOfSiblings: "2",
         childOrder: "1"
       }
@@ -956,6 +974,59 @@ export default function ApplicantsPage() {
                               )}
                             />
                           </div>
+
+                          {/* IDENTITAS WALI (MUNCUL JIKA PILIH WALI) */}
+                          {showGuardianInfo && (
+                            <div className="md:col-span-2 space-y-6 animate-in slide-in-from-top-4 duration-300">
+                              <div className="flex items-center gap-3 text-orange-500">
+                                <div className="bg-orange-500/10 p-2 rounded-lg">
+                                  <ShieldCheck className="w-5 h-5" />
+                                </div>
+                                <h3 className="font-bold uppercase tracking-widest text-sm">Bagian Tambahan: Data Wali Siswa</h3>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-orange-500/5 p-5 rounded-2xl border border-orange-500/20">
+                                <FormField
+                                  control={form.control}
+                                  name="guardianName"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Nama Lengkap Wali</FormLabel>
+                                      <FormControl>
+                                        <Input placeholder="Sesuai KTP Wali" {...field} disabled={submitting} />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={form.control}
+                                  name="guardianNIK"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>NIK Wali (16 Digit)</FormLabel>
+                                      <FormControl>
+                                        <Input placeholder="3201..." {...field} maxLength={16} disabled={submitting} />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={form.control}
+                                  name="guardianOccupation"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Pekerjaan Wali</FormLabel>
+                                      <FormControl>
+                                        <Input placeholder="Pekerjaan saat ini" {...field} disabled={submitting} />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
 
