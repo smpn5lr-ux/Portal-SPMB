@@ -91,7 +91,7 @@ const extractFormDataFlow = ai.defineFlow(
     const contentType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
 
     const { output } = await ai.generate({
-      model: 'gemini-1.5-flash',
+      model: 'googleai/gemini-1.5-flash',
       prompt: [
         {
           text: `Anda adalah pakar Administrasi Sekolah dan OCR (Optical Character Recognition) profesional.
