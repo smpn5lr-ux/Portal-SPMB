@@ -262,8 +262,6 @@ export default function ApplicantsPage() {
       try {
         const result = await extractFormData({ photoDataUri: base64 })
         if (result) {
-          console.log("AI Extraction Result:", result);
-          
           Object.entries(result).forEach(([key, value]) => {
             if (value && key in form.getValues()) {
               form.setValue(key as any, value)
@@ -279,7 +277,6 @@ export default function ApplicantsPage() {
           })
         }
       } catch (err: any) {
-        console.error("Scan Error:", err);
         toast({
           variant: "destructive",
           title: "Scan Gagal",
@@ -393,7 +390,6 @@ export default function ApplicantsPage() {
       const q = query(collection(db, 'applicants'), orderBy('registrationSequence', 'desc'), limit(1));
       const snap = await getDocs(q);
       const nextSequence = snap.empty ? 1 : (snap.docs[0].data().registrationSequence || 0) + 1;
-
       const registrationNumber = `REG-2024-${nextSequence.toString().padStart(4, '0')}`
       
       const newApplicant = {
@@ -499,7 +495,7 @@ export default function ApplicantsPage() {
                             <FormItem><FormLabel>NIK Murid</FormLabel><FormControl><Input placeholder="16 Digit" {...field} maxLength={16} /></FormControl><FormMessage /></FormItem>
                           )} />
                           <FormField control={form.control} name="birthPlace" render={({ field }) => (
-                            <FormItem><FormLabel>Tempat Lahir</FormLabel><FormControl><Input placeholder="Kota/Kab" {...field} /></FormControl><FormMessage /></FormMessage /></FormItem>
+                            <FormItem><FormLabel>Tempat Lahir</FormLabel><FormControl><Input placeholder="Kota/Kab" {...field} /></FormControl><FormMessage /></FormItem>
                           )} />
                           <FormField control={form.control} name="birthDate" render={({ field }) => (
                             <FormItem><FormLabel>Tanggal Lahir</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
