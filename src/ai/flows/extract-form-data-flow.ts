@@ -86,25 +86,36 @@ const extractFormDataFlow = ai.defineFlow(
     outputSchema: ExtractFormDataOutputSchema,
   },
   async (input) => {
+    // Extract mime type from data uri
+    const mimeMatch = input.photoDataUri.match(/^data:([^;]+);base64,/);
+    const contentType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+
     const { output } = await ai.generate({
-      prompt: `Anda adalah pakar Administrasi Sekolah dan OCR (Optical Character Recognition) profesional.
-      Tugas Anda adalah mengekstrak data dari gambar formulir pendaftaran sekolah manual dengan tingkat akurasi 100%.
+      model: 'googleai/gemini-2.5-flash',
+      prompt: [
+        {
+          text: `Anda adalah pakar Administrasi Sekolah dan OCR (Optical Character Recognition) profesional.
+          Tugas Anda adalah mengekstrak data dari gambar formulir pendaftaran sekolah manual dengan tingkat akurasi 100%.
 
-      ATURAN KETAT UNTUK AKURASI:
-      1. HANYA ambil data yang terlihat 100% JELAS dan PASTI. 
-      2. JANGAN PERNAH MENEBAK DATA. Jika tulisan tangan buram, tidak terbaca, dicoret secara membingungkan, atau Anda ragu meskipun hanya sedikit, biarkan field tersebut KOSONG (undefined).
-      3. Lebih baik data KOSONG daripada memberikan data yang SALAH atau hasil TEBAKAN.
-      4. Untuk Nama yang tertulis dalam KOTAK-KOTAK (blok karakter):
-         - Baca setiap karakter per kotak dengan teliti.
-         - Kotak kosong di antara kata adalah spasi.
-         - Pastikan spasi antar kata terjaga sesuai kotak yang dikosongkan.
-      5. Verifikasi Nomor (NIK, NISN, No. KK): Karakter angka harus tepat. Jika ada angka yang mirip (misal 1 dan 7, atau 0 dan 8) dan tidak bisa dipastikan, kosongkan saja.
-      6. Pilihan (Checkbox/Radio): Hanya identifikasi jika ada tanda (X) atau (V) atau arsiran yang benar-benar JELAS pada pilihan tersebut.
+          ATURAN KETAT UNTUK MENGHINDARI TEBAKAN (HALLUCINATION):
+          1. HANYA ambil data yang terlihat 100% JELAS dan PASTI pada gambar.
+          2. JANGAN PERNAH MENEBAK DATA. Jika tulisan tangan buram, tidak terbaca, dicoret, atau Anda ragu meskipun hanya sedikit, biarkan field tersebut KOSONG (undefined).
+          3. Lebih baik memberikan data KOSONG daripada memberikan data yang SALAH atau hasil TEBAKAN.
+          4. Untuk Nama atau Nomor yang tertulis dalam KOTAK-KOTAK (blok karakter):
+             - Baca setiap karakter per kotak dengan teliti.
+             - Pastikan spasi antar kata sesuai dengan kotak yang dikosongkan.
+          5. Verifikasi Nomor (NIK, NISN, No. KK): Karakter angka harus tepat. Jangan mencoba menebak angka yang mirip (misal 1 dan 7). Jika tidak yakin, kosongkan.
+          6. Pilihan (Pendidikan/Pekerjaan/Penghasilan): Hanya identifikasi jika ada tanda (X) atau (V) yang benar-benar JELAS pada kotak pilihan tersebut.
 
-      Prioritaskan kebenaran data di atas segalanya. Jika hanya sebagian kecil data yang jelas, hanya ekstrak bagian itu saja.
-
-      Photo: {{media url=photoDataUri}}`,
-      input: input,
+          Prioritaskan kebenaran data di atas segalanya. Jika hanya sedikit data yang jelas, hanya ekstrak bagian itu saja.`
+        },
+        {
+          media: {
+            url: input.photoDataUri,
+            contentType: contentType
+          }
+        }
+      ],
       output: { schema: ExtractFormDataOutputSchema },
       config: {
         safetySettings: [
