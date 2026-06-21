@@ -28,7 +28,8 @@ import {
   Briefcase,
   Wallet,
   Phone,
-  School
+  School,
+  FileText
 } from "lucide-react"
 import { 
   Table, 
@@ -242,9 +243,95 @@ export default function ApplicantsPage() {
     },
   })
 
-  const livingWithWatcher = form.watch('livingWith')
-  const relationshipWatcher = form.watch('registrantRelationship')
-  const showGuardianInfo = livingWithWatcher === 'Wali' || relationshipWatcher === 'Wali'
+  const settingsRef = useMemoFirebase(() => {
+    if (!db) return null
+    return doc(db, 'settings', 'system')
+  }, [db])
+
+  const { data: systemSettings } = useDoc<any>(settingsRef)
+
+  const handleDownloadForm = async (applicant: Applicant) => {
+    const { default: jsPDF } = await import('jspdf')
+    const { default: autoTable } = await import('jspdf-autotable')
+    
+    const doc = new jsPDF()
+    const schoolName = systemSettings?.schoolName || "PORTAL SPMB"
+    const dinasName = systemSettings?.dinasName || "DINAS PENDIDIKAN"
+    const academicYear = systemSettings?.academicYear || "2024/2025"
+
+    // Kop Surat
+    doc.setFontSize(12)
+    doc.setFont("helvetica", "bold")
+    doc.text(dinasName.toUpperCase(), 105, 15, { align: "center" })
+    doc.setFontSize(18)
+    doc.text(schoolName.toUpperCase(), 105, 23, { align: "center" })
+    doc.setFontSize(10)
+    doc.setFont("helvetica", "normal")
+    doc.text(`FORMULIR PENDAFTARAN MURID BARU TAHUN AJARAN ${academicYear}`, 105, 30, { align: "center" })
+    doc.line(20, 33, 190, 33)
+
+    // Data Utama
+    doc.setFontSize(11)
+    doc.setFont("helvetica", "bold")
+    doc.text("I. IDENTITAS CALON MURID", 20, 45)
+    
+    const dataSiswa = [
+      ["Nama Lengkap", applicant.fullName],
+      ["NISN", applicant.NISN],
+      ["NIK", applicant.NIK],
+      ["Tempat, Tgl Lahir", `${applicant.birthPlace}, ${applicant.birthDate}`],
+      ["Jenis Kelamin", applicant.gender],
+      ["Agama", applicant.religion],
+      ["Alamat", applicant.address],
+      ["RT/RW", `${applicant.rt || '00'}/${applicant.rw || '00'}`],
+      ["Kelurahan", applicant.kelurahan || '-'],
+      ["Kecamatan", applicant.kecamatan || '-'],
+      ["Sekolah Asal", applicant.originSchool],
+      ["Jalur Pendaftaran", applicant.applicationPath]
+    ]
+
+    autoTable(doc, {
+      body: dataSiswa,
+      startY: 50,
+      theme: 'plain',
+      styles: { fontSize: 10, cellPadding: 2 },
+      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 } }
+    })
+
+    // Data Orang Tua
+    const finalY = (doc as any).lastAutoTable.finalY + 10
+    doc.setFont("helvetica", "bold")
+    doc.text("II. DATA ORANG TUA / WALI", 20, finalY)
+
+    const dataOrtu = [
+      ["Nama Ayah Kandung", applicant.fatherName || '-'],
+      ["Pekerjaan Ayah", applicant.fatherOccupation || '-'],
+      ["Nama Ibu Kandung", applicant.motherName || '-'],
+      ["Pekerjaan Ibu", applicant.motherOccupation || '-'],
+      ["Nama Wali (Jika ada)", applicant.guardianName || '-'],
+      ["No. HP Orang Tua", applicant.parentPhone]
+    ]
+
+    autoTable(doc, {
+      body: dataOrtu,
+      startY: finalY + 5,
+      theme: 'plain',
+      styles: { fontSize: 10, cellPadding: 2 },
+      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 } }
+    })
+
+    // Tanda Tangan
+    const signY = (doc as any).lastAutoTable.finalY + 25
+    doc.setFont("helvetica", "normal")
+    doc.text(`Dicetak pada: ${new Date().toLocaleDateString('id-ID')}`, 140, signY - 15)
+    doc.text("Orang Tua / Wali Murid", 20, signY)
+    doc.text("Panitia PPDB", 140, signY)
+    doc.text("(............................)", 20, signY + 25)
+    doc.text("(............................)", 140, signY + 25)
+
+    doc.save(`Formulir_${applicant.fullName}_${applicant.registrationNumber}.pdf`)
+    toast({ title: "Formulir Berhasil Diunduh" })
+  }
 
   const applicantsQuery = useMemoFirebase(() => {
     if (!db) return null
@@ -265,7 +352,6 @@ export default function ApplicantsPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Cek ukuran file (Max 10MB)
     if (file.size > 10 * 1024 * 1024) {
       toast({ variant: "destructive", title: "File Terlalu Besar", description: "Maksimal ukuran foto adalah 10MB." })
       return
@@ -278,22 +364,21 @@ export default function ApplicantsPage() {
       try {
         const result = await extractFormData({ photoDataUri: base64 })
         if (result) {
-          // Hanya set nilai jika ada data yang terbaca
           Object.entries(result).forEach(([key, value]) => {
             if (value !== undefined && value !== null && value !== "" && key in form.getValues()) {
               form.setValue(key as any, value)
             }
           });
-          toast({ title: "Scan Berhasil", description: "Data yang terbaca telah dimasukkan ke formulir." })
+          toast({ title: "Scan Berhasil", description: "Hanya data yang jelas terbaca yang dimasukkan." })
         } else {
-          toast({ variant: "destructive", title: "Scan Kosong", description: "AI tidak dapat menemukan data yang jelas. Coba foto ulang." })
+          toast({ variant: "destructive", title: "Scan Kosong", description: "AI tidak menemukan data yang cukup jelas. Coba foto ulang." })
         }
       } catch (err: any) {
         console.error("Scan error:", err)
         toast({ 
           variant: "destructive", 
           title: "Scan Gagal", 
-          description: "Gagal memproses gambar. Pastikan koneksi stabil dan foto tidak buram." 
+          description: "Gagal memproses gambar. Pastikan tulisan pada formulir terlihat sangat jelas." 
         })
       } finally {
         setIsScanning(false)
@@ -348,13 +433,13 @@ export default function ApplicantsPage() {
           <input type="file" ref={scanInputRef} onChange={handleScanForm} accept="image/*" className="hidden" />
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="gap-2 bg-primary"><Plus className="w-4 h-4" /> Tambah Murid</Button>
+              <Button className="gap-2 bg-primary shadow-lg shadow-primary/20"><Plus className="w-4 h-4" /> Tambah Murid</Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[1000px] h-[95vh] p-0 flex flex-col">
               <DialogHeader className="p-6 pb-2 border-b flex flex-row items-center justify-between">
                 <div>
                   <DialogTitle className="font-headline text-2xl">Formulir Pendaftaran</DialogTitle>
-                  <DialogDescription>Lengkapi data sesuai standar Dapodik (Hasil Scan Manual).</DialogDescription>
+                  <DialogDescription>Data akan diisi hanya dari tulisan yang jelas terbaca.</DialogDescription>
                 </div>
                 <Button onClick={() => scanInputRef.current?.click()} disabled={isScanning} variant="outline" className="gap-2 border-primary/50 text-primary">
                   {isScanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
@@ -365,7 +450,6 @@ export default function ApplicantsPage() {
                 <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 overflow-hidden">
                   <ScrollArea className="flex-1 px-8 py-6">
                     <div className="space-y-10 pb-10">
-                      {/* Bagian 1: Identitas Pribadi */}
                       <div className="space-y-4">
                         <h3 className="font-bold uppercase tracking-widest text-sm text-primary flex items-center gap-2"><User className="w-4 h-4" /> Bagian 1: Identitas Pribadi</h3>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-muted/10 p-6 rounded-2xl border">
@@ -399,7 +483,6 @@ export default function ApplicantsPage() {
                         </div>
                       </div>
 
-                      {/* Bagian 2: Sekolah Asal */}
                       <div className="space-y-4">
                         <h3 className="font-bold uppercase tracking-widest text-sm text-cyan-500 flex items-center gap-2"><School className="w-4 h-4" /> Bagian 2: Sekolah Asal</h3>
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 bg-muted/10 p-6 rounded-2xl border">
@@ -418,16 +501,9 @@ export default function ApplicantsPage() {
                           <FormField control={form.control} name="originSchoolProvinsi" render={({ field }) => (
                             <FormItem className="md:col-span-2"><FormLabel>Provinsi</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                           )} />
-                          <FormField control={form.control} name="usParticipantNumber" render={({ field }) => (
-                            <FormItem className="md:col-span-2"><FormLabel>No. Peserta US (Sesuai Ijazah)</FormLabel><FormControl><Input placeholder="Masukkan nomor peserta..." {...field} /></FormControl><FormMessage /></FormItem>
-                          )} />
-                          <FormField control={form.control} name="ijazahSerialNumber" render={({ field }) => (
-                            <FormItem className="md:col-span-2"><FormLabel>No. Seri Ijazah</FormLabel><FormControl><Input placeholder="Masukkan nomor seri..." {...field} /></FormControl><FormMessage /></FormItem>
-                          )} />
                         </div>
                       </div>
 
-                      {/* Alamat & Tempat Tinggal */}
                       <div className="space-y-4">
                         <h3 className="font-bold uppercase tracking-widest text-sm text-amber-500 flex items-center gap-2"><MapPin className="w-4 h-4" /> Bagian 3: Alamat & Domisili</h3>
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 bg-muted/10 p-6 rounded-2xl border">
@@ -446,93 +522,6 @@ export default function ApplicantsPage() {
                           <FormField control={form.control} name="kecamatan" render={({ field }) => (
                             <FormItem><FormLabel>Kecamatan</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                           )} />
-                          <FormField control={form.control} name="propinsi" render={({ field }) => (
-                            <FormItem className="md:col-span-2"><FormLabel>Provinsi</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                          )} />
-                          <FormField control={form.control} name="livingWith" render={({ field }) => (
-                            <FormItem className="md:col-span-1"><FormLabel>Tempat Tinggal</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Bersama Orang Tua">Bersama Orang Tua</SelectItem><SelectItem value="Wali">Wali</SelectItem><SelectItem value="Asrama">Asrama</SelectItem><SelectItem value="Kos">Kos</SelectItem></SelectContent></Select><FormMessage /></FormItem>
-                          )} />
-                          <FormField control={form.control} name="transportation" render={({ field }) => (
-                            <FormItem className="md:col-span-1"><FormLabel>Transportasi</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Jalan Kaki">Jalan Kaki</SelectItem><SelectItem value="Motor">Motor</SelectItem><SelectItem value="Mobil">Mobil</SelectItem><SelectItem value="Angkot/Kendaraan Umum">Angkot/Kendaraan Umum</SelectItem></SelectContent></Select><FormMessage /></FormItem>
-                          )} />
-                        </div>
-                      </div>
-
-                      {/* Data Periodik & Kontak */}
-                      <div className="space-y-4">
-                        <h3 className="font-bold uppercase tracking-widest text-sm text-green-500 flex items-center gap-2"><Scale className="w-4 h-4" /> Bagian 4: Data Periodik & Kontak</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-muted/10 p-6 rounded-2xl border">
-                          <FormField control={form.control} name="childOrder" render={({ field }) => (
-                            <FormItem><FormLabel>Anak Ke-</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                          )} />
-                          <FormField control={form.control} name="studentPhone" render={({ field }) => (
-                            <FormItem className="md:col-span-2"><FormLabel>No. HP Siswa</FormLabel><FormControl><Input placeholder="08..." {...field} /></FormControl><FormMessage /></FormItem>
-                          )} />
-                          <FormField control={form.control} name="heightCm" render={({ field }) => (
-                            <FormItem><FormLabel>Tinggi Badan (cm)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                          )} />
-                          <FormField control={form.control} name="weightKg" render={({ field }) => (
-                            <FormItem><FormLabel>Berat Badan (kg)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                          )} />
-                          <FormField control={form.control} name="travelTimeMinutes" render={({ field }) => (
-                            <FormItem><FormLabel>Waktu Tempuh (menit)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                          )} />
-                        </div>
-                      </div>
-
-                      {/* Data Orang Tua */}
-                      <div className="space-y-4">
-                        <h3 className="font-bold uppercase tracking-widest text-sm text-pink-500 flex items-center gap-2"><UsersIcon className="w-4 h-4" /> Bagian 5: Data Orang Tua / Wali</h3>
-                        <div className="space-y-6">
-                          {/* AYAH */}
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-muted/10 p-6 rounded-2xl border">
-                             <div className="md:col-span-3 flex items-center gap-2 border-b pb-2 mb-2">
-                               <Badge className="bg-primary/20 text-primary border-none">AYAH KANDUNG</Badge>
-                             </div>
-                             <FormField control={form.control} name="fatherName" render={({ field }) => (
-                                <FormItem className="md:col-span-1"><FormLabel>Nama Ayah</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                             )} />
-                             <FormField control={form.control} name="fatherNIK" render={({ field }) => (
-                                <FormItem><FormLabel>NIK Ayah</FormLabel><FormControl><Input placeholder="16 Digit" {...field} /></FormControl><FormMessage /></FormItem>
-                             )} />
-                             <FormField control={form.control} name="fatherBirthYear" render={({ field }) => (
-                                <FormItem><FormLabel>Tahun Lahir</FormLabel><FormControl><Input placeholder="Contoh: 1980" {...field} /></FormControl><FormMessage /></FormItem>
-                             )} />
-                             <FormField control={form.control} name="fatherEducation" render={({ field }) => (
-                                <FormItem><FormLabel>Pendidikan</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{EDUCATION_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
-                             )} />
-                             <FormField control={form.control} name="fatherOccupation" render={({ field }) => (
-                                <FormItem><FormLabel>Pekerjaan</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{OCCUPATION_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
-                             )} />
-                             <FormField control={form.control} name="fatherIncome" render={({ field }) => (
-                                <FormItem><FormLabel>Penghasilan</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{INCOME_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
-                             )} />
-                          </div>
-
-                          {/* IBU */}
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-muted/10 p-6 rounded-2xl border">
-                             <div className="md:col-span-3 flex items-center gap-2 border-b pb-2 mb-2">
-                               <Badge className="bg-pink-500/20 text-pink-500 border-none">IBU KANDUNG</Badge>
-                             </div>
-                             <FormField control={form.control} name="motherName" render={({ field }) => (
-                                <FormItem className="md:col-span-1"><FormLabel>Nama Ibu</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                             )} />
-                             <FormField control={form.control} name="motherNIK" render={({ field }) => (
-                                <FormItem><FormLabel>NIK Ibu</FormLabel><FormControl><Input placeholder="16 Digit" {...field} /></FormControl><FormMessage /></FormItem>
-                             )} />
-                             <FormField control={form.control} name="motherBirthYear" render={({ field }) => (
-                                <FormItem><FormLabel>Tahun Lahir</FormLabel><FormControl><Input placeholder="Contoh: 1985" {...field} /></FormControl><FormMessage /></FormItem>
-                             )} />
-                             <FormField control={form.control} name="motherEducation" render={({ field }) => (
-                                <FormItem><FormLabel>Pendidikan</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{EDUCATION_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
-                             )} />
-                             <FormField control={form.control} name="motherOccupation" render={({ field }) => (
-                                <FormItem><FormLabel>Pekerjaan</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{OCCUPATION_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
-                             )} />
-                             <FormField control={form.control} name="motherIncome" render={({ field }) => (
-                                <FormItem><FormLabel>Penghasilan</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{INCOME_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
-                             )} />
-                          </div>
                         </div>
                       </div>
                     </div>
@@ -578,7 +567,16 @@ export default function ApplicantsPage() {
                 <TableCell>{applicant.originSchool}</TableCell>
                 <TableCell><Badge variant="outline" className="text-[10px]">{applicant.applicationPath}</Badge></TableCell>
                 <TableCell><Badge variant="outline" className={`${statusColorMap[applicant.verificationStatus]} text-[10px]`}>{applicant.verificationStatus}</Badge></TableCell>
-                <TableCell className="text-right"><Button variant="ghost" size="icon" asChild><Link href={`/dashboard/applicants/${applicant.id}`}><Eye className="w-4 h-4" /></Link></Button></TableCell>
+                <TableCell className="text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => handleDownloadForm(applicant)} title="Unduh Formulir">
+                      <FileText className="w-4 h-4 text-primary" />
+                    </Button>
+                    <Button variant="ghost" size="icon" asChild>
+                      <Link href={`/dashboard/applicants/${applicant.id}`}><Eye className="w-4 h-4" /></Link>
+                    </Button>
+                  </div>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

@@ -96,22 +96,15 @@ const extractFormDataFlow = ai.defineFlow(
       model: 'googleai/gemini-1.5-flash',
       prompt: [
         {
-          text: `Anda adalah pakar Administrasi Sekolah dan OCR (Optical Character Recognition) profesional dengan akurasi mutlak.
+          text: `Anda adalah pakar Administrasi Sekolah dan OCR profesional. 
           Tugas Anda adalah mengekstrak data dari gambar formulir pendaftaran sekolah manual.
 
-          ATURAN KETAT UNTUK MENCEGAH TEBAKAN (HALLUCINATION):
-          1. JANGAN PERNAH MENEBAK. Jika sebuah kata, angka, atau karakter tidak terlihat 100% jelas, biarkan kolom tersebut KOSONG (undefined).
-          2. Untuk Nama yang tertulis di dalam KOTAK-KOTAK karakter (seperti YOSEFINA DESWITA ATUENTIA OLUT):
-             - Baca satu per satu huruf di dalam setiap kotak.
-             - Jika ada kotak yang coretannya tidak jelas menyerupai huruf tertentu, jangan diasumsikan.
-             - Pastikan spasi (kotak kosong antara kata) diidentifikasi dengan benar.
-          3. Untuk Angka (NIK, NISN, No KK):
-             - Verifikasi setiap digit. Jika ada satu angka saja yang sulit dibedakan (misal antara 1 dan 7, atau 0 dan 8), maka KOSONGKAN seluruh field nomor tersebut.
-             - Jangan mencoba melengkapi nomor jika digitnya kurang dari standar (NIK 16 digit, NISN 10 digit).
-          4. Untuk Pilihan (Jenis Kelamin, Tempat Tinggal, Transportasi, Agama):
-             - Hanya pilih opsi jika tanda (X) atau centang benar-benar berada di dalam kotak pilihan tersebut secara eksplisit.
-          5. PRIORITAS UTAMA: Kebenaran data jauh lebih penting daripada kelengkapan. Lebih baik field kosong daripada berisi data yang salah akibat tebakan AI.
-          6. JANGAN berikan data default. Jika kotak "Katolik" tidak dicentang secara jelas, jangan asumsikan itu Katolik meskipun itu default aplikasi.`
+          ATURAN KETAT UNTUK MENCEGAH TEBAKAN:
+          1. JANGAN PERNAH MENEBAK. Jika sebuah kata atau angka tidak terlihat 100% jelas, biarkan kolom tersebut KOSONG (undefined).
+          2. Baca Nama di dalam KOTAK karakter dengan sangat teliti, pastikan spasi antar kata diidentifikasi dengan benar.
+          3. Untuk Nomor Identitas (NIK, NISN): Jika ada digit yang buram, kosongkan seluruh field tersebut.
+          4. Verifikasi pilihan (checkbox) hanya jika tanda (X) benar-benar ada di dalam kotak.
+          5. Akurasi data jauh lebih penting daripada kelengkapan. Lebih baik field kosong daripada data salah.`
         },
         {
           media: {
