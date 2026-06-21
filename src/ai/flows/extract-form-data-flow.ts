@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A Genkit flow for extracting student registration data from a manual form image.
@@ -18,15 +17,15 @@ const ExtractFormDataOutputSchema = z.object({
   familyCardNumber: z.string().optional().describe("16 digit Nomor Kartu Keluarga"),
   aktaLahirNumber: z.string().optional().describe("Nomor Registrasi Akta Lahir"),
   birthPlace: z.string().optional().describe("Tempat lahir"),
-  birthDate: z.string().optional().describe("Tanggal lahir format YYYY-MM-DD atau DD-MM-YYYY"),
+  birthDate: z.string().optional().describe("Tanggal lahir format YYYY-MM-DD"),
   religion: z.string().optional().describe("Agama (Islam, Katolik, Kristen, dll)"),
-  address: z.string().optional().describe("Alamat lengkap"),
+  address: z.string().optional().describe("Alamat lengkap (Jalan/Kampung)"),
   rt: z.string().optional().describe("RT"),
   rw: z.string().optional().describe("RW"),
   kelurahan: z.string().optional().describe("Kelurahan/Desa"),
   kecamatan: z.string().optional().describe("Kecamatan"),
   propinsi: z.string().optional().describe("Provinsi"),
-  livingWith: z.enum(['Bersama Orang Tua', 'Wali', 'Asrama', 'Kos']).optional().describe("Tempat Tinggal"),
+  livingWith: z.enum(['Bersama Orang Tua', 'Wali', 'Asrama', 'Kos']).optional().describe("Pilihan Tempat Tinggal"),
   transportation: z.enum(['Jalan Kaki', 'Motor', 'Mobil', 'Angkot/Kendaraan Umum']).optional().describe("Moda Transportasi"),
   childOrder: z.string().optional().describe("Anak ke berapa"),
   studentPhone: z.string().optional().describe("Nomor HP murid"),
@@ -43,15 +42,15 @@ const ExtractFormDataOutputSchema = z.object({
 
   // Data Orang Tua
   fatherName: z.string().optional().describe("Nama Ayah Kandung"),
-  fatherNIK: z.string().optional().describe("NIK Ayah"),
-  fatherBirthYear: z.string().optional().describe("Tahun Lahir Ayah"),
+  fatherNIK: z.string().optional().describe("NIK Ayah (16 digit)"),
+  fatherBirthYear: z.string().optional().describe("Tahun Lahir Ayah (4 digit)"),
   fatherEducation: z.string().optional().describe("Pendidikan Ayah"),
   fatherOccupation: z.string().optional().describe("Pekerjaan Ayah"),
   fatherIncome: z.string().optional().describe("Penghasilan Ayah"),
   
   motherName: z.string().optional().describe("Nama Ibu Kandung"),
-  motherNIK: z.string().optional().describe("NIK Ibu"),
-  motherBirthYear: z.string().optional().describe("Tahun Lahir Ibu"),
+  motherNIK: z.string().optional().describe("NIK Ibu (16 digit)"),
+  motherBirthYear: z.string().optional().describe("Tahun Lahir Ibu (4 digit)"),
   motherEducation: z.string().optional().describe("Pendidikan Ibu"),
   motherOccupation: z.string().optional().describe("Pekerjaan Ibu"),
   motherIncome: z.string().optional().describe("Penghasilan Ibu"),
@@ -88,30 +87,23 @@ const extractFormDataFlow = ai.defineFlow(
   },
   async (input) => {
     const { output } = await ai.generate({
-      model: 'googleai/gemini-2.5-flash',
-      prompt: `You are an expert OCR and school administration assistant. 
-      Your task is to extract all student registration information from the provided image of a manual school registration form.
-      
-      The form follows the Indonesian Dapodik (Data Pokok Pendidikan) standard.
-      
-      Specifically, extract the following:
-      1. DATA PESERTA DIDIK (Full Name, Gender, NISN, NIK, KK, Birth Details, Address RT/RW, Religion, etc.)
-      2. SEKOLAH ASAL:
-         - Nama SD Asal
-         - Alamat (Sekolah)
-         - Kelurahan (Sekolah)
-         - Kecamatan (Sekolah)
-         - Provinsi (Sekolah)
-         - Nomor Peserta US (Nomor Peserta Ujian Sekolah sesuai Ijazah/SKL)
-         - Nomor Seri Ijazah
-      3. DATA ORANG TUA/WALI (Names, NIK, Birth Year, Education, Occupation, Income)
-      4. DATA PERIODIK (Height, Weight, Distance, Travel Time)
+      model: 'googleai/gemini-2.0-flash-exp', // Menggunakan model terbaru untuk akurasi penglihatan lebih baik
+      prompt: `Anda adalah pakar Administrasi Sekolah dan OCR (Optical Character Recognition).
+      Tugas Anda adalah mengekstrak data dari gambar formulir pendaftaran sekolah manual (format Dapodik Indonesia).
 
-      Instructions:
-      - Read handwriting with high accuracy.
-      - Map values precisely to the provided JSON schema.
-      - Use YYYY-MM-DD for dates.
-      - Capture ID numbers (NIK, NISN) with 100% precision.
+      INSTRUKSI SANGAT PENTING:
+      1. AKURASI NOMOR: Nomor NIK, NISN, dan Nomor KK harus diekstrak dengan ketepatan 100%. Periksa setiap digit dengan teliti.
+      2. TULISAN TANGAN: Identifikasi tulisan tangan dengan sangat hati-hati. Jika tulisan tidak terbaca, JANGAN MENEBAK. Kosongkan saja field tersebut atau jangan sertakan dalam output.
+      3. PILIHAN (CHECKBOX/BULATAN): Perhatikan tanda centang (V), silang (X), atau lingkaran pada pilihan yang tersedia (contoh: Jenis Kelamin, Pendidikan, Pekerjaan). Ambil nilai yang ditandai oleh pendaftar.
+      4. FORMAT TANGGAL: Konversi tanggal lahir ke format YYYY-MM-DD.
+      5. NILAI PILIHAN (ENUM): Pastikan nilai yang Anda ambil untuk field kategori (seperti Pendidikan/Pekerjaan) sesuai dengan pilihan teks yang ada di formulir (tanpa nomor urut).
+      6. JANGAN BERHALUSINASI: Hanya ambil data yang benar-benar ada di gambar. Jika field kosong di formulir, kosongkan di output JSON.
+
+      STRUKTUR FORMULIR:
+      - Bagian A: DATA PESERTA DIDIK (Nama, NISN, NIK, Alamat, RT/RW, Akta Lahir, dll)
+      - Bagian B: SEKOLAH ASAL (Nama Sekolah, Alamat, No Ijazah, No Peserta US)
+      - Bagian C: DATA ORANG TUA/WALI (Ayah, Ibu, Wali - Nama, NIK, Pendidikan, Pekerjaan, Penghasilan)
+      - Bagian D: DATA PERIODIK (Tinggi, Berat, Jarak, Waktu Tempuh)
 
       Photo: {{media url=photoDataUri}}`,
       input: input,
