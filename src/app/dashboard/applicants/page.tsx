@@ -196,7 +196,7 @@ export default function ApplicantsPage() {
       gender: "Laki-laki",
       birthPlace: "",
       birthDate: "",
-      religion: "Islam",
+      religion: "Katolik",
       address: "",
       rt: "",
       rw: "",
@@ -377,7 +377,7 @@ export default function ApplicantsPage() {
                             <FormItem className="md:col-span-2"><FormLabel>No. Reg Akta Lahir</FormLabel><FormControl><Input placeholder="Sesuai Akta Lahir" {...field} /></FormControl><FormMessage /></FormItem>
                           )} />
                           <FormField control={form.control} name="religion" render={({ field }) => (
-                            <FormItem><FormLabel>Agama</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Islam">Islam</SelectItem><SelectItem value="Katolik">Katolik</SelectItem><SelectItem value="Kristen">Kristen</SelectItem><SelectItem value="Hindu">Hindu</SelectItem><SelectItem value="Budha">Budha</SelectItem></SelectContent></Select><FormMessage /></FormItem>
+                            <FormItem><FormLabel>Agama</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Katolik">Katolik</SelectItem><SelectItem value="Islam">Islam</SelectItem><SelectItem value="Kristen">Kristen</SelectItem><SelectItem value="Hindu">Hindu</SelectItem><SelectItem value="Budha">Budha</SelectItem></SelectContent></Select><FormMessage /></FormItem>
                           )} />
                         </div>
                       </div>
