@@ -3,15 +3,15 @@
 /**
  * @fileOverview A Genkit flow for extracting student registration data from a manual form image.
  * 
- * ATURAN KETAT: AI dilarang menebak data. Jika tidak jelas, biarkan kosong (undefined).
- * Karakter di dalam kotak harus dibaca dengan sangat teliti.
+ * ATURAN KETAT: AI dilarang menebak data. Jika tidak jelas atau meragukan, biarkan kosong (undefined).
+ * Akurasi pembacaan karakter adalah prioritas utama.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
 const ExtractFormDataOutputSchema = z.object({
-  fullName: z.string().optional().describe("Nama lengkap sesuai Akte Kelahiran. Baca kotak per kotak dengan teliti."),
+  fullName: z.string().optional().describe("Nama lengkap pendaftar. Baca karakter per kotak dengan sangat teliti."),
   gender: z.enum(['Laki-laki', 'Perempuan']).optional().describe("Jenis Kelamin"),
   NISN: z.string().optional().describe("10 digit Nomor Induk Siswa Nasional"),
   NIK: z.string().optional().describe("16 digit Nomor Induk Kependudukan Murid"),
@@ -20,9 +20,9 @@ const ExtractFormDataOutputSchema = z.object({
   birthDate: z.string().optional().describe("Tanggal lahir format YYYY-MM-DD"),
   religion: z.string().optional().describe("Agama"),
   address: z.string().optional().describe("Alamat lengkap"),
-  originSchool: z.string().optional().describe("Nama SD Asal"),
-  parentName: z.string().optional().describe("Nama Orang Tua/Wali"),
-  parentPhone: z.string().optional().describe("Nomor HP orang tua"),
+  originSchool: z.string().optional().describe("Nama sekolah asal (SD/MI)"),
+  parentName: z.string().optional().describe("Nama Ayah atau Ibu Kandung"),
+  parentPhone: z.string().optional().describe("Nomor HP orang tua yang aktif"),
 });
 
 const ExtractFormDataInputSchema = z.object({
@@ -47,13 +47,16 @@ const extractFormDataFlow = ai.defineFlow(
       model: 'googleai/gemini-1.5-flash',
       prompt: [
         {
-          text: `Tugas Anda adalah mengekstrak data dari formulir pendaftaran sekolah manual.
+          text: `Anda adalah pakar OCR yang sangat teliti. Tugas Anda adalah mengekstrak data dari formulir pendaftaran sekolah manual.
           
-          ATURAN KETAT:
-          1. JANGAN PERNAH MENEBAK. Jika tulisan tidak terbaca jelas 100%, biarkan kolom tersebut KOSONG.
-          2. Baca Nama dalam kotak karakter dengan sangat teliti.
-          3. Akurasi data jauh lebih penting daripada kelengkapan. 
-          4. Untuk Agama, pilih salah satu: Katolik, Islam, Kristen, Hindu, Budha.`
+          ATURAN KRITIKAL:
+          1. JANGAN PERNAH MENEBAK. Jika tulisan tangan buram, terpotong, atau meragukan, biarkan kolom tersebut KOSONG (undefined).
+          2. Baca Nama dalam kotak karakter per kotak. Pastikan spasi antar kata terbaca dengan benar.
+          3. Untuk Identitas Angka (NISN, NIK, KK): Jika ada satu digit pun yang tidak terbaca jelas, kosongkan seluruh kolom nomor tersebut.
+          4. Agama harus dipilih dari: Islam, Kristen, Katolik, Hindu, Budha, Khonghucu.
+          5. Tanggal lahir harus dalam format YYYY-MM-DD.
+          
+          Data yang tidak terbaca 100% jelas harus diabaikan demi integritas database.`
         },
         {
           media: {
