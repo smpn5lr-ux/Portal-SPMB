@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A Genkit flow for extracting student registration data from a manual form image.
@@ -27,15 +28,29 @@ const ExtractFormDataOutputSchema = z.object({
   childOrder: z.string().optional().describe("Anak ke berapa"),
   studentPhone: z.string().optional().describe("Nomor HP murid"),
   numberOfSiblings: z.string().optional().describe("Jumlah saudara kandung"),
+  
+  // Data Orang Tua (Lengkap Sesuai Gambar)
   fatherName: z.string().optional().describe("Nama Ayah Kandung"),
   fatherNIK: z.string().optional().describe("NIK Ayah"),
-  fatherOccupation: z.string().optional().describe("Pekerjaan Ayah"),
+  fatherBirthYear: z.string().optional().describe("Tahun Lahir Ayah"),
+  fatherEducation: z.string().optional().describe("Pendidikan Ayah (format: 01, Tidak Sekolah, dst)"),
+  fatherOccupation: z.string().optional().describe("Pekerjaan Ayah (format: 01, Tidak bekerja, dst)"),
+  fatherIncome: z.string().optional().describe("Penghasilan Ayah (format: 01, < Rp. 500,000, dst)"),
+  
   motherName: z.string().optional().describe("Nama Ibu Kandung"),
   motherNIK: z.string().optional().describe("NIK Ibu"),
-  motherOccupation: z.string().optional().describe("Pekerjaan Ibu"),
+  motherBirthYear: z.string().optional().describe("Tahun Lahir Ibu"),
+  motherEducation: z.string().optional().describe("Pendidikan Ibu (format: 01, Tidak Sekolah, dst)"),
+  motherOccupation: z.string().optional().describe("Pekerjaan Ibu (format: 01, Tidak bekerja, dst)"),
+  motherIncome: z.string().optional().describe("Penghasilan Ibu (format: 01, < Rp. 500,000, dst)"),
+  
   guardianName: z.string().optional().describe("Nama Wali"),
   guardianNIK: z.string().optional().describe("NIK Wali"),
+  guardianBirthYear: z.string().optional().describe("Tahun Lahir Wali"),
+  guardianEducation: z.string().optional().describe("Pendidikan Wali"),
   guardianOccupation: z.string().optional().describe("Pekerjaan Wali"),
+  guardianIncome: z.string().optional().describe("Penghasilan Wali"),
+  
   parentPhone: z.string().optional().describe("Nomor HP orang tua/wali"),
   parentEmail: z.string().optional().describe("Email orang tua/wali"),
   heightCm: z.string().optional().describe("Tinggi badan dalam cm"),
@@ -71,20 +86,20 @@ const extractFormDataFlow = ai.defineFlow(
       Your task is to extract all student registration information from the provided image of a manual school registration form.
       
       The form follows the Indonesian Dapodik (Data Pokok Pendidikan) standard and includes sections for:
-      1. Identitas Peserta Didik (Name, NISN, NIK, Birth info, Gender, Religion)
-      2. Data Alamat (Address, Kelurahan, Kecamatan, Province, Living with, Transportation)
-      3. Data Ayah/Ibu Kandung & Wali (Names, NIKs, Occupations)
-      4. DATA PERIODIK (Tinggi Badan, Berat Badan, Jarak Tempuh, Waktu Tempuh, Jumlah Saudara)
-      5. KESEJAHTERAAN (Jenis Kesejahteraan: PIP/PKH/KKS/KPS, Nomor Kartu, Nama di Kartu)
-      6. Registrasi (Entry type, Origin school, Ijazah info)
+      1. Identitas Peserta Didik
+      2. Data Alamat
+      3. Data Orang Tua / Wali (Lengkap: Nama, NIK, Tahun Lahir, Pendidikan, Pekerjaan, Penghasilan)
+      4. DATA PERIODIK
+      5. KESEJAHTERAAN
+      6. Registrasi
 
       Instructions:
       - Read the handwriting or printed text with high accuracy.
+      - For "Pendidikan", "Pekerjaan", and "Penghasilan", look for checkmarks in the boxes.
       - Map the values carefully to the provided JSON schema.
       - Convert dates to YYYY-MM-DD format if possible.
-      - If a field is illegible or not present, leave it empty.
       - Be extremely precise with ID numbers like NIK (16 digits) and NISN (10 digits).
-      - For "Jenis Kesejahteraan", look for checked boxes like PIP, PKH, KKS, or KPS.
+      - For labels like Education/Occupation/Income, return the full text from the schema options if possible.
 
       Photo: {{media url=photoDataUri}}`,
       input: input,

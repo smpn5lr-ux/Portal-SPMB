@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo, useRef } from 'react'
@@ -24,7 +25,9 @@ import {
   Clock,
   MapPin,
   ClipboardList,
-  Heart
+  Heart,
+  Briefcase,
+  Wallet
 } from "lucide-react"
 import { 
   Table, 
@@ -89,13 +92,6 @@ const statusColorMap: Record<string, string> = {
   'Ditolak': 'bg-destructive/10 text-destructive border-destructive/20',
 }
 
-const pathColorMap: Record<string, string> = {
-  'Zonasi': 'text-primary border-primary/20',
-  'Prestasi': 'text-cyan-500 border-cyan-500/20',
-  'Afirmasi': 'text-pink-500 border-pink-500/20',
-  'Perpindahan Orang Tua': 'text-purple-500 border-purple-500/20',
-}
-
 const formSchema = z.object({
   fullName: z.string().min(2, "Nama lengkap harus diisi"),
   NISN: z.string().length(10, "NISN harus 10 digit"),
@@ -111,7 +107,7 @@ const formSchema = z.object({
   kelurahan: z.string().optional(),
   kecamatan: z.string().optional(),
   propinsi: z.string().optional(),
-  parentName: z.string().min(2, "Nama orang tua/wali harus diisi"),
+  parentName: z.string().min(2, "Nama pendaftar harus diisi"),
   parentPhone: z.string().min(10, "No. Telepon minimal 10 digit"),
   parentEmail: z.string().email("Email tidak valid").optional().or(z.literal('')),
   academicScore: z.string().optional(),
@@ -121,15 +117,31 @@ const formSchema = z.object({
   hobbies: z.string().optional(),
   studentPhone: z.string().optional(),
   registrantRelationship: z.string().optional(),
+  
+  // Data Ayah
   fatherName: z.string().optional(),
   fatherNIK: z.string().optional(),
+  fatherBirthYear: z.string().optional(),
+  fatherEducation: z.string().optional(),
   fatherOccupation: z.string().optional(),
+  fatherIncome: z.string().optional(),
+  
+  // Data Ibu
   motherName: z.string().optional(),
   motherNIK: z.string().optional(),
+  motherBirthYear: z.string().optional(),
+  motherEducation: z.string().optional(),
   motherOccupation: z.string().optional(),
+  motherIncome: z.string().optional(),
+  
+  // Data Wali
   guardianName: z.string().optional(),
   guardianNIK: z.string().optional(),
+  guardianBirthYear: z.string().optional(),
+  guardianEducation: z.string().optional(),
   guardianOccupation: z.string().optional(),
+  guardianIncome: z.string().optional(),
+  
   numberOfSiblings: z.string().optional(),
   childOrder: z.string().optional(),
   heightCm: z.string().optional(),
@@ -161,6 +173,18 @@ const COLUMN_MAPPING: Record<string, string> = {
 }
 
 const TEMPLATE_KEYS = Object.keys(COLUMN_MAPPING);
+
+const EDUCATION_OPTIONS = [
+  '01, Tidak Sekolah', '02, SD', '03, SMP', '04, SMA', '05, S1', '06, S2', '07, S3'
+]
+
+const OCCUPATION_OPTIONS = [
+  '01, Tidak bekerja', '02, Petani/Nelayan', '03, ASN', '04, Peg. swasta', '05, Pengusaha', '06, Pensiun'
+]
+
+const INCOME_OPTIONS = [
+  '01, < Rp. 500,000', '02, Rp. 500,000 - 999,999', '03, Rp. 1,000,000 - Rp. 3,000,000', '04, Rp. 3,000,000 - 5,000,000'
+]
 
 export default function ApplicantsPage() {
   const [searchTerm, setSearchTerm] = useState('')
@@ -202,13 +226,22 @@ export default function ApplicantsPage() {
       registrantRelationship: "Ayah",
       fatherName: "",
       fatherNIK: "",
-      fatherOccupation: "",
+      fatherBirthYear: "",
+      fatherEducation: "03, SMP",
+      fatherOccupation: "02, Petani/Nelayan",
+      fatherIncome: "03, Rp. 1,000,000 - Rp. 3,000,000",
       motherName: "",
       motherNIK: "",
-      motherOccupation: "",
+      motherBirthYear: "",
+      motherEducation: "03, SMP",
+      motherOccupation: "01, Tidak bekerja",
+      motherIncome: "01, < Rp. 500,000",
       guardianName: "",
       guardianNIK: "",
+      guardianBirthYear: "",
+      guardianEducation: "",
       guardianOccupation: "",
+      guardianIncome: "",
       numberOfSiblings: "1",
       childOrder: "1",
       heightCm: "",
@@ -267,7 +300,7 @@ export default function ApplicantsPage() {
               form.setValue(key as any, value)
             }
           });
-          toast({ title: "Scan Berhasil", description: "Data formulir manual telah diekstrak." })
+          toast({ title: "Scan Berhasil", description: "Data formulir manual telah diekstrak secara otomatis." })
         }
       } catch (err: any) {
         toast({ variant: "destructive", title: "Scan Gagal", description: "Pastikan foto jelas dan terang." })
@@ -341,7 +374,7 @@ export default function ApplicantsPage() {
         if (fileInputRef.current) fileInputRef.current.value = ''
       }
     }
-    reader.readAsArrayBuffer(file)
+    reader.readAsDataURL(file)
   }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -366,7 +399,7 @@ export default function ApplicantsPage() {
       })
       setIsDialogOpen(false)
       form.reset()
-      toast({ title: "Data Disimpan" })
+      toast({ title: "Data Berhasil Disimpan" })
     } catch (error: any) {
       errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'applicants', operation: 'create' }))
     } finally {
@@ -401,11 +434,11 @@ export default function ApplicantsPage() {
             <DialogTrigger asChild>
               <Button className="gap-2 bg-primary"><Plus className="w-4 h-4" /> Tambah Murid</Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[950px] h-[95vh] p-0 flex flex-col">
+            <DialogContent className="sm:max-w-[1000px] h-[95vh] p-0 flex flex-col">
               <DialogHeader className="p-6 pb-2 border-b flex flex-row items-center justify-between">
                 <div>
                   <DialogTitle className="font-headline text-2xl">Formulir Pendaftaran</DialogTitle>
-                  <DialogDescription>Lengkapi data sesuai standar Dapodik.</DialogDescription>
+                  <DialogDescription>Lengkapi data sesuai standar Dapodik (Hasil Scan Manual).</DialogDescription>
                 </div>
                 <Button onClick={() => scanInputRef.current?.click()} disabled={isScanning} variant="outline" className="gap-2 border-primary/50 text-primary">
                   {isScanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
@@ -438,32 +471,96 @@ export default function ApplicantsPage() {
                         </div>
                       </div>
 
-                      {/* Bagian 4: Keluarga */}
+                      {/* Bagian 4: Keluarga LENGKAP Sesuai Gambar */}
                       <div className="space-y-4">
-                        <h3 className="font-bold uppercase tracking-widest text-sm text-pink-500 flex items-center gap-2"><UsersIcon className="w-4 h-4" /> Bagian 4: Data Orang Tua</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-muted/10 p-6 rounded-2xl border">
-                          <div className="space-y-4 p-4 border rounded-xl bg-card">
-                             <Badge variant="outline">AYAH KANDUNG</Badge>
+                        <h3 className="font-bold uppercase tracking-widest text-sm text-pink-500 flex items-center gap-2"><UsersIcon className="w-4 h-4" /> Bagian 4: Data Orang Tua / Wali</h3>
+                        <div className="space-y-6">
+                          {/* AYAH */}
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-muted/10 p-6 rounded-2xl border">
+                             <div className="md:col-span-3 flex items-center gap-2 border-b pb-2 mb-2">
+                               <Badge className="bg-primary/20 text-primary border-none">AYAH KANDUNG</Badge>
+                             </div>
                              <FormField control={form.control} name="fatherName" render={({ field }) => (
-                                <FormItem><FormLabel>Nama Ayah</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem className="md:col-span-1"><FormLabel>Nama Ayah</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                             )} />
+                             <FormField control={form.control} name="fatherNIK" render={({ field }) => (
+                                <FormItem><FormLabel>NIK Ayah</FormLabel><FormControl><Input placeholder="16 Digit" {...field} /></FormControl><FormMessage /></FormItem>
+                             )} />
+                             <FormField control={form.control} name="fatherBirthYear" render={({ field }) => (
+                                <FormItem><FormLabel>Tahun Lahir</FormLabel><FormControl><Input placeholder="Contoh: 1980" {...field} /></FormControl><FormMessage /></FormItem>
+                             )} />
+                             <FormField control={form.control} name="fatherEducation" render={({ field }) => (
+                                <FormItem><FormLabel>Pendidikan</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{EDUCATION_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                              )} />
                              <FormField control={form.control} name="fatherOccupation" render={({ field }) => (
-                                <FormItem><FormLabel>Pekerjaan</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Pekerjaan</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{OCCUPATION_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+                             )} />
+                             <FormField control={form.control} name="fatherIncome" render={({ field }) => (
+                                <FormItem><FormLabel>Penghasilan</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{INCOME_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                              )} />
                           </div>
-                          <div className="space-y-4 p-4 border rounded-xl bg-card">
-                             <Badge variant="outline" className="text-pink-500">IBU KANDUNG</Badge>
+
+                          {/* IBU */}
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-muted/10 p-6 rounded-2xl border">
+                             <div className="md:col-span-3 flex items-center gap-2 border-b pb-2 mb-2">
+                               <Badge className="bg-pink-500/20 text-pink-500 border-none">IBU KANDUNG</Badge>
+                             </div>
                              <FormField control={form.control} name="motherName" render={({ field }) => (
-                                <FormItem><FormLabel>Nama Ibu</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem className="md:col-span-1"><FormLabel>Nama Ibu</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                             )} />
+                             <FormField control={form.control} name="motherNIK" render={({ field }) => (
+                                <FormItem><FormLabel>NIK Ibu</FormLabel><FormControl><Input placeholder="16 Digit" {...field} /></FormControl><FormMessage /></FormItem>
+                             )} />
+                             <FormField control={form.control} name="motherBirthYear" render={({ field }) => (
+                                <FormItem><FormLabel>Tahun Lahir</FormLabel><FormControl><Input placeholder="Contoh: 1985" {...field} /></FormControl><FormMessage /></FormItem>
+                             )} />
+                             <FormField control={form.control} name="motherEducation" render={({ field }) => (
+                                <FormItem><FormLabel>Pendidikan</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{EDUCATION_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                              )} />
                              <FormField control={form.control} name="motherOccupation" render={({ field }) => (
-                                <FormItem><FormLabel>Pekerjaan</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Pekerjaan</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{OCCUPATION_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                              )} />
+                             <FormField control={form.control} name="motherIncome" render={({ field }) => (
+                                <FormItem><FormLabel>Penghasilan</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{INCOME_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+                             )} />
+                          </div>
+
+                          {/* KONDISIONAL WALI */}
+                          <div className="space-y-4">
+                            <FormField control={form.control} name="livingWith" render={({ field }) => (
+                               <FormItem><FormLabel>Tinggal Dengan</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Bersama Orang Tua">Bersama Orang Tua</SelectItem><SelectItem value="Wali">Wali</SelectItem><SelectItem value="Asrama">Asrama</SelectItem></SelectContent></Select></FormItem>
+                            )} />
+                            
+                            {showGuardianInfo && (
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-orange-500/5 p-6 rounded-2xl border border-orange-500/20 animate-in slide-in-from-top duration-300">
+                                <div className="md:col-span-3 flex items-center gap-2 border-b border-orange-500/20 pb-2 mb-2">
+                                  <Badge className="bg-orange-500/20 text-orange-500 border-none">WALI MURID</Badge>
+                                </div>
+                                <FormField control={form.control} name="guardianName" render={({ field }) => (
+                                   <FormItem><FormLabel>Nama Wali</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                                <FormField control={form.control} name="guardianNIK" render={({ field }) => (
+                                   <FormItem><FormLabel>NIK Wali</FormLabel><FormControl><Input placeholder="16 Digit" {...field} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                                <FormField control={form.control} name="guardianBirthYear" render={({ field }) => (
+                                   <FormItem><FormLabel>Tahun Lahir</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                                <FormField control={form.control} name="guardianEducation" render={({ field }) => (
+                                   <FormItem><FormLabel>Pendidikan</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{EDUCATION_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+                                )} />
+                                <FormField control={form.control} name="guardianOccupation" render={({ field }) => (
+                                   <FormItem><FormLabel>Pekerjaan</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{OCCUPATION_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+                                )} />
+                                <FormField control={form.control} name="guardianIncome" render={({ field }) => (
+                                   <FormItem><FormLabel>Penghasilan</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{INCOME_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+                                )} />
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
 
-                      {/* Bagian 5: Data Periodik & Kesejahteraan (BARU) */}
+                      {/* Bagian 5: Data Periodik & Kesejahteraan */}
                       <div className="space-y-4">
                         <h3 className="font-bold uppercase tracking-widest text-sm text-green-500 flex items-center gap-2"><Scale className="w-4 h-4" /> Bagian 5: Data Periodik & Kesejahteraan</h3>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-muted/10 p-6 rounded-2xl border">
@@ -483,10 +580,7 @@ export default function ApplicantsPage() {
                               <FormItem><FormLabel>Jenis Kesejahteraan</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="01, PIP">01, PIP</SelectItem><SelectItem value="02, PKH">02, PKH</SelectItem><SelectItem value="03, KKS">03, KKS</SelectItem><SelectItem value="04, KPS">04, KPS</SelectItem></SelectContent></Select><FormMessage /></FormItem>
                            )} />
                            <FormField control={form.control} name="welfareCardNumber" render={({ field }) => (
-                              <FormItem className="md:col-span-1"><FormLabel>Nomor Kartu</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                           )} />
-                           <FormField control={form.control} name="welfareCardName" render={({ field }) => (
-                              <FormItem className="md:col-span-3"><FormLabel>Nama di Kartu</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                              <FormItem><FormLabel>Nomor Kartu</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                            )} />
                         </div>
                       </div>
@@ -505,12 +599,12 @@ export default function ApplicantsPage() {
         </div>
       </div>
 
-      <div className="bg-card border rounded-xl overflow-hidden">
+      <div className="bg-card border rounded-xl overflow-hidden shadow-sm">
         <Table>
           <TableHeader className="bg-primary/5">
             <TableRow>
-              <TableHead>No.</TableHead>
-              <TableHead>No. Urut</TableHead>
+              <TableHead className="w-[50px]">No.</TableHead>
+              <TableHead className="w-[100px]">No. Urut</TableHead>
               <TableHead>NISN</TableHead>
               <TableHead>Nama Lengkap</TableHead>
               <TableHead>Asal Sekolah</TableHead>
@@ -521,16 +615,18 @@ export default function ApplicantsPage() {
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow><TableCell colSpan={8} className="text-center"><Loader2 className="w-4 h-4 animate-spin mx-auto" /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center py-12"><Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" /><p className="text-xs text-muted-foreground mt-2">Memuat data murid...</p></TableCell></TableRow>
+            ) : filteredApplicants.length === 0 ? (
+              <TableRow><TableCell colSpan={8} className="text-center py-24 text-muted-foreground italic">Tidak ada data murid ditemukan.</TableCell></TableRow>
             ) : filteredApplicants.map((applicant, idx) => (
-              <TableRow key={applicant.id}>
+              <TableRow key={applicant.id} className="hover:bg-muted/30">
                 <TableCell className="text-xs text-muted-foreground">{idx + 1}</TableCell>
-                <TableCell className="font-bold">#{applicant.registrationSequence || '-'}</TableCell>
+                <TableCell className="font-bold text-primary">#{applicant.registrationSequence || '-'}</TableCell>
                 <TableCell className="font-mono text-sm">{applicant.NISN}</TableCell>
                 <TableCell className="font-medium">{applicant.fullName}</TableCell>
                 <TableCell>{applicant.originSchool}</TableCell>
-                <TableCell><Badge variant="outline">{applicant.applicationPath}</Badge></TableCell>
-                <TableCell><Badge variant="outline" className={statusColorMap[applicant.verificationStatus]}>{applicant.verificationStatus}</Badge></TableCell>
+                <TableCell><Badge variant="outline" className="text-[10px]">{applicant.applicationPath}</Badge></TableCell>
+                <TableCell><Badge variant="outline" className={`${statusColorMap[applicant.verificationStatus]} text-[10px]`}>{applicant.verificationStatus}</Badge></TableCell>
                 <TableCell className="text-right"><Button variant="ghost" size="icon" asChild><Link href={`/dashboard/applicants/${applicant.id}`}><Eye className="w-4 h-4" /></Link></Button></TableCell>
               </TableRow>
             ))}

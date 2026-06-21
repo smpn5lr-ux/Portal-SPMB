@@ -5,9 +5,9 @@ export type VerificationStatus = 'Belum Diverifikasi' | 'Lengkap' | 'Perlu Perba
 
 export type AdmissionStatus = 'accepted' | 'waitlisted' | 'rejected' | 'pending';
 
-export type EducationLevel = 'Tidak Sekolah' | 'SD' | 'SMP' | 'SMA' | 'DIII' | 'S1' | 'S2' | 'S3';
-export type OccupationType = 'Tidak Bekerja' | 'Petani/Nelayan' | 'ASN' | 'Peg. Swasta' | 'Pengusaha' | 'Pensiun';
-export type IncomeRange = '< RP.500.000' | 'RP.500.000-1.000.000' | 'RP.1.000.000-3.000.000' | 'RP.4.000.000-5.000.000' | '> RP.5.000.000';
+export type EducationLevel = '01, Tidak Sekolah' | '02, SD' | '03, SMP' | '04, SMA' | '05, S1' | '06, S2' | '07, S3';
+export type OccupationType = '01, Tidak bekerja' | '02, Petani/Nelayan' | '03, ASN' | '04, Peg. swasta' | '05, Pengusaha' | '06, Pensiun';
+export type IncomeRange = '01, < Rp. 500,000' | '02, Rp. 500,000 - 999,999' | '03, Rp. 1,000,000 - Rp. 3,000,000' | '04, Rp. 3,000,000 - 5,000,000';
 
 export interface Applicant {
   id: string;
@@ -68,7 +68,7 @@ export interface Applicant {
   usParticipantNumber?: string;
   ijazahSerialNumber?: string;
   
-  // Detail Orang Tua & Wali
+  // Detail Orang Tua & Wali (Sesuai Gambar)
   fatherName?: string;
   fatherNIK?: string;
   fatherBirthYear?: string;

@@ -23,7 +23,9 @@ import {
   ShieldCheck,
   Scale,
   Clock,
-  Info
+  Info,
+  GraduationCap,
+  Wallet
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -159,7 +161,7 @@ export default function ApplicantDetailPage() {
                     <div className="flex items-center gap-2 text-amber-500 border-b pb-2"><Home className="w-4 h-4" /><h4 className="text-[11px] font-bold uppercase tracking-[0.2em]">Domisili & Alamat</h4></div>
                     <div className="grid grid-cols-1 gap-2 text-sm">
                       <p className="text-muted-foreground text-xs">Alamat Lengkap:</p>
-                      <p className="font-medium bg-muted/30 p-2 rounded">{applicant.address}, {applicant.kelurahan}, {applicant.kecamatan}, {applicant.propinsi}</p>
+                      <p className="font-medium bg-muted/30 p-2 rounded text-xs">{applicant.address}, {applicant.kelurahan}, {applicant.kecamatan}, {applicant.propinsi}</p>
                       <div className="flex justify-between py-1"><span className="text-xs text-muted-foreground">Tinggal Dengan</span><span className="text-sm font-bold">{applicant.livingWith}</span></div>
                       <div className="flex justify-between py-1"><span className="text-xs text-muted-foreground">Transportasi</span><span className="text-sm font-bold">{applicant.transportation}</span></div>
                     </div>
@@ -173,19 +175,56 @@ export default function ApplicantDetailPage() {
                       <div className="col-span-2 p-3 bg-muted/20 rounded-lg flex justify-between items-center"><div className="flex items-center gap-2"><Clock className="w-3 h-3 text-green-500" /><span className="text-[10px] text-muted-foreground uppercase font-bold">Waktu Tempuh</span></div><p className="text-sm font-bold">{applicant.travelTimeMinutes || '-'} Menit</p></div>
                     </div>
                   </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-blue-500 border-b pb-2"><Wallet className="w-4 h-4" /><h4 className="text-[11px] font-bold uppercase tracking-[0.2em]">Kesejahteraan</h4></div>
+                    <div className="p-4 bg-blue-500/5 border border-blue-500/20 rounded-xl space-y-2">
+                       <p className="text-xs text-blue-600 font-bold uppercase tracking-wider">{applicant.welfareType || 'Tidak Memiliki Kartu'}</p>
+                       {applicant.welfareCardNumber && <p className="text-sm font-mono">{applicant.welfareCardNumber}</p>}
+                    </div>
+                  </div>
                 </div>
 
                 <div className="space-y-8">
                   <div className="space-y-4">
-                    <div className="flex items-center gap-2 text-pink-500 border-b pb-2"><UsersIcon className="w-4 h-4" /><h4 className="text-[11px] font-bold uppercase tracking-[0.2em]">Data Keluarga</h4></div>
-                    <div className="space-y-3">
-                      <div className="p-3 border rounded-lg"><p className="text-[10px] text-muted-foreground font-bold">AYAH: {applicant.fatherName}</p><p className="text-xs">{applicant.fatherOccupation || 'Pekerjaan -'}</p></div>
-                      <div className="p-3 border rounded-lg"><p className="text-[10px] text-muted-foreground font-bold">IBU: {applicant.motherName}</p><p className="text-xs">{applicant.motherOccupation || 'Pekerjaan -'}</p></div>
+                    <div className="flex items-center gap-2 text-pink-500 border-b pb-2"><UsersIcon className="w-4 h-4" /><h4 className="text-[11px] font-bold uppercase tracking-[0.2em]">Data Orang Tua / Wali</h4></div>
+                    <div className="space-y-4">
+                      {/* AYAH */}
+                      <div className="p-4 border rounded-xl space-y-2 bg-muted/10">
+                        <Badge variant="outline" className="text-[8px]">AYAH KANDUNG</Badge>
+                        <p className="text-sm font-bold">{applicant.fatherName}</p>
+                        <div className="grid grid-cols-2 gap-2 text-[10px] text-muted-foreground">
+                          <p>Tahun: {applicant.fatherBirthYear || '-'}</p>
+                          <p>NIK: {applicant.fatherNIK || '-'}</p>
+                          <p className="col-span-2">Pendidikan: {applicant.fatherEducation || '-'}</p>
+                          <p className="col-span-2 font-medium text-foreground">Pekerjaan: {applicant.fatherOccupation || '-'}</p>
+                          <p className="col-span-2 italic">Penghasilan: {applicant.fatherIncome || '-'}</p>
+                        </div>
+                      </div>
+                      
+                      {/* IBU */}
+                      <div className="p-4 border rounded-xl space-y-2 bg-pink-500/5 border-pink-500/10">
+                        <Badge variant="outline" className="text-[8px] text-pink-500 border-pink-500/20">IBU KANDUNG</Badge>
+                        <p className="text-sm font-bold">{applicant.motherName}</p>
+                        <div className="grid grid-cols-2 gap-2 text-[10px] text-muted-foreground">
+                          <p>Tahun: {applicant.motherBirthYear || '-'}</p>
+                          <p>NIK: {applicant.motherNIK || '-'}</p>
+                          <p className="col-span-2">Pendidikan: {applicant.motherEducation || '-'}</p>
+                          <p className="col-span-2 font-medium text-foreground">Pekerjaan: {applicant.motherOccupation || '-'}</p>
+                          <p className="col-span-2 italic">Penghasilan: {applicant.motherIncome || '-'}</p>
+                        </div>
+                      </div>
+
+                      {/* WALI */}
                       {applicant.guardianName && (
-                        <div className="p-3 border-2 border-dashed border-orange-500/20 bg-orange-500/5 rounded-lg">
-                          <Badge className="bg-orange-500/10 text-orange-500 border-none text-[8px] mb-1">WALI SISWA</Badge>
-                          <p className="text-[10px] text-orange-600 font-bold">{applicant.guardianName}</p>
-                          <p className="text-xs text-orange-500/80">{applicant.guardianOccupation}</p>
+                        <div className="p-4 border-2 border-dashed border-orange-500/20 bg-orange-500/5 rounded-xl space-y-2">
+                          <Badge className="bg-orange-500/10 text-orange-500 border-none text-[8px]">WALI SISWA</Badge>
+                          <p className="text-sm font-bold text-orange-600">{applicant.guardianName}</p>
+                          <div className="grid grid-cols-2 gap-2 text-[10px] text-orange-700/70">
+                             <p>Tahun: {applicant.guardianBirthYear || '-'}</p>
+                             <p>Pendidikan: {applicant.guardianEducation || '-'}</p>
+                             <p className="col-span-2">Pekerjaan: {applicant.guardianOccupation || '-'}</p>
+                          </div>
                         </div>
                       )}
                     </div>
