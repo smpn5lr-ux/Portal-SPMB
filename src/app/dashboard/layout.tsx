@@ -31,8 +31,9 @@ import {
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { useAuth, useUser } from "@/firebase"
+import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase"
 import { signOut } from "firebase/auth"
+import { doc } from "firebase/firestore"
 
 const navigation = [
   { name: 'Ringkasan', href: '/dashboard', icon: LayoutDashboard },
@@ -47,13 +48,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname()
   const router = useRouter()
   const auth = useAuth()
-  const { user, loading } = useUser()
+  const db = useFirestore()
+  const { user, loading: userLoading } = useUser()
+
+  const settingsRef = useMemoFirebase(() => {
+    if (!db) return null
+    return doc(db, 'settings', 'system')
+  }, [db])
+
+  const { data: config, loading: configLoading } = useDoc<any>(settingsRef)
 
   React.useEffect(() => {
-    if (!loading && !user) {
+    if (!userLoading && !user) {
       router.push('/login')
     }
-  }, [user, loading, router])
+  }, [user, userLoading, router])
 
   const handleLogout = async () => {
     try {
@@ -64,7 +73,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }
 
-  if (loading) {
+  if (userLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -74,17 +83,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (!user) return null
 
+  const appName = config?.appName || "Portal SPMB"
+  const appLogoUrl = config?.appLogoUrl
+
   return (
     <SidebarProvider>
       <div className="flex h-screen w-full overflow-hidden bg-background">
         <Sidebar className="border-r border-border">
           <SidebarHeader className="p-4">
             <div className="flex items-center gap-3">
-              <div className="bg-primary p-2 rounded-lg shadow-lg shadow-primary/20">
-                <School className="w-6 h-6 text-primary-foreground" />
+              <div className="bg-primary p-2 rounded-lg shadow-lg shadow-primary/20 flex items-center justify-center min-w-10 min-h-10 overflow-hidden">
+                {appLogoUrl ? (
+                  <img src={appLogoUrl} alt="App Logo" className="w-full h-full object-contain" />
+                ) : (
+                  <School className="w-6 h-6 text-primary-foreground" />
+                )}
               </div>
               <div className="flex flex-col">
-                <span className="font-headline font-bold text-lg tracking-tight uppercase">Portal SPMB</span>
+                <span className="font-headline font-bold text-lg tracking-tight uppercase line-clamp-1">{appName}</span>
                 <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Admin Panel</span>
               </div>
             </div>

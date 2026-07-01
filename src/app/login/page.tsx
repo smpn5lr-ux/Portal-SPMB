@@ -8,13 +8,14 @@ import {
   createUserWithEmailAndPassword,
   updateProfile
 } from "firebase/auth"
-import { useAuth, useUser } from "@/firebase"
+import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { School, LogIn, Mail, Lock, Loader2, UserPlus } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { doc } from "firebase/firestore"
 
 export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(true)
@@ -24,9 +25,17 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   
   const auth = useAuth()
+  const db = useFirestore()
   const { user, loading: authLoading } = useUser()
   const router = useRouter()
   const { toast } = useToast()
+
+  const settingsRef = useMemoFirebase(() => {
+    if (!db) return null
+    return doc(db, 'settings', 'system')
+  }, [db])
+
+  const { data: config } = useDoc<any>(settingsRef)
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -71,6 +80,9 @@ export default function LoginPage() {
 
   if (authLoading) return null
 
+  const appName = config?.appName || "Portal SPMB"
+  const appLogoUrl = config?.appLogoUrl
+
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-background/50 relative overflow-hidden p-4">
       {/* Latar Belakang Dekoratif */}
@@ -79,15 +91,19 @@ export default function LoginPage() {
 
       <Card className="w-full max-w-[400px] border-border/50 shadow-2xl relative z-10 bg-card/80 backdrop-blur-xl">
         <CardHeader className="text-center space-y-4">
-          <div className="mx-auto w-12 h-12 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
-            <School className="w-7 h-7 text-primary-foreground" />
+          <div className="mx-auto w-14 h-14 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20 overflow-hidden">
+            {appLogoUrl ? (
+              <img src={appLogoUrl} alt="Logo" className="w-full h-full object-contain p-1" />
+            ) : (
+              <School className="w-8 h-8 text-primary-foreground" />
+            )}
           </div>
           <div>
             <CardTitle className="font-headline text-2xl font-bold tracking-tight">
-              {isLogin ? "Portal Admin SPMB" : "Daftar Admin Baru"}
+              {isLogin ? `Admin ${appName}` : "Daftar Admin Baru"}
             </CardTitle>
             <CardDescription>
-              {isLogin ? "Masuk untuk mengelola pendaftaran murid baru." : "Buat akun administrator baru untuk mengelola sistem."}
+              {isLogin ? `Masuk untuk mengelola sistem ${appName}.` : "Buat akun administrator baru untuk mengelola sistem."}
             </CardDescription>
           </div>
         </CardHeader>
@@ -162,7 +178,7 @@ export default function LoginPage() {
         </CardContent>
         <CardFooter className="flex flex-col gap-2">
           <p className="text-[10px] text-center text-muted-foreground uppercase tracking-widest font-bold">
-            Portal SPMB • Sistem Informasi Manajemen Sekolah
+            {appName} • Sistem Informasi Manajemen Sekolah
           </p>
         </CardFooter>
       </Card>

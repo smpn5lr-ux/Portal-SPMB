@@ -18,7 +18,9 @@ import {
   Trash2,
   CalendarDays,
   Map,
-  Hash
+  Hash,
+  ImageIcon,
+  Type
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -52,6 +54,8 @@ export default function SettingsPage() {
   const { data: schoolsData, loading: loadingSchools } = useDoc<any>(schoolsRef)
 
   const [localConfig, setLocalConfig] = useState<any>({
+    appName: "PORTAL SPMB",
+    appLogoUrl: "",
     schoolName: "SMP Negeri 1 Jakarta",
     dinasName: "DINAS PENDIDIKAN PROVINSI DKI JAKARTA",
     npsn: "20123456",
@@ -72,8 +76,6 @@ export default function SettingsPage() {
       setLocalConfig({
         ...localConfig,
         ...config,
-        academicYear: config.academicYear || "2024/2025",
-        totalQuota: config.totalQuota || 250
       })
     }
   }, [config])
@@ -184,6 +186,48 @@ export default function SettingsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
+          <Card className="border-border/50">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-primary" />
+                <CardTitle className="font-headline text-lg">Branding Aplikasi</CardTitle>
+              </div>
+              <CardDescription>Sesuaikan nama dan logo aplikasi untuk Login & Dashboard.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1">
+                    <Type className="w-3 h-3" /> Nama Aplikasi
+                  </label>
+                  <Input 
+                    value={localConfig.appName}
+                    onChange={(e) => setLocalConfig({...localConfig, appName: e.target.value})}
+                    placeholder="Contoh: PORTAL SPMB" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1">
+                    <ImageIcon className="w-3 h-3" /> URL Logo Gambar (Opsional)
+                  </label>
+                  <Input 
+                    value={localConfig.appLogoUrl}
+                    onChange={(e) => setLocalConfig({...localConfig, appLogoUrl: e.target.value})}
+                    placeholder="https://link-gambar-anda.com/logo.png" 
+                  />
+                </div>
+              </div>
+              {localConfig.appLogoUrl && (
+                <div className="mt-4 p-4 border rounded-lg bg-muted/20 flex items-center justify-center">
+                  <div className="flex flex-col items-center gap-2">
+                    <span className="text-[10px] uppercase font-bold text-muted-foreground">Pratinjau Logo</span>
+                    <img src={localConfig.appLogoUrl} alt="Logo Preview" className="h-12 object-contain rounded" />
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card className="border-border/50">
             <CardHeader>
               <div className="flex items-center gap-2">
