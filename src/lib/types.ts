@@ -10,35 +10,38 @@ export interface Applicant {
   NISN: string;
   NIK: string;
   familyCardNumber: string;
-  aktaLahirNumber?: string;
+  aktaLahirNumber: string;
   fullName: string;
   birthPlace: string;
   birthDate: string;
   gender: 'Laki-laki' | 'Perempuan';
   religion: string;
   address: string;
-  rt?: string;
-  rw?: string;
-  kelurahan?: string;
-  kecamatan?: string;
-  parentName: string;
-  parentPhone: string;
+  rt: string;
+  rw: string;
+  kelurahan: string;
+  kecamatan: string;
+  propinsi: string;
+  livingWith: 'Bersama Orang Tua' | 'Wali' | 'Asrama' | 'Kos';
+  transportation: 'Jalan Kaki' | 'Motor' | 'Mobil' | 'Angkot/Kendaraan Umum';
+  childOrder: number;
+  numberOfSiblings: number;
+  studentPhone: string;
+  parentName: string; // Contact person
+  parentPhone: string; // Contact phone
   originSchool: string;
   applicationPath: AdmissionPath;
   verificationStatus: VerificationStatus;
-  verificationNotes?: string;
-  academicScore?: number;
-  distanceToSchoolKm?: number;
-  ageYears?: number;
   admissionStatus: AdmissionStatus;
   createdAt: string;
   
-  // Dapodik Fields
-  livingWith?: 'Bersama Orang Tua' | 'Wali' | 'Asrama' | 'Kos';
-  transportation?: 'Jalan Kaki' | 'Motor' | 'Mobil' | 'Angkot/Kendaraan Umum';
+  // Parent/Guardian Details
   fatherName?: string;
+  fatherNIK?: string;
   motherName?: string;
-  ijazahSerialNumber?: string;
+  motherNIK?: string;
+  guardianName?: string;
+  guardianNIK?: string;
 }
 
 export interface Classroom {
