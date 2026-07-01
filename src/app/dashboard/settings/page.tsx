@@ -21,7 +21,8 @@ import {
   Hash,
   ImageIcon,
   Type,
-  Upload
+  Upload,
+  Fingerprint
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -68,7 +69,8 @@ export default function SettingsPage() {
     quotaAfirmasi: 15,
     quotaPerpindahan: 5,
     maxDistance: 3.5,
-    minScore: 75
+    minScore: 75,
+    regPrefix: "REG-2024-"
   })
 
   const [localSchools, setLocalSchools] = useState<string[]>([])
@@ -342,6 +344,27 @@ export default function SettingsPage() {
                     placeholder="Contoh: 250" 
                   />
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/50">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Fingerprint className="w-5 h-5 text-primary" />
+                <CardTitle className="font-headline text-lg">Format Nomor Registrasi</CardTitle>
+              </div>
+              <CardDescription>Sesuaikan prefiks untuk penomoran otomatis pendaftar.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Prefiks Registrasi</label>
+                <Input 
+                  value={localConfig.regPrefix}
+                  onChange={(e) => setLocalConfig({...localConfig, regPrefix: e.target.value})}
+                  placeholder="Contoh: REG-2024-" 
+                />
+                <p className="text-[10px] text-muted-foreground">Contoh hasil: {localConfig.regPrefix}0001, {localConfig.regPrefix}0002, dst.</p>
               </div>
             </CardContent>
           </Card>

@@ -26,7 +26,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import Link from 'next/link'
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase'
+import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase'
 import { collection, query, orderBy, addDoc, limit, getDocs, doc, updateDoc } from 'firebase/firestore'
 import { Applicant } from '@/lib/types'
 import { errorEmitter } from '@/firebase/error-emitter'
@@ -111,6 +111,13 @@ export default function ApplicantsPage() {
   })
 
   const watchLivingWith = form.watch("livingWith")
+
+  const settingsRef = useMemoFirebase(() => {
+    if (!db) return null
+    return doc(db, 'settings', 'system')
+  }, [db])
+
+  const { data: systemConfig } = useDoc<any>(settingsRef)
 
   const applicantsQuery = useMemoFirebase(() => {
     if (!db) return null
@@ -218,10 +225,12 @@ export default function ApplicantsPage() {
         const q = query(collection(db, 'applicants'), orderBy('registrationSequence', 'desc'), limit(1));
         const snap = await getDocs(q);
         const nextSequence = snap.empty ? 1 : (Number(snap.docs[0].data().registrationSequence) || 0) + 1;
+        
+        const prefix = systemConfig?.regPrefix || "REG-2024-";
 
         const newApplicant = {
           ...applicantData,
-          registrationNumber: `REG-2024-${nextSequence.toString().padStart(4, '0')}`,
+          registrationNumber: `${prefix}${nextSequence.toString().padStart(4, '0')}`,
           registrationSequence: nextSequence,
           verificationStatus: 'Belum Diverifikasi',
           admissionStatus: 'pending',
@@ -256,7 +265,7 @@ export default function ApplicantsPage() {
             <Button onClick={handleAddNew} className="gap-2"><Plus className="w-4 h-4" /> Murid Baru</Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[850px] h-[90vh] p-0 flex flex-col overflow-hidden border-border/50">
-            <DialogHeader className="p-6 pb-2 border-b flex flex-row items-center justify-between shrink-0">
+            <DialogHeader className="p-6 pb-2 border-b bg-muted/20 flex flex-row items-center justify-between shrink-0">
               <div>
                 <DialogTitle className="text-2xl font-headline">
                   {editingApplicant ? 'Edit Data Pendaftar' : 'Formulir Pendaftaran'}
@@ -508,6 +517,7 @@ export default function ApplicantsPage() {
                   <Badge variant="outline" className={`text-[10px] uppercase font-bold ${
                     applicant.verificationStatus === 'Lengkap' ? 'bg-green-500/10 text-green-500 border-green-500/20' :
                     applicant.verificationStatus === 'Ditolak' ? 'bg-destructive/10 text-destructive border-destructive/20' :
+                    applicant.verificationStatus === 'Perlu Perbaikan' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
                     'bg-slate-500/10 text-slate-400'
                   }`}>
                     {applicant.verificationStatus}
