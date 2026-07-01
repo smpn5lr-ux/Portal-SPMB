@@ -11,6 +11,16 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase'
 import { collection, doc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { Applicant } from '@/lib/types'
@@ -20,6 +30,9 @@ import { useToast } from '@/hooks/use-toast'
 
 export default function TrashPage() {
   const [searchTerm, setSearchTerm] = useState('')
+  const [applicantToDelete, setApplicantToDelete] = useState<Applicant | null>(null)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  
   const { toast } = useToast()
   const db = useFirestore()
 
@@ -51,13 +64,18 @@ export default function TrashPage() {
     })
   }
 
-  const handlePermanentDelete = async (applicant: Applicant) => {
-    if (!db) return
-    if (!confirm(`HAPUS PERMANEN ${applicant.fullName}? Tindakan ini tidak dapat dibatalkan.`)) return
+  const handleDeleteConfirm = (applicant: Applicant) => {
+    setApplicantToDelete(applicant)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const executePermanentDelete = async () => {
+    if (!db || !applicantToDelete) return
     
-    const docRef = doc(db, 'applicants', applicant.id)
+    const docRef = doc(db, 'applicants', applicantToDelete.id)
     deleteDoc(docRef).then(() => {
       toast({ title: "Data dihapus permanen" })
+      setApplicantToDelete(null)
     }).catch(async () => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'delete' }))
     })
@@ -110,7 +128,7 @@ export default function TrashPage() {
                     <Button variant="outline" size="sm" className="gap-2 text-green-500 border-green-500/20 hover:bg-green-500/5" onClick={() => handleRestore(applicant)}>
                       <RotateCcw className="w-4 h-4" /> Pulihkan
                     </Button>
-                    <Button variant="outline" size="sm" className="gap-2 text-destructive border-destructive/20 hover:bg-destructive/5" onClick={() => handlePermanentDelete(applicant)}>
+                    <Button variant="outline" size="sm" className="gap-2 text-destructive border-destructive/20 hover:bg-destructive/5" onClick={() => handleDeleteConfirm(applicant)}>
                       <Trash2 className="w-4 h-4" /> Hapus Permanen
                     </Button>
                   </div>
@@ -120,6 +138,25 @@ export default function TrashPage() {
           </TableBody>
         </Table>
       </div>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive flex items-center gap-2">
+              <ShieldAlert className="w-5 h-5" /> Hapus Permanen?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Tindakan ini tidak dapat dibatalkan. Data <strong>{applicantToDelete?.fullName}</strong> akan dihapus selamanya dari sistem.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setApplicantToDelete(null)}>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={executePermanentDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Hapus Selamanya
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

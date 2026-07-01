@@ -3,11 +3,21 @@
 
 import { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, User, Download, MapPin, Briefcase, Info, Loader2, Sparkles, CheckCircle2, XCircle, Users, AlertCircle, ClipboardCheck, School, GraduationCap, Calendar, Phone, Trash2 } from "lucide-react"
+import { ArrowLeft, User, Download, MapPin, Briefcase, Info, Loader2, Sparkles, CheckCircle2, XCircle, Users, AlertCircle, ClipboardCheck, School, GraduationCap, Calendar, Phone, Trash2, ShieldAlert } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import Link from 'next/link'
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase'
 import { doc, updateDoc } from 'firebase/firestore'
@@ -21,6 +31,7 @@ export default function ApplicantDetailPage() {
   const router = useRouter()
   const db = useFirestore()
   const { toast } = useToast()
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   
   const applicantRef = useMemoFirebase(() => {
     if (!db || !id) return null
@@ -39,7 +50,6 @@ export default function ApplicantDetailPage() {
     if (!dateStr) return "-";
     const parts = dateStr.split('-');
     if (parts.length === 3) {
-      // Input YYYY-MM-DD -> Output DD-MM-YYYY
       return `${parts[2]}-${parts[1]}-${parts[0]}`;
     }
     return dateStr;
@@ -56,9 +66,8 @@ export default function ApplicantDetailPage() {
       })
   }
 
-  const handleDelete = async () => {
+  const executeDelete = async () => {
     if (!db || !applicantRef || !applicant) return
-    if (!confirm(`Apakah Anda yakin ingin memindahkan ${applicant.fullName} ke tempat sampah?`)) return
     
     updateDoc(applicantRef, { 
       isDeleted: true,
@@ -182,7 +191,7 @@ export default function ApplicantDetailPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleDownloadPDF} className="gap-2"><Download className="w-4 h-4" /> Cetak Biodata</Button>
-          <Button variant="outline" onClick={handleDelete} className="gap-2 text-destructive border-destructive/20 hover:bg-destructive/5">
+          <Button variant="outline" onClick={() => setIsDeleteDialogOpen(true)} className="gap-2 text-destructive border-destructive/20 hover:bg-destructive/5">
             <Trash2 className="w-4 h-4" /> Hapus
           </Button>
         </div>
@@ -370,6 +379,25 @@ export default function ApplicantDetailPage() {
           </Card>
         </div>
       </div>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <ShieldAlert className="w-5 h-5 text-destructive" /> Konfirmasi Penghapusan
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin memindahkan data <strong>{applicant?.fullName}</strong> ke tempat sampah?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={executeDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Ya, Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

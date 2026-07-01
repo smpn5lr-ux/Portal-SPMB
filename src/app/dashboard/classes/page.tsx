@@ -21,7 +21,8 @@ import {
   FileText as FilePdf,
   ChevronDown,
   ClipboardList,
-  AlertTriangle
+  AlertTriangle,
+  ShieldAlert
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -38,6 +39,16 @@ import {
   DialogTitle, 
   DialogTrigger 
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import {
   Form,
   FormControl,
@@ -85,6 +96,9 @@ export default function ClassesPage() {
   const [isViewOpen, setIsViewOpen] = useState(false)
   const [editingClass, setEditingClass] = useState<Classroom | null>(null)
   const [selectedClassForView, setSelectedClassForView] = useState<Classroom | null>(null)
+  const [classToDelete, setClassToDelete] = useState<Classroom | null>(null)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  
   const [submitting, setSubmitting] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const { toast } = useToast()
@@ -279,7 +293,6 @@ export default function ClassesPage() {
         const { default: autoTable } = await import('jspdf-autotable')
         const doc = new jsPDF()
         
-        // KOP
         doc.setFontSize(10).setFont("helvetica", "bold").text(dinasName.toUpperCase(), 105, 12, { align: "center" })
         doc.setFontSize(16).text(schoolName.toUpperCase(), 105, 18, { align: "center" })
         doc.setFontSize(8).setFont("helvetica", "normal").text(`NPSN: ${npsn} | Tahun Ajaran ${academicYear}`, 105, 23, { align: "center" })
@@ -360,11 +373,16 @@ export default function ClassesPage() {
     }
   }
 
-  const handleDeleteClass = async (id: string) => {
-    if (!db) return
-    if (!confirm("Apakah Anda yakin ingin menghapus kelas ini? Murid di dalamnya akan keluar dari rombel.")) return
-    await deleteDoc(doc(db, 'classes', id))
+  const handleDeleteClassConfirm = (cls: Classroom) => {
+    setClassToDelete(cls)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const executeDeleteClass = async () => {
+    if (!db || !classToDelete) return
+    await deleteDoc(doc(db, 'classes', classToDelete.id))
     toast({ title: "Kelas Dihapus" })
+    setClassToDelete(null)
   }
 
   const getStudentsInClass = (studentIds: string[]) => {
@@ -449,7 +467,7 @@ export default function ClassesPage() {
               variant="outline" 
               size="icon" 
               className="absolute top-2 right-2 text-destructive border-destructive/20 hover:bg-destructive/10"
-              onClick={() => handleDeleteClass(cls.id)}
+              onClick={() => handleDeleteClassConfirm(cls)}
             >
               <Trash2 className="w-4 h-4" />
             </Button>
@@ -567,6 +585,25 @@ export default function ClassesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <ShieldAlert className="w-5 h-5 text-destructive" /> Konfirmasi Hapus Rombel
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin menghapus <strong>Kelas {classToDelete?.name}</strong>? Murid di dalamnya akan dikeluarkan dari rombel namun data murid tetap aman.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={executeDeleteClass} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Hapus Kelas
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

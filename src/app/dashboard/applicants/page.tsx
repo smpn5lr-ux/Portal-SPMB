@@ -15,6 +15,16 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form"
 import {
@@ -91,6 +101,9 @@ export default function ApplicantsPage() {
   const [submitting, setSubmitting] = useState(false)
   const [isScanning, setIsScanning] = useState(false)
   const [editingApplicant, setEditingApplicant] = useState<Applicant | null>(null)
+  const [applicantToDelete, setApplicantToDelete] = useState<Applicant | null>(null)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  
   const scanInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
   const db = useFirestore()
@@ -187,16 +200,21 @@ export default function ApplicantsPage() {
     setIsDialogOpen(true)
   }
 
-  const handleDelete = async (applicant: Applicant) => {
-    if (!db) return
-    if (!confirm(`Pindahkan ${applicant.fullName} ke tempat sampah?`)) return
+  const handleDeleteConfirm = (applicant: Applicant) => {
+    setApplicantToDelete(applicant)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const executeDelete = async () => {
+    if (!db || !applicantToDelete) return
     
-    const docRef = doc(db, 'applicants', applicant.id)
+    const docRef = doc(db, 'applicants', applicantToDelete.id)
     updateDoc(docRef, { 
       isDeleted: true,
       deletedAt: new Date().toISOString()
     }).then(() => {
       toast({ title: "Data dipindahkan ke sampah" })
+      setApplicantToDelete(null)
     }).catch(async () => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'update' }))
     })
@@ -548,7 +566,7 @@ export default function ApplicantsPage() {
                     <Button variant="ghost" size="icon" asChild className="hover:text-primary">
                       <Link href={`/dashboard/applicants/${applicant.id}`}><Eye className="w-4 h-4" /></Link>
                     </Button>
-                    <Button variant="ghost" size="icon" className="hover:text-destructive" onClick={() => handleDelete(applicant)}>
+                    <Button variant="ghost" size="icon" className="hover:text-destructive" onClick={() => handleDeleteConfirm(applicant)}>
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
@@ -558,6 +576,23 @@ export default function ApplicantsPage() {
           </TableBody>
         </Table>
       </div>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Pindahkan ke Sampah?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin memindahkan data <strong>{applicantToDelete?.fullName}</strong> ke tempat sampah? Data dapat dipulihkan nanti.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setApplicantToDelete(null)}>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={executeDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Pindahkan ke Sampah
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

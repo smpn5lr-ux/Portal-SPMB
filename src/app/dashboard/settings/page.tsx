@@ -22,7 +22,8 @@ import {
   ImageIcon,
   Type,
   Upload,
-  Fingerprint
+  Fingerprint,
+  ShieldAlert
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -30,6 +31,16 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Slider } from "@/components/ui/slider"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { useFirestore, useDoc, useMemoFirebase } from "@/firebase"
 import { doc, setDoc } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
@@ -41,6 +52,9 @@ export default function SettingsPage() {
   const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
   const [newSchool, setNewSchool] = useState("")
+  const [schoolToRemove, setSchoolToRemove] = useState<string | null>(null)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  
   const logoInputRef = useRef<HTMLInputElement>(null)
   
   const settingsRef = useMemoFirebase(() => {
@@ -181,11 +195,17 @@ export default function SettingsPage() {
     saveSchools(updated)
   }
 
-  const handleRemoveSchool = (name: string) => {
-    if (!confirm(`Apakah Anda yakin ingin menghapus "${name}" dari daftar sekolah asal?`)) return
-    const updated = localSchools.filter(s => s !== name)
+  const handleRemoveSchoolConfirm = (name: string) => {
+    setSchoolToRemove(name)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const executeRemoveSchool = () => {
+    if (!schoolToRemove) return
+    const updated = localSchools.filter(s => s !== schoolToRemove)
     setLocalSchools(updated)
     saveSchools(updated)
+    setSchoolToRemove(null)
   }
 
   const saveSchools = (list: string[]) => {
@@ -398,7 +418,7 @@ export default function SettingsPage() {
                       variant="ghost" 
                       size="icon" 
                       className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => handleRemoveSchool(school)}
+                      onClick={() => handleRemoveSchoolConfirm(school)}
                     >
                       <Trash2 className="w-3 h-3" />
                     </Button>
@@ -467,6 +487,25 @@ export default function SettingsPage() {
           </Card>
         </div>
       </div>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <ShieldAlert className="w-5 h-5 text-destructive" /> Hapus Sekolah?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin menghapus <strong>{schoolToRemove}</strong> dari daftar sekolah asal?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSchoolToRemove(null)}>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={executeRemoveSchool} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Ya, Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

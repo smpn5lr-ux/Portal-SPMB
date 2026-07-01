@@ -13,7 +13,8 @@ import {
   MoreVertical,
   CheckCircle2,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  ShieldAlert
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -36,6 +37,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import {
   Form,
   FormControl,
@@ -72,6 +83,9 @@ export default function StaffManagementPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [staffToDelete, setStaffToDelete] = useState<Staff | null>(null)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  
   const { toast } = useToast()
   const db = useFirestore()
 
@@ -125,16 +139,21 @@ export default function StaffManagementPage() {
     }
   }
 
-  const handleDeleteStaff = async (staff: Staff) => {
-    if (!db) return
-    if (!confirm(`Hapus akses untuk ${staff.fullName}?`)) return
+  const handleDeleteStaffConfirm = (staff: Staff) => {
+    setStaffToDelete(staff)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const executeDeleteStaff = async () => {
+    if (!db || !staffToDelete) return
     
     try {
-      await deleteDoc(doc(db, 'staff', staff.id))
+      await deleteDoc(doc(db, 'staff', staffToDelete.id))
       toast({ title: "Akses Dicabut", description: "Pegawai telah dihapus dari sistem." })
+      setStaffToDelete(null)
     } catch (error) {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: `staff/${staff.id}`,
+        path: `staff/${staffToDelete.id}`,
         operation: 'delete',
       }))
     }
@@ -276,7 +295,7 @@ export default function StaffManagementPage() {
                       variant="ghost" 
                       size="icon" 
                       className="text-destructive hover:bg-destructive/10"
-                      onClick={() => handleDeleteStaff(staff)}
+                      onClick={() => handleDeleteStaffConfirm(staff)}
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -316,6 +335,25 @@ export default function StaffManagementPage() {
           </Card>
         </div>
       </div>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <ShieldAlert className="w-5 h-5 text-destructive" /> Cabut Akses Pegawai?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin menghapus akses untuk <strong>{staffToDelete?.fullName}</strong>? Pegawai ini tidak akan bisa masuk ke sistem lagi.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={executeDeleteStaff} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Ya, Cabut Akses
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
