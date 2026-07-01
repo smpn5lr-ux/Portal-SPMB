@@ -3,7 +3,7 @@
 
 import { useState } from 'react'
 import { useParams } from 'next/navigation'
-import { ArrowLeft, User, Download, MapPin, Briefcase, Info, Loader2, Sparkles, CheckCircle2, XCircle, Users, AlertCircle, ClipboardCheck } from "lucide-react"
+import { ArrowLeft, User, Download, MapPin, Briefcase, Info, Loader2, Sparkles, CheckCircle2, XCircle, Users, AlertCircle, ClipboardCheck, School, GraduationCap, Calendar, Phone } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -32,7 +32,7 @@ export default function ApplicantDetailPage() {
     if (!dateStr) return "-";
     const parts = dateStr.split('-');
     if (parts.length === 3) {
-      // Input is YYYY-MM-DD, output is DD-MM-YYYY
+      // Input YYYY-MM-DD -> Output DD-MM-YYYY
       return `${parts[2]}-${parts[1]}-${parts[0]}`;
     }
     return dateStr;
@@ -134,6 +134,8 @@ export default function ApplicantDetailPage() {
   if (loading) return <div className="flex justify-center py-24"><Loader2 className="animate-spin" /></div>
   if (!applicant) return <div className="text-center py-24">Data tidak ditemukan.</div>
 
+  const isAccepted = applicant.admissionStatus === 'accepted';
+
   const getStatusStyles = (status: string) => {
     switch (status) {
       case 'Lengkap': return 'bg-green-500/10 text-green-500 border-green-500/20';
@@ -149,75 +151,84 @@ export default function ApplicantDetailPage() {
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild><Link href="/dashboard/applicants"><ArrowLeft className="w-5 h-5" /></Link></Button>
           <div>
-            <h1 className="text-2xl font-bold">{applicant.fullName}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold">{applicant.fullName}</h1>
+              {isAccepted && <Badge className="bg-green-500 hover:bg-green-600 gap-1"><CheckCircle2 className="w-3 h-3" /> SISWA AKTIF</Badge>}
+            </div>
             <p className="text-muted-foreground text-sm font-mono">{applicant.registrationNumber}</p>
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleDownloadPDF} className="gap-2"><Download className="w-4 h-4" /> Cetak Formulir</Button>
+          <Button variant="outline" onClick={handleDownloadPDF} className="gap-2"><Download className="w-4 h-4" /> Cetak Biodata</Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <Card>
+          <Card className="border-border/50 shadow-md">
             <CardHeader className="border-b bg-muted/20">
-              <CardTitle>Profil Calon Murid</CardTitle>
-              <CardDescription>Informasi lengkap sesuai standar Dapodik.</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-xl font-headline">{isAccepted ? "Data Induk Siswa (Dapodik)" : "Profil Calon Murid"}</CardTitle>
+                  <CardDescription>Informasi biodata lengkap siswa sesuai dokumen resmi.</CardDescription>
+                </div>
+                <div className="bg-primary/10 p-2 rounded-lg">
+                  <GraduationCap className="w-6 h-6 text-primary" />
+                </div>
+              </div>
             </CardHeader>
-            <CardContent className="pt-6 space-y-12">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-4">
-                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-primary">I. Data Pribadi</h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between"><span className="text-muted-foreground">NISN :</span><span className="font-mono">{applicant.NISN || "-"}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">NIK :</span><span className="font-mono">{applicant.NIK || "-"}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">JK :</span><span>{applicant.gender || "-"}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Agama :</span><span>{applicant.religion || "-"}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">TTL :</span><span>{applicant.birthPlace || "-"}, {formatDate(applicant.birthDate)}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Anak Ke- :</span><span>{applicant.childOrder || "-"}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Saudara :</span><span>{applicant.numberOfSiblings || "-"}</span></div>
+            <CardContent className="pt-8 space-y-12">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div className="space-y-5">
+                  <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary"></div> I. IDENTITAS PRIBADI
+                  </h4>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between border-b border-border/30 pb-1"><span className="text-muted-foreground">NISN :</span><span className="font-mono font-bold text-accent">{applicant.NISN || "-"}</span></div>
+                    <div className="flex justify-between border-b border-border/30 pb-1"><span className="text-muted-foreground">NIK :</span><span className="font-mono">{applicant.NIK || "-"}</span></div>
+                    <div className="flex justify-between border-b border-border/30 pb-1"><span className="text-muted-foreground">Jenis Kelamin :</span><span>{applicant.gender || "-"}</span></div>
+                    <div className="flex justify-between border-b border-border/30 pb-1"><span className="text-muted-foreground">Agama :</span><span>{applicant.religion || "-"}</span></div>
+                    <div className="flex justify-between border-b border-border/30 pb-1"><span className="text-muted-foreground">Tempat, Tgl Lahir :</span><span>{applicant.birthPlace || "-"}, {formatDate(applicant.birthDate)}</span></div>
+                    <div className="flex justify-between border-b border-border/30 pb-1"><span className="text-muted-foreground">Anak Ke- :</span><span>{applicant.childOrder || "-"}</span></div>
+                    <div className="flex justify-between border-b border-border/30 pb-1"><span className="text-muted-foreground">Jumlah Saudara :</span><span>{applicant.numberOfSiblings || "-"}</span></div>
                   </div>
                 </div>
-                <div className="space-y-4">
-                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-primary">II. Alamat & Kontak</h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex flex-col"><span className="text-muted-foreground">Alamat :</span><span>{applicant.address || "-"}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">RT/RW :</span><span>{applicant.rt || "-"} / {applicant.rw || "-"}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Kelurahan :</span><span>{applicant.kelurahan || "-"}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Kecamatan :</span><span>{applicant.kecamatan || "-"}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Provinsi :</span><span>{applicant.propinsi || "-"}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">HP Siswa :</span><span>{applicant.studentPhone || "-"}</span></div>
+                <div className="space-y-5">
+                  <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary"></div> II. DOMISILI & KONTAK
+                  </h4>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex flex-col border-b border-border/30 pb-1"><span className="text-muted-foreground">Alamat Tinggal :</span><span className="font-medium mt-1">{applicant.address || "-"}</span></div>
+                    <div className="flex justify-between border-b border-border/30 pb-1"><span className="text-muted-foreground">RT / RW :</span><span>{applicant.rt || "-"} / {applicant.rw || "-"}</span></div>
+                    <div className="flex justify-between border-b border-border/30 pb-1"><span className="text-muted-foreground">Desa / Kelurahan :</span><span>{applicant.kelurahan || "-"}</span></div>
+                    <div className="flex justify-between border-b border-border/30 pb-1"><span className="text-muted-foreground">Kecamatan :</span><span>{applicant.kecamatan || "-"}</span></div>
+                    <div className="flex justify-between border-b border-border/30 pb-1"><span className="text-muted-foreground">Provinsi :</span><span>{applicant.propinsi || "-"}</span></div>
+                    <div className="flex justify-between border-b border-border/30 pb-1 text-primary"><span className="text-muted-foreground">No. HP Siswa :</span><span className="font-bold">{applicant.studentPhone || "-"}</span></div>
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-6">
-                <h4 className="text-[10px] font-bold uppercase tracking-widest text-primary border-b pb-1">III. Data Orang Tua</h4>
+              <div className="space-y-8">
+                <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary flex items-center gap-2 border-b pb-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary"></div> III. DATA ORANG TUA KANDUNG
+                </h4>
                 
                 <div className="space-y-8">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between font-bold text-xs text-muted-foreground uppercase"><span className="text-accent">Data Ayah</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">Nama :</span><span className="font-medium">{applicant.fatherName || "-"}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">NIK :</span><span className="font-mono">{applicant.fatherNIK || "-"}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">Thn Lahir :</span><span>{applicant.fatherBirthYear || "-"}</span></div>
-                    </div>
-                    <div className="space-y-2 text-sm pt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                    <div className="space-y-3 text-sm">
+                      <div className="flex justify-between font-bold text-[10px] text-accent uppercase tracking-widest border-b pb-1"><span>Data Ayah</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Nama Lengkap :</span><span className="font-semibold">{applicant.fatherName || "-"}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">NIK Ayah :</span><span className="font-mono">{applicant.fatherNIK || "-"}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Tahun Lahir :</span><span>{applicant.fatherBirthYear || "-"}</span></div>
                       <div className="flex justify-between"><span className="text-muted-foreground">Pendidikan :</span><span>{applicant.fatherEducation || "-"}</span></div>
                       <div className="flex justify-between"><span className="text-muted-foreground">Pekerjaan :</span><span>{applicant.fatherJob || "-"}</span></div>
                       <div className="flex justify-between"><span className="text-muted-foreground">Penghasilan :</span><span>{applicant.fatherIncome || "-"}</span></div>
                     </div>
-                  </div>
-                  <Separator className="bg-border/30" />
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between font-bold text-xs text-muted-foreground uppercase"><span className="text-accent">Data Ibu</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">Nama :</span><span className="font-medium">{applicant.motherName || "-"}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">NIK :</span><span className="font-mono">{applicant.motherNIK || "-"}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">Thn Lahir :</span><span>{applicant.motherBirthYear || "-"}</span></div>
-                    </div>
-                    <div className="space-y-2 text-sm pt-4">
+                    <div className="space-y-3 text-sm">
+                      <div className="flex justify-between font-bold text-[10px] text-accent uppercase tracking-widest border-b pb-1"><span>Data Ibu</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Nama Lengkap :</span><span className="font-semibold">{applicant.motherName || "-"}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">NIK Ibu :</span><span className="font-mono">{applicant.motherNIK || "-"}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Tahun Lahir :</span><span>{applicant.motherBirthYear || "-"}</span></div>
                       <div className="flex justify-between"><span className="text-muted-foreground">Pendidikan :</span><span>{applicant.motherEducation || "-"}</span></div>
                       <div className="flex justify-between"><span className="text-muted-foreground">Pekerjaan :</span><span>{applicant.motherJob || "-"}</span></div>
                       <div className="flex justify-between"><span className="text-muted-foreground">Penghasilan :</span><span>{applicant.motherIncome || "-"}</span></div>
@@ -227,14 +238,16 @@ export default function ApplicantDetailPage() {
 
                 {applicant.livingWith !== 'Bersama Orang Tua' && (
                   <div className="pt-10 space-y-6">
-                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-primary border-b pb-1">IV. Data Wali</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between"><span className="text-muted-foreground">Nama Wali :</span><span className="font-medium">{applicant.guardianName || "-"}</span></div>
+                    <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary flex items-center gap-2 border-b pb-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary"></div> IV. DATA WALI SISWA
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                      <div className="space-y-3 text-sm">
+                        <div className="flex justify-between"><span className="text-muted-foreground">Nama Wali :</span><span className="font-semibold">{applicant.guardianName || "-"}</span></div>
                         <div className="flex justify-between"><span className="text-muted-foreground">NIK Wali :</span><span className="font-mono">{applicant.guardianNIK || "-"}</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Thn Lahir :</span><span>{applicant.guardianBirthYear || "-"}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Tahun Lahir :</span><span>{applicant.guardianBirthYear || "-"}</span></div>
                       </div>
-                      <div className="space-y-2 text-sm">
+                      <div className="space-y-3 text-sm">
                         <div className="flex justify-between"><span className="text-muted-foreground">Pendidikan :</span><span>{applicant.guardianEducation || "-"}</span></div>
                         <div className="flex justify-between"><span className="text-muted-foreground">Pekerjaan :</span><span>{applicant.guardianJob || "-"}</span></div>
                         <div className="flex justify-between"><span className="text-muted-foreground">Penghasilan :</span><span>{applicant.guardianIncome || "-"}</span></div>
@@ -248,58 +261,86 @@ export default function ApplicantDetailPage() {
         </div>
 
         <div className="space-y-6">
+          {isAccepted ? (
+             <Card className="border-green-500/20 bg-green-500/5 shadow-lg">
+                <CardHeader className="pb-3 text-center">
+                  <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-green-500/20">
+                    <CheckCircle2 className="w-10 h-10 text-white" />
+                  </div>
+                  <CardTitle className="text-xl font-bold text-green-500">PENDAFTAR DITERIMA</CardTitle>
+                  <CardDescription>Siswa telah lulus seleksi dan diverifikasi.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4 pt-2">
+                  <Separator className="bg-green-500/20" />
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between"><span className="text-muted-foreground">Jalur Seleksi :</span><Badge variant="secondary">{applicant.applicationPath}</Badge></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Status Verifikasi :</span><span className="text-green-600 font-bold">LENGKAP</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Tahun Masuk :</span><span className="font-bold">2024 / 2025</span></div>
+                  </div>
+                  <Button variant="outline" onClick={() => handleUpdateStatus('Belum Diverifikasi')} className="w-full mt-4 text-xs">Batalkan Kelulusan</Button>
+                </CardContent>
+             </Card>
+          ) : (
+            <Card className="border-border/50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <ClipboardCheck className="w-5 h-5 text-primary" />
+                  Panel Verifikasi
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => handleUpdateStatus('Lengkap')} 
+                    className="text-green-500 border-green-500/20 hover:bg-green-500/5 h-11"
+                  >
+                    <CheckCircle2 className="w-4 h-4 mr-2" /> Lengkap
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => handleUpdateStatus('Ditolak')} 
+                    className="text-destructive border-destructive/20 hover:bg-destructive/5 h-11"
+                  >
+                    <XCircle className="w-4 h-4 mr-2" /> Tolak
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => handleUpdateStatus('Perlu Perbaikan')} 
+                    className="col-span-2 text-amber-500 border-amber-500/20 hover:bg-amber-500/5 h-11"
+                  >
+                    <AlertCircle className="w-4 h-4 mr-2" /> Belum Lengkap
+                  </Button>
+                </div>
+                
+                <Separator className="my-2" />
+                
+                <div className="space-y-2 text-center">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Status Verifikasi Saat Ini :</p>
+                  <Badge 
+                    variant="outline" 
+                    className={`w-full justify-center py-2.5 text-sm uppercase font-bold tracking-widest ${getStatusStyles(applicant.verificationStatus)}`}
+                  >
+                    {applicant.verificationStatus || "-"}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
           <Card className="border-border/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <ClipboardCheck className="w-5 h-5 text-primary" />
-                Panel Verifikasi
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                <School className="w-4 h-4 text-accent" /> Informasi Akademik
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-2">
-                <Button 
-                  variant="outline" 
-                  onClick={() => handleUpdateStatus('Lengkap')} 
-                  className="text-green-500 border-green-500/20 hover:bg-green-500/5 h-11"
-                >
-                  <CheckCircle2 className="w-4 h-4 mr-2" /> Lengkap
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => handleUpdateStatus('Ditolak')} 
-                  className="text-destructive border-destructive/20 hover:bg-destructive/5 h-11"
-                >
-                  <XCircle className="w-4 h-4 mr-2" /> Tolak
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => handleUpdateStatus('Perlu Perbaikan')} 
-                  className="col-span-2 text-amber-500 border-amber-500/20 hover:bg-amber-500/5 h-11"
-                >
-                  <AlertCircle className="w-4 h-4 mr-2" /> Belum Lengkap
-                </Button>
-              </div>
-              
-              <Separator className="my-2" />
-              
-              <div className="space-y-2">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Status Verifikasi Saat Ini :</p>
-                <Badge 
-                  variant="outline" 
-                  className={`w-full justify-center py-2.5 text-sm uppercase font-bold tracking-widest ${getStatusStyles(applicant.verificationStatus)}`}
-                >
-                  {applicant.verificationStatus || "-"}
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader><CardTitle className="text-sm uppercase tracking-wider">Info Pendaftaran</CardTitle></CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <div className="flex justify-between"><span className="text-muted-foreground">Jalur :</span><Badge variant="secondary">{applicant.applicationPath || "-"}</Badge></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Sekolah Asal :</span><span className="text-right">{applicant.originSchool || "-"}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Tgl Daftar :</span><span>{applicant.createdAt ? new Date(applicant.createdAt).toLocaleDateString() : "-"}</span></div>
+            <CardContent className="space-y-3 text-sm pt-2">
+              <div className="flex justify-between"><span className="text-muted-foreground">Asal Sekolah :</span><span className="text-right font-medium">{applicant.originSchool || "-"}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Jalur Pendaftaran :</span><Badge variant="outline" className="text-[10px] font-bold">{applicant.applicationPath || "-"}</Badge></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Tgl Pendaftaran :</span><span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {applicant.createdAt ? new Date(applicant.createdAt).toLocaleDateString('id-ID') : "-"}</span></div>
+              {applicant.academicScore && (
+                <div className="flex justify-between border-t pt-2 mt-2"><span className="text-muted-foreground font-bold">Skor Akademik :</span><span className="font-bold text-accent">{applicant.academicScore}</span></div>
+              )}
             </CardContent>
           </Card>
         </div>
