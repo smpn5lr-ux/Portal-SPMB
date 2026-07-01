@@ -50,23 +50,69 @@ export default function ApplicantDetailPage() {
       ["No. Registrasi", applicant.registrationNumber || "-"],
       ["NISN", applicant.NISN || "-"],
       ["NIK", applicant.NIK || "-"],
+      ["No. KK", applicant.familyCardNumber || "-"],
+      ["No. Akta Lahir", applicant.aktaLahirNumber || "-"],
       ["Nama Lengkap", (applicant.fullName || "-").toUpperCase()],
       ["Tempat, Tgl Lahir", `${applicant.birthPlace || "-"}, ${applicant.birthDate || "-"}`],
       ["Jenis Kelamin", applicant.gender || "-"],
       ["Agama", applicant.religion || "-"],
+      ["Anak Ke-", applicant.childOrder?.toString() || "-"],
+      ["Jml Saudara", applicant.numberOfSiblings?.toString() || "-"],
       ["Alamat", `${applicant.address || "-"}, RT ${applicant.rt || "-"} RW ${applicant.rw || "-"}, Kel. ${applicant.kelurahan || "-"}, Kec. ${applicant.kecamatan || "-"}, ${applicant.propinsi || "-"}`],
-      ["Nama Orang Tua/Wali", applicant.parentName || "-"],
-      ["No. HP", applicant.parentPhone || "-"],
+      ["Transportasi", applicant.transportation || "-"],
+      ["Tinggal Bersama", applicant.livingWith || "-"],
+      ["HP Siswa", applicant.studentPhone || "-"],
+      ["", ""],
+      ["DATA AYAH", ""],
+      ["Nama Ayah", applicant.fatherName || "-"],
+      ["NIK Ayah", applicant.fatherNIK || "-"],
+      ["Thn Lahir Ayah", applicant.fatherBirthYear || "-"],
+      ["Pendidikan Ayah", applicant.fatherEducation || "-"],
+      ["Pekerjaan Ayah", applicant.fatherJob || "-"],
+      ["Penghasilan Ayah", applicant.fatherIncome || "-"],
+      ["", ""],
+      ["DATA IBU", ""],
+      ["Nama Ibu", applicant.motherName || "-"],
+      ["NIK Ibu", applicant.motherNIK || "-"],
+      ["Thn Lahir Ibu", applicant.motherBirthYear || "-"],
+      ["Pendidikan Ibu", applicant.motherEducation || "-"],
+      ["Pekerjaan Ibu", applicant.motherJob || "-"],
+      ["Penghasilan Ibu", applicant.motherIncome || "-"],
+    ]
+
+    if (applicant.livingWith !== 'Bersama Orang Tua') {
+      data.push(
+        ["", ""],
+        ["DATA WALI", ""],
+        ["Nama Wali", applicant.guardianName || "-"],
+        ["NIK Wali", applicant.guardianNIK || "-"],
+        ["Thn Lahir Wali", applicant.guardianBirthYear || "-"],
+        ["Pendidikan Wali", applicant.guardianEducation || "-"],
+        ["Pekerjaan Wali", applicant.guardianJob || "-"],
+        ["Penghasilan Wali", applicant.guardianIncome || "-"]
+      )
+    }
+
+    data.push(
+      ["", ""],
+      ["INFO PENDAFTARAN", ""],
       ["Sekolah Asal", applicant.originSchool || "-"],
       ["Jalur Pendaftaran", applicant.applicationPath || "-"],
-    ]
+      ["Status Verifikasi", applicant.verificationStatus || "-"]
+    )
 
     autoTable(doc, {
       body: data,
       startY: 35,
       theme: 'plain',
-      styles: { fontSize: 10, cellPadding: 2 },
-      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 } }
+      styles: { fontSize: 9, cellPadding: 1.5 },
+      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 } },
+      didParseCell: (data) => {
+        if (["DATA AYAH", "DATA IBU", "DATA WALI", "INFO PENDAFTARAN"].includes(data.cell.text[0])) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.textColor = [67, 97, 238];
+        }
+      }
     })
 
     doc.save(`Formulir_${applicant.fullName}.pdf`)

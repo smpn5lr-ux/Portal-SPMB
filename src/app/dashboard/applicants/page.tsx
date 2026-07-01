@@ -37,24 +37,24 @@ import { extractFormData } from '@/ai/flows/extract-form-data-flow'
 const formSchema = z.object({
   fullName: z.string().min(2, "Nama lengkap harus diisi"),
   gender: z.enum(['Laki-laki', 'Perempuan']),
-  NISN: z.string().length(10, "NISN harus 10 digit"),
-  NIK: z.string().length(16, "NIK harus 16 digit"),
-  familyCardNumber: z.string().length(16, "No. KK harus 16 digit"),
-  birthPlace: z.string().min(2, "Tempat lahir harus diisi"),
-  birthDate: z.string().min(1, "Tanggal lahir harus diisi"),
-  aktaLahirNumber: z.string().min(2, "No. Reg Akta Lahir harus diisi"),
-  religion: z.string().min(1, "Agama harus dipilih"),
-  address: z.string().min(5, "Alamat harus diisi"),
-  rt: z.string().min(1, "RT harus diisi"),
-  rw: z.string().min(1, "RW harus diisi"),
-  kelurahan: z.string().min(2, "Kelurahan harus diisi"),
-  kecamatan: z.string().min(2, "Kecamatan harus diisi"),
-  propinsi: z.string().min(2, "Provinsi harus diisi"),
+  NISN: z.string().optional(),
+  NIK: z.string().optional(),
+  familyCardNumber: z.string().optional(),
+  birthPlace: z.string().optional(),
+  birthDate: z.string().optional(),
+  aktaLahirNumber: z.string().optional(),
+  religion: z.string().optional(),
+  address: z.string().optional(),
+  rt: z.string().optional(),
+  rw: z.string().optional(),
+  kelurahan: z.string().optional(),
+  kecamatan: z.string().optional(),
+  propinsi: z.string().optional(),
   livingWith: z.enum(['Bersama Orang Tua', 'Wali', 'Asrama', 'Kos']),
   transportation: z.enum(['Jalan Kaki', 'Motor', 'Mobil', 'Angkot/Kendaraan Umum']),
-  childOrder: z.string().min(1, "Urutan anak harus diisi"),
-  studentPhone: z.string().min(10, "No. HP Siswa minimal 10 digit"),
-  numberOfSiblings: z.string().min(1, "Jumlah saudara harus diisi"),
+  childOrder: z.string().optional(),
+  studentPhone: z.string().optional(),
+  numberOfSiblings: z.string().optional(),
   
   // Father Data
   fatherName: z.string().optional(),
@@ -81,7 +81,7 @@ const formSchema = z.object({
   guardianIncome: z.string().optional(),
 
   // Required Metadata
-  originSchool: z.string().min(2, "Asal sekolah harus diisi"),
+  originSchool: z.string().optional(),
   applicationPath: z.enum(['Zonasi', 'Prestasi', 'Afirmasi', 'Perpindahan Orang Tua']),
 })
 
@@ -155,8 +155,8 @@ export default function ApplicantsPage() {
     setEditingApplicant(applicant)
     form.reset({
       ...applicant,
-      childOrder: applicant.childOrder.toString(),
-      numberOfSiblings: applicant.numberOfSiblings.toString(),
+      childOrder: applicant.childOrder?.toString() || "",
+      numberOfSiblings: applicant.numberOfSiblings?.toString() || "",
       fatherName: applicant.fatherName || "",
       fatherNIK: applicant.fatherNIK || "",
       fatherBirthYear: applicant.fatherBirthYear || "",
@@ -201,10 +201,10 @@ export default function ApplicantsPage() {
     try {
       const applicantData = {
         ...values,
-        childOrder: Number(values.childOrder),
-        numberOfSiblings: Number(values.numberOfSiblings),
+        childOrder: Number(values.childOrder) || 0,
+        numberOfSiblings: Number(values.numberOfSiblings) || 0,
         parentName: values.livingWith === 'Wali' ? (values.guardianName || values.fatherName || "") : (values.fatherName || ""),
-        parentPhone: values.studentPhone,
+        parentPhone: values.studentPhone || "",
       }
 
       if (editingApplicant) {
@@ -500,9 +500,9 @@ export default function ApplicantsPage() {
               <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">Tidak ada pendaftar ditemukan.</TableCell></TableRow>
             ) : filteredApplicants.map((applicant) => (
               <TableRow key={applicant.id} className="hover:bg-muted/10 transition-colors">
-                <TableCell className="font-mono text-xs">{applicant.NISN}</TableCell>
+                <TableCell className="font-mono text-xs">{applicant.NISN || "-"}</TableCell>
                 <TableCell className="font-medium">{applicant.fullName}</TableCell>
-                <TableCell className="text-sm">{applicant.originSchool}</TableCell>
+                <TableCell className="text-sm">{applicant.originSchool || "-"}</TableCell>
                 <TableCell><Badge variant="outline" className="text-[10px] font-bold uppercase">{applicant.applicationPath}</Badge></TableCell>
                 <TableCell>
                   <Badge variant="outline" className={`text-[10px] uppercase font-bold ${
