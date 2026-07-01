@@ -91,11 +91,13 @@ export default function LoginPage() {
 
       <Card className="w-full max-w-[400px] border-border/50 shadow-2xl relative z-10 bg-card/80 backdrop-blur-xl">
         <CardHeader className="text-center space-y-4">
-          <div className="mx-auto w-14 h-14 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20 overflow-hidden">
+          <div className="mx-auto w-16 h-16 flex items-center justify-center overflow-hidden">
             {appLogoUrl ? (
-              <img src={appLogoUrl} alt="Logo" className="w-full h-full object-contain p-1" />
+              <img src={appLogoUrl} alt="Logo" className="w-full h-full object-contain" />
             ) : (
-              <School className="w-8 h-8 text-primary-foreground" />
+              <div className="bg-primary w-full h-full rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
+                <School className="w-8 h-8 text-primary-foreground" />
+              </div>
             )}
           </div>
           <div>

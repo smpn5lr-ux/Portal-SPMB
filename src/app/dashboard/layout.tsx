@@ -92,14 +92,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <Sidebar className="border-r border-border">
           <SidebarHeader className="p-4">
             <div className="flex items-center gap-3">
-              <div className="bg-primary p-2 rounded-lg shadow-lg shadow-primary/20 flex items-center justify-center min-w-10 min-h-10 overflow-hidden">
+              <div className="flex items-center justify-center w-10 h-10 overflow-hidden shrink-0">
                 {appLogoUrl ? (
                   <img src={appLogoUrl} alt="App Logo" className="w-full h-full object-contain" />
                 ) : (
-                  <School className="w-6 h-6 text-primary-foreground" />
+                  <div className="bg-primary p-2 rounded-lg shadow-lg shadow-primary/20 flex items-center justify-center w-full h-full">
+                    <School className="w-6 h-6 text-primary-foreground" />
+                  </div>
                 )}
               </div>
-              <div className="flex flex-col">
+              <div className="flex flex-col overflow-hidden">
                 <span className="font-headline font-bold text-lg tracking-tight uppercase line-clamp-1">{appName}</span>
                 <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Admin Panel</span>
               </div>
