@@ -17,7 +17,8 @@ import {
   Plus,
   Trash2,
   CalendarDays,
-  Map
+  Map,
+  Hash
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -71,7 +72,8 @@ export default function SettingsPage() {
       setLocalConfig({
         ...localConfig,
         ...config,
-        academicYear: config.academicYear || "2024/2025"
+        academicYear: config.academicYear || "2024/2025",
+        totalQuota: config.totalQuota || 250
       })
     }
   }, [config])
@@ -186,9 +188,9 @@ export default function SettingsPage() {
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Building2 className="w-5 h-5 text-primary" />
-                <CardTitle className="font-headline text-lg">Identitas Sekolah</CardTitle>
+                <CardTitle className="font-headline text-lg">Identitas & Kapasitas Sekolah</CardTitle>
               </div>
-              <CardDescription>Informasi dasar sekolah yang akan muncul di bukti pendaftaran.</CardDescription>
+              <CardDescription>Informasi dasar sekolah dan total daya tampung siswa.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -226,6 +228,17 @@ export default function SettingsPage() {
                     value={localConfig.academicYear}
                     onChange={(e) => setLocalConfig({...localConfig, academicYear: e.target.value})}
                     placeholder="Contoh: 2024/2025" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1">
+                    <Hash className="w-3 h-3" /> Total Kuota Pendaftar
+                  </label>
+                  <Input 
+                    type="number"
+                    value={localConfig.totalQuota}
+                    onChange={(e) => setLocalConfig({...localConfig, totalQuota: parseInt(e.target.value) || 0})}
+                    placeholder="Contoh: 250" 
                   />
                 </div>
               </div>
