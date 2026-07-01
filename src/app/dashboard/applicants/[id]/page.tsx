@@ -3,9 +3,9 @@
 
 import { useState } from 'react'
 import { useParams } from 'next/navigation'
-import { ArrowLeft, User, Download, MapPin, Briefcase, Info, Loader2, Sparkles, CheckCircle2, XCircle, Users, AlertCircle } from "lucide-react"
+import { ArrowLeft, User, Download, MapPin, Briefcase, Info, Loader2, Sparkles, CheckCircle2, XCircle, Users, AlertCircle, ClipboardCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { Badge } from "@/badge"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import Link from 'next/link'
@@ -32,7 +32,7 @@ export default function ApplicantDetailPage() {
     if (!dateStr) return "-";
     const parts = dateStr.split('-');
     if (parts.length === 3) {
-      // Convert YYYY-MM-DD to DD-MM-YYYY
+      // Input is YYYY-MM-DD, output is DD-MM-YYYY
       return `${parts[2]}-${parts[1]}-${parts[0]}`;
     }
     return dateStr;
@@ -42,7 +42,7 @@ export default function ApplicantDetailPage() {
     if (!applicantRef) return
     updateDoc(applicantRef, { verificationStatus: status })
       .then(() => {
-        toast({ title: `Status diubah menjadi ${status}` })
+        toast({ title: `Status berhasil diubah`, description: `Sekarang berstatus: ${status}` })
       })
       .catch(async () => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: applicantRef.path, operation: 'update' }))
@@ -185,7 +185,7 @@ export default function ApplicantDetailPage() {
                     <div className="flex flex-col"><span className="text-muted-foreground">Alamat :</span><span>{applicant.address || "-"}</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">RT/RW :</span><span>{applicant.rt || "-"} / {applicant.rw || "-"}</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">Kelurahan :</span><span>{applicant.kelurahan || "-"}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Kecamatan :</span><span>{applicant.id && applicant.kecamatan || "-"}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Kecamatan :</span><span>{applicant.kecamatan || "-"}</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">Provinsi :</span><span>{applicant.propinsi || "-"}</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">HP Siswa :</span><span>{applicant.studentPhone || "-"}</span></div>
                   </div>
@@ -248,17 +248,49 @@ export default function ApplicantDetailPage() {
         </div>
 
         <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="text-lg">Panel Verifikasi</CardTitle></CardHeader>
+          <Card className="border-border/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <ClipboardCheck className="w-5 h-5 text-primary" />
+                Panel Verifikasi
+              </CardTitle>
+            </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-2">
-                <Button variant="outline" onClick={() => handleUpdateStatus('Lengkap')} className="text-green-500 border-green-500/20 hover:bg-green-500/5"><CheckCircle2 className="w-4 h-4 mr-2" /> Lengkap</Button>
-                <Button variant="outline" onClick={() => handleUpdateStatus('Ditolak')} className="text-destructive border-destructive/20 hover:bg-destructive/5"><XCircle className="w-4 h-4 mr-2" /> Tolak</Button>
-                <Button variant="outline" onClick={() => handleUpdateStatus('Perlu Perbaikan')} className="col-span-2 text-amber-500 border-amber-500/20 hover:bg-amber-500/5"><AlertCircle className="w-4 h-4 mr-2" /> Belum Lengkap</Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => handleUpdateStatus('Lengkap')} 
+                  className="text-green-500 border-green-500/20 hover:bg-green-500/5 h-11"
+                >
+                  <CheckCircle2 className="w-4 h-4 mr-2" /> Lengkap
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => handleUpdateStatus('Ditolak')} 
+                  className="text-destructive border-destructive/20 hover:bg-destructive/5 h-11"
+                >
+                  <XCircle className="w-4 h-4 mr-2" /> Tolak
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => handleUpdateStatus('Perlu Perbaikan')} 
+                  className="col-span-2 text-amber-500 border-amber-500/20 hover:bg-amber-500/5 h-11"
+                >
+                  <AlertCircle className="w-4 h-4 mr-2" /> Belum Lengkap
+                </Button>
               </div>
-              <Badge variant="outline" className={`w-full justify-center py-2 text-sm uppercase font-bold ${getStatusStyles(applicant.verificationStatus)}`}>
-                {applicant.verificationStatus || "-"}
-              </Badge>
+              
+              <Separator className="my-2" />
+              
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Status Verifikasi Saat Ini :</p>
+                <Badge 
+                  variant="outline" 
+                  className={`w-full justify-center py-2.5 text-sm uppercase font-bold tracking-widest ${getStatusStyles(applicant.verificationStatus)}`}
+                >
+                  {applicant.verificationStatus || "-"}
+                </Badge>
+              </div>
             </CardContent>
           </Card>
           
