@@ -35,8 +35,8 @@ import { useToast } from '@/hooks/use-toast'
 import { extractFormData } from '@/ai/flows/extract-form-data-flow'
 
 const formSchema = z.object({
-  fullName: z.string().min(2, "Nama lengkap harus diisi"),
-  gender: z.enum(['Laki-laki', 'Perempuan']),
+  fullName: z.string().optional(),
+  gender: z.enum(['Laki-laki', 'Perempuan']).optional(),
   NISN: z.string().optional(),
   NIK: z.string().optional(),
   familyCardNumber: z.string().optional(),
@@ -50,8 +50,8 @@ const formSchema = z.object({
   kelurahan: z.string().optional(),
   kecamatan: z.string().optional(),
   propinsi: z.string().optional(),
-  livingWith: z.enum(['Bersama Orang Tua', 'Wali', 'Asrama', 'Kos']),
-  transportation: z.enum(['Jalan Kaki', 'Motor', 'Mobil', 'Angkot/Kendaraan Umum']),
+  livingWith: z.enum(['Bersama Orang Tua', 'Wali', 'Asrama', 'Kos']).optional(),
+  transportation: z.enum(['Jalan Kaki', 'Motor', 'Mobil', 'Angkot/Kendaraan Umum']).optional(),
   childOrder: z.string().optional(),
   studentPhone: z.string().optional(),
   numberOfSiblings: z.string().optional(),
@@ -82,7 +82,7 @@ const formSchema = z.object({
 
   // Required Metadata
   originSchool: z.string().optional(),
-  applicationPath: z.enum(['Zonasi', 'Prestasi', 'Afirmasi', 'Perpindahan Orang Tua']),
+  applicationPath: z.enum(['Zonasi', 'Prestasi', 'Afirmasi', 'Perpindahan Orang Tua']).optional(),
 })
 
 export default function ApplicantsPage() {
@@ -357,7 +357,7 @@ export default function ApplicantsPage() {
                           <FormItem><FormLabel>Anak Ke- :</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name="numberOfSiblings" render={({ field }) => (
-                          <FormItem><FormLabel>Jumlah Saudara :</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormMessage>
+                          <FormItem><FormLabel>Jumlah Saudara :</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                       </div>
                     </section>
