@@ -81,7 +81,7 @@ export default function ApplicantsPage() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       fullName: "", gender: "Laki-laki", NISN: "", NIK: "", familyCardNumber: "",
-      birthPlace: "", birthDate: "", aktaLahirNumber: "", religion: "Islam",
+      birthPlace: "", birthDate: "", aktaLahirNumber: "", religion: "Katolik",
       address: "", rt: "", rw: "", kelurahan: "", kecamatan: "", propinsi: "Jawa Barat",
       livingWith: "Bersama Orang Tua", transportation: "Jalan Kaki",
       childOrder: "1", studentPhone: "", numberOfSiblings: "0",
@@ -106,8 +106,8 @@ export default function ApplicantsPage() {
     )
   }, [applicants, searchTerm])
 
-  const handleScanForm = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+  const handleScanForm = async (fileInput: HTMLInputElement) => {
+    const file = fileInput.files?.[0]
     if (!file) return
     setIsScanning(true)
     const reader = new FileReader()
@@ -125,6 +125,7 @@ export default function ApplicantsPage() {
         toast({ variant: "destructive", title: "Scan Gagal", description: "Gagal memproses gambar." })
       } finally {
         setIsScanning(false)
+        fileInput.value = ''
       }
     }
     reader.readAsDataURL(file)
@@ -143,7 +144,7 @@ export default function ApplicantsPage() {
         childOrder: Number(values.childOrder),
         numberOfSiblings: Number(values.numberOfSiblings),
         parentName: values.livingWith === 'Wali' ? values.guardianName : values.fatherName,
-        parentPhone: values.studentPhone, // Default to student phone or add separate parent phone if needed
+        parentPhone: values.studentPhone, 
         registrationNumber: `REG-2024-${nextSequence.toString().padStart(4, '0')}`,
         registrationSequence: nextSequence,
         verificationStatus: 'Belum Diverifikasi',
@@ -183,7 +184,7 @@ export default function ApplicantsPage() {
                 {isScanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />} Scan AI
               </Button>
             </DialogHeader>
-            <input type="file" ref={scanInputRef} onChange={handleScanForm} accept="image/*" className="hidden" />
+            <input type="file" ref={scanInputRef} onChange={(e) => handleScanForm(e.target)} accept="image/*" className="hidden" />
             
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col min-h-0">
@@ -220,7 +221,7 @@ export default function ApplicantsPage() {
                           <FormItem><FormLabel>No. Reg Akta Lahir</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name="religion" render={({ field }) => (
-                          <FormItem><FormLabel>Agama</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Islam">Islam</SelectItem><SelectItem value="Kristen">Kristen</SelectItem><SelectItem value="Katolik">Katolik</SelectItem><SelectItem value="Hindu">Hindu</SelectItem><SelectItem value="Budha">Budha</SelectItem></SelectContent></Select><FormMessage /></FormItem>
+                          <FormItem><FormLabel>Agama</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Katolik">Katolik</SelectItem><SelectItem value="Islam">Islam</SelectItem><SelectItem value="Kristen">Kristen</SelectItem><SelectItem value="Hindu">Hindu</SelectItem><SelectItem value="Budha">Budha</SelectItem></SelectContent></Select><FormMessage /></FormItem>
                         )} />
                       </div>
                     </section>
