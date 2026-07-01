@@ -47,18 +47,18 @@ export default function ApplicantDetailPage() {
     doc.line(20, 25, 190, 25)
 
     const data = [
-      ["No. Registrasi", applicant.registrationNumber],
-      ["NISN", applicant.NISN],
-      ["NIK", applicant.NIK],
-      ["Nama Lengkap", applicant.fullName.toUpperCase()],
-      ["Tempat, Tgl Lahir", `${applicant.birthPlace}, ${applicant.birthDate}`],
-      ["Jenis Kelamin", applicant.gender],
-      ["Agama", applicant.religion],
-      ["Alamat", `${applicant.address}, RT ${applicant.rt} RW ${applicant.rw}, Kel. ${applicant.kelurahan}, Kec. ${applicant.kecamatan}, ${applicant.propinsi}`],
-      ["Nama Orang Tua/Wali", applicant.parentName],
-      ["No. HP", applicant.parentPhone],
-      ["Sekolah Asal", applicant.originSchool],
-      ["Jalur Pendaftaran", applicant.applicationPath],
+      ["No. Registrasi", applicant.registrationNumber || "-"],
+      ["NISN", applicant.NISN || "-"],
+      ["NIK", applicant.NIK || "-"],
+      ["Nama Lengkap", (applicant.fullName || "-").toUpperCase()],
+      ["Tempat, Tgl Lahir", `${applicant.birthPlace || "-"}, ${applicant.birthDate || "-"}`],
+      ["Jenis Kelamin", applicant.gender || "-"],
+      ["Agama", applicant.religion || "-"],
+      ["Alamat", `${applicant.address || "-"}, RT ${applicant.rt || "-"} RW ${applicant.rw || "-"}, Kel. ${applicant.kelurahan || "-"}, Kec. ${applicant.kecamatan || "-"}, ${applicant.propinsi || "-"}`],
+      ["Nama Orang Tua/Wali", applicant.parentName || "-"],
+      ["No. HP", applicant.parentPhone || "-"],
+      ["Sekolah Asal", applicant.originSchool || "-"],
+      ["Jalur Pendaftaran", applicant.applicationPath || "-"],
     ]
 
     autoTable(doc, {
@@ -102,24 +102,24 @@ export default function ApplicantDetailPage() {
                 <div className="space-y-4">
                   <h4 className="text-[10px] font-bold uppercase tracking-widest text-primary">I. Data Pribadi</h4>
                   <div className="space-y-2 text-sm">
-                    <div className="flex justify-between"><span className="text-muted-foreground">NISN</span><span className="font-mono">{applicant.NISN}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">NIK</span><span className="font-mono">{applicant.NIK}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">JK</span><span>{applicant.gender}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Agama</span><span>{applicant.religion}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">TTL</span><span>{applicant.birthPlace}, {applicant.birthDate}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Anak Ke-</span><span>{applicant.childOrder}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Saudara</span><span>{applicant.numberOfSiblings}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">NISN</span><span className="font-mono">{applicant.NISN || "-"}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">NIK</span><span className="font-mono">{applicant.NIK || "-"}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">JK</span><span>{applicant.gender || "-"}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Agama</span><span>{applicant.religion || "-"}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">TTL</span><span>{applicant.birthPlace || "-"}, {applicant.birthDate || "-"}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Anak Ke-</span><span>{applicant.childOrder || "-"}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Saudara</span><span>{applicant.numberOfSiblings || "-"}</span></div>
                   </div>
                 </div>
                 <div className="space-y-4">
                   <h4 className="text-[10px] font-bold uppercase tracking-widest text-primary">II. Alamat & Kontak</h4>
                   <div className="space-y-2 text-sm">
-                    <div className="flex flex-col"><span className="text-muted-foreground">Alamat</span><span>{applicant.address}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">RT/RW</span><span>{applicant.rt} / {applicant.rw}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Kelurahan</span><span>{applicant.kelurahan}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Kecamatan</span><span>{applicant.kecamatan}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Provinsi</span><span>{applicant.propinsi}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">HP Siswa</span><span>{applicant.studentPhone}</span></div>
+                    <div className="flex flex-col"><span className="text-muted-foreground">Alamat</span><span>{applicant.address || "-"}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">RT/RW</span><span>{applicant.rt || "-"} / {applicant.rw || "-"}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Kelurahan</span><span>{applicant.kelurahan || "-"}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Kecamatan</span><span>{applicant.kecamatan || "-"}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Provinsi</span><span>{applicant.propinsi || "-"}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">HP Siswa</span><span>{applicant.studentPhone || "-"}</span></div>
                   </div>
                 </div>
               </div>
@@ -187,16 +187,16 @@ export default function ApplicantDetailPage() {
                 <Button variant="outline" onClick={() => handleUpdateStatus('Lengkap')} className="text-green-500 border-green-500/20 hover:bg-green-500/5"><CheckCircle2 className="w-4 h-4 mr-2" /> Lengkap</Button>
                 <Button variant="outline" onClick={() => handleUpdateStatus('Ditolak')} className="text-destructive border-destructive/20 hover:bg-destructive/5"><XCircle className="w-4 h-4 mr-2" /> Tolak</Button>
               </div>
-              <Badge className="w-full justify-center py-2 text-sm">{applicant.verificationStatus}</Badge>
+              <Badge className="w-full justify-center py-2 text-sm">{applicant.verificationStatus || "-"}</Badge>
             </CardContent>
           </Card>
           
           <Card>
             <CardHeader><CardTitle className="text-sm uppercase tracking-wider">Info Pendaftaran</CardTitle></CardHeader>
             <CardContent className="space-y-3 text-sm">
-              <div className="flex justify-between"><span className="text-muted-foreground">Jalur</span><Badge variant="secondary">{applicant.applicationPath}</Badge></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Sekolah Asal</span><span className="text-right">{applicant.originSchool}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Tgl Daftar</span><span>{new Date(applicant.createdAt).toLocaleDateString()}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Jalur</span><Badge variant="secondary">{applicant.applicationPath || "-"}</Badge></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Sekolah Asal</span><span className="text-right">{applicant.originSchool || "-"}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Tgl Daftar</span><span>{applicant.createdAt ? new Date(applicant.createdAt).toLocaleDateString() : "-"}</span></div>
             </CardContent>
           </Card>
         </div>

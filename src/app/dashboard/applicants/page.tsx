@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { 
-  Search, Plus, Loader2, Camera, Eye, User, Home, MapPin, Phone, Users as UsersIcon
+  Search, Plus, Loader2, Camera, Eye, User, Home, MapPin, Phone, Users as UsersIcon, Pencil
 } from "lucide-react"
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
@@ -27,7 +27,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import Link from 'next/link'
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase'
-import { collection, query, orderBy, addDoc, limit, getDocs } from 'firebase/firestore'
+import { collection, query, orderBy, addDoc, limit, getDocs, doc, updateDoc } from 'firebase/firestore'
 import { Applicant } from '@/lib/types'
 import { errorEmitter } from '@/firebase/error-emitter'
 import { FirestorePermissionError } from '@/firebase/errors'
@@ -90,6 +90,7 @@ export default function ApplicantsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [isScanning, setIsScanning] = useState(false)
+  const [editingApplicant, setEditingApplicant] = useState<Applicant | null>(null)
   const scanInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
   const db = useFirestore()
@@ -150,33 +151,94 @@ export default function ApplicantsPage() {
     reader.readAsDataURL(file)
   }
 
+  const handleEdit = (applicant: Applicant) => {
+    setEditingApplicant(applicant)
+    form.reset({
+      ...applicant,
+      childOrder: applicant.childOrder.toString(),
+      numberOfSiblings: applicant.numberOfSiblings.toString(),
+      fatherName: applicant.fatherName || "",
+      fatherNIK: applicant.fatherNIK || "",
+      fatherBirthYear: applicant.fatherBirthYear || "",
+      fatherEducation: applicant.fatherEducation || "",
+      fatherJob: applicant.fatherJob || "",
+      fatherIncome: applicant.fatherIncome || "",
+      motherName: applicant.motherName || "",
+      motherNIK: applicant.motherNIK || "",
+      motherBirthYear: applicant.motherBirthYear || "",
+      motherEducation: applicant.motherEducation || "",
+      motherJob: applicant.motherJob || "",
+      motherIncome: applicant.motherIncome || "",
+      guardianName: applicant.guardianName || "",
+      guardianNIK: applicant.guardianNIK || "",
+      guardianBirthYear: applicant.guardianBirthYear || "",
+      guardianEducation: applicant.guardianEducation || "",
+      guardianJob: applicant.guardianJob || "",
+      guardianIncome: applicant.guardianIncome || "",
+    } as any)
+    setIsDialogOpen(true)
+  }
+
+  const handleAddNew = () => {
+    setEditingApplicant(null)
+    form.reset({
+      fullName: "", gender: "Laki-laki", NISN: "", NIK: "", familyCardNumber: "",
+      birthPlace: "", birthDate: "", aktaLahirNumber: "", religion: "Katolik",
+      address: "", rt: "", rw: "", kelurahan: "", kecamatan: "", propinsi: "Jawa Barat",
+      livingWith: "Bersama Orang Tua", transportation: "Jalan Kaki",
+      childOrder: "1", studentPhone: "", numberOfSiblings: "0",
+      originSchool: "", applicationPath: "Zonasi",
+      fatherName: "", fatherNIK: "", fatherBirthYear: "", fatherEducation: "", fatherJob: "", fatherIncome: "",
+      motherName: "", motherNIK: "", motherBirthYear: "", motherEducation: "", motherJob: "", motherIncome: "",
+      guardianName: "", guardianNIK: "", guardianBirthYear: "", guardianEducation: "", guardianJob: "", guardianIncome: ""
+    })
+    setIsDialogOpen(true)
+  }
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!db || submitting) return
     setSubmitting(true)
     try {
-      const q = query(collection(db, 'applicants'), orderBy('registrationSequence', 'desc'), limit(1));
-      const snap = await getDocs(q);
-      const nextSequence = snap.empty ? 1 : (Number(snap.docs[0].data().registrationSequence) || 0) + 1;
-      
-      const newApplicant = {
+      const applicantData = {
         ...values,
         childOrder: Number(values.childOrder),
         numberOfSiblings: Number(values.numberOfSiblings),
         parentName: values.livingWith === 'Wali' ? (values.guardianName || values.fatherName || "") : (values.fatherName || ""),
-        parentPhone: values.studentPhone, 
-        registrationNumber: `REG-2024-${nextSequence.toString().padStart(4, '0')}`,
-        registrationSequence: nextSequence,
-        verificationStatus: 'Belum Diverifikasi',
-        admissionStatus: 'pending',
-        createdAt: new Date().toISOString(),
+        parentPhone: values.studentPhone,
       }
 
-      await addDoc(collection(db, 'applicants'), newApplicant)
+      if (editingApplicant) {
+        const applicantRef = doc(db, 'applicants', editingApplicant.id)
+        updateDoc(applicantRef, {
+          ...applicantData,
+          updatedAt: new Date().toISOString()
+        })
+        toast({ title: "Data Pendaftar Diperbarui" })
+      } else {
+        const q = query(collection(db, 'applicants'), orderBy('registrationSequence', 'desc'), limit(1));
+        const snap = await getDocs(q);
+        const nextSequence = snap.empty ? 1 : (Number(snap.docs[0].data().registrationSequence) || 0) + 1;
+
+        const newApplicant = {
+          ...applicantData,
+          registrationNumber: `REG-2024-${nextSequence.toString().padStart(4, '0')}`,
+          registrationSequence: nextSequence,
+          verificationStatus: 'Belum Diverifikasi',
+          admissionStatus: 'pending',
+          createdAt: new Date().toISOString(),
+        }
+
+        await addDoc(collection(db, 'applicants'), newApplicant)
+        toast({ title: "Pendaftar Berhasil Ditambahkan" })
+      }
+
       setIsDialogOpen(false)
       form.reset()
-      toast({ title: "Pendaftar Berhasil Ditambahkan" })
     } catch (error) {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'applicants', operation: 'create' }))
+      errorEmitter.emit('permission-error', new FirestorePermissionError({ 
+        path: 'applicants', 
+        operation: editingApplicant ? 'update' : 'create' 
+      }))
     } finally {
       setSubmitting(false)
     }
@@ -191,17 +253,21 @@ export default function ApplicantsPage() {
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-2"><Plus className="w-4 h-4" /> Murid Baru</Button>
+            <Button onClick={handleAddNew} className="gap-2"><Plus className="w-4 h-4" /> Murid Baru</Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[850px] h-[90vh] p-0 flex flex-col overflow-hidden border-border/50">
             <DialogHeader className="p-6 pb-2 border-b flex flex-row items-center justify-between shrink-0">
               <div>
-                <DialogTitle className="text-2xl font-headline">Formulir Pendaftaran</DialogTitle>
+                <DialogTitle className="text-2xl font-headline">
+                  {editingApplicant ? 'Edit Data Pendaftar' : 'Formulir Pendaftaran'}
+                </DialogTitle>
                 <DialogDescription>Input data murid baru atau gunakan Scan AI untuk mempercepat pengisian.</DialogDescription>
               </div>
-              <Button onClick={() => scanInputRef.current?.click()} disabled={isScanning} variant="outline" size="sm" className="gap-2 border-primary/20 text-primary">
-                {isScanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />} Scan AI
-              </Button>
+              {!editingApplicant && (
+                <Button onClick={() => scanInputRef.current?.click()} disabled={isScanning} variant="outline" size="sm" className="gap-2 border-primary/20 text-primary">
+                  {isScanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />} Scan AI
+                </Button>
+              )}
             </DialogHeader>
             <input type="file" ref={scanInputRef} onChange={(e) => handleScanForm(e.target)} accept="image/*" className="hidden" />
             
@@ -304,7 +370,7 @@ export default function ApplicantsPage() {
                         </h3>
                       </div>
                       
-                      <div className="space-y-8 animate-in fade-in slide-in-from-top-2">
+                      <div className="space-y-8">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <FormField control={form.control} name="fatherName" render={({ field }) => (
                             <FormItem><FormLabel>Nama Ayah Kandung</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
@@ -349,7 +415,7 @@ export default function ApplicantsPage() {
                       </div>
 
                       {watchLivingWith !== 'Bersama Orang Tua' && (
-                        <div className="pt-10 space-y-4 animate-in fade-in slide-in-from-top-4">
+                        <div className="pt-10 space-y-4">
                           <div className="flex items-center gap-2 text-primary">
                             <UsersIcon className="w-5 h-5" />
                             <h3 className="text-sm font-bold uppercase tracking-widest border-b border-primary/20 pb-1 flex-1">
@@ -399,7 +465,8 @@ export default function ApplicantsPage() {
                 <DialogFooter className="p-6 border-t bg-muted/20 shrink-0">
                   <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Batal</Button>
                   <Button type="submit" disabled={submitting} className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20">
-                    {submitting && <Loader2 className="w-4 h-4 animate-spin mr-2" />} Simpan Data Pendaftar
+                    {submitting && <Loader2 className="w-4 h-4 animate-spin mr-2" />} 
+                    {editingApplicant ? 'Update Data Pendaftar' : 'Simpan Data Pendaftar'}
                   </Button>
                 </DialogFooter>
               </form>
@@ -447,7 +514,14 @@ export default function ApplicantsPage() {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="icon" asChild className="hover:text-primary"><Link href={`/dashboard/applicants/${applicant.id}`}><Eye className="w-4 h-4" /></Link></Button>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="ghost" size="icon" className="hover:text-primary" onClick={() => handleEdit(applicant)}>
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" asChild className="hover:text-primary">
+                      <Link href={`/dashboard/applicants/${applicant.id}`}><Eye className="w-4 h-4" /></Link>
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
