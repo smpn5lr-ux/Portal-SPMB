@@ -98,14 +98,14 @@ export default function ReportsPage() {
   const npsn = systemSettings?.npsn || "-"
 
   const stats = useMemo(() => {
-    if (!applicants) return { total: 0, avgScore: 0, remainingQuota: 0, acceptedCount: 0, totalQuota: systemSettings?.totalQuota || 250 }
+    const totalQuota = systemSettings?.totalQuota || 250
+    if (!applicants) return { total: 0, avgScore: 0, remainingQuota: totalQuota, acceptedCount: 0, totalQuota }
     const total = applicants.length
     const prestasiApplicants = applicants.filter(a => a.applicationPath === 'Prestasi' && a.academicScore)
     const avgScore = prestasiApplicants.length 
       ? (prestasiApplicants.reduce((acc, curr) => acc + (curr.academicScore || 0), 0) / prestasiApplicants.length).toFixed(1)
       : 0
     const acceptedCount = applicants.filter(a => a.admissionStatus === 'accepted').length
-    const totalQuota = systemSettings?.totalQuota || 250
     const remainingQuota = Math.max(0, totalQuota - acceptedCount)
     return { total, avgScore, remainingQuota, acceptedCount, totalQuota }
   }, [applicants, systemSettings])
@@ -117,16 +117,19 @@ export default function ReportsPage() {
       counts[a.originSchool] = (counts[a.originSchool] || 0) + 1
     })
     return Object.entries(counts)
-      .map(([name, count]) => ({ name, count }))
+      .map(([name, count]) => ({ 
+        name: name.length > 15 ? name.substring(0, 12) + "..." : name, 
+        count 
+      }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5)
   }, [applicants])
 
   const ageData = useMemo(() => {
-    if (!applicants) return []
+    if (!applicants || applicants.length === 0) return []
     const ages: Record<string, number> = {}
     applicants.forEach(a => {
-      const label = `${a.ageYears || 12} Tahun`
+      const label = `${a.ageYears || 12} Thn`
       ages[label] = (ages[label] || 0) + 1
     })
     const total = applicants.length
@@ -338,12 +341,29 @@ export default function ReportsPage() {
           </CardHeader>
           <CardContent className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={schoolData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="hsl(var(--border))" />
-                <XAxis type="number" hide />
-                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={120} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} />
-                <Tooltip cursor={{ fill: 'hsl(var(--muted)/0.3)' }} contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }} />
-                <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} barSize={24} />
+              <BarChart data={schoolData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                />
+                <Tooltip 
+                  cursor={{ fill: 'hsl(var(--muted)/0.3)' }} 
+                  contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }} 
+                />
+                <Bar 
+                  dataKey="count" 
+                  fill="hsl(var(--primary))" 
+                  radius={[4, 4, 0, 0]} 
+                  barSize={40} 
+                />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -355,7 +375,15 @@ export default function ReportsPage() {
           <CardContent className="h-[300px] flex items-center">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={ageData} cx="50%" cy="50%" innerRadius={70} outerRadius={100} paddingAngle={8} dataKey="value">
+                <Pie 
+                  data={ageData} 
+                  cx="50%" 
+                  cy="50%" 
+                  innerRadius={70} 
+                  outerRadius={100} 
+                  paddingAngle={8} 
+                  dataKey="value"
+                >
                   {ageData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
