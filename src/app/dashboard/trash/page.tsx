@@ -1,0 +1,125 @@
+
+"use client"
+
+import { useState, useMemo } from 'react'
+import { 
+  Search, Loader2, RotateCcw, Trash2, ShieldAlert
+} from "lucide-react"
+import { 
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
+} from "@/components/ui/table"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase'
+import { collection, query, orderBy, doc, updateDoc, deleteDoc, limit } from 'firebase/firestore'
+import { Applicant } from '@/lib/types'
+import { errorEmitter } from '@/firebase/error-emitter'
+import { FirestorePermissionError } from '@/firebase/errors'
+import { useToast } from '@/hooks/use-toast'
+
+export default function TrashPage() {
+  const [searchTerm, setSearchTerm] = useState('')
+  const { toast } = useToast()
+  const db = useFirestore()
+
+  const trashQuery = useMemoFirebase(() => {
+    if (!db) return null
+    return query(collection(db, 'applicants'), orderBy('createdAt', 'desc'), limit(500))
+  }, [db])
+
+  const { data: allApplicants, loading } = useCollection<Applicant>(trashQuery)
+
+  const deletedApplicants = useMemo(() => {
+    if (!allApplicants) return []
+    return allApplicants.filter(a => 
+      a.isDeleted &&
+      (a.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || a.NISN.includes(searchTerm))
+    )
+  }, [allApplicants, searchTerm])
+
+  const handleRestore = async (applicant: Applicant) => {
+    if (!db) return
+    const docRef = doc(db, 'applicants', applicant.id)
+    updateDoc(docRef, { 
+      isDeleted: false,
+      restoredAt: new Date().toISOString()
+    }).then(() => {
+      toast({ title: "Data dipulihkan", description: `${applicant.fullName} kembali ke daftar aktif.` })
+    }).catch(async () => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'update' }))
+    })
+  }
+
+  const handlePermanentDelete = async (applicant: Applicant) => {
+    if (!db) return
+    if (!confirm(`HAPUS PERMANEN ${applicant.fullName}? Tindakan ini tidak dapat dibatalkan.`)) return
+    
+    const docRef = doc(db, 'applicants', applicant.id)
+    deleteDoc(docRef).then(() => {
+      toast({ title: "Data dihapus permanen" })
+    }).catch(async () => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'delete' }))
+    })
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-headline font-bold">Tempat Sampah</h1>
+          <p className="text-muted-foreground mt-1">Data murid yang dihapus sementara. Pulihkan atau hapus permanen.</p>
+        </div>
+      </div>
+
+      <div className="bg-card border border-border/50 rounded-xl overflow-hidden shadow-sm">
+        <div className="p-4 border-b border-border/50 flex items-center gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input placeholder="Cari di sampah..." className="pl-9 bg-muted/20" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+          </div>
+        </div>
+        <Table>
+          <TableHeader className="bg-destructive/5">
+            <TableRow>
+              <TableHead className="font-bold text-destructive">Nama Lengkap</TableHead>
+              <TableHead className="font-bold text-destructive">NISN</TableHead>
+              <TableHead className="font-bold text-destructive">Dihapus Pada</TableHead>
+              <TableHead className="text-right font-bold text-destructive">Aksi</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow><TableCell colSpan={4} className="text-center py-12"><Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" /></TableCell></TableRow>
+            ) : deletedApplicants.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-12 text-muted-foreground italic">
+                  <ShieldAlert className="w-10 h-10 mx-auto mb-2 opacity-20" />
+                  Tempat sampah kosong.
+                </TableCell>
+              </TableRow>
+            ) : deletedApplicants.map((applicant) => (
+              <TableRow key={applicant.id} className="hover:bg-destructive/5 transition-colors">
+                <TableCell className="font-medium">{applicant.fullName}</TableCell>
+                <TableCell className="font-mono text-xs">{applicant.NISN || "-"}</TableCell>
+                <TableCell className="text-xs text-muted-foreground">
+                  {applicant.deletedAt ? new Date(applicant.deletedAt).toLocaleString('id-ID') : "-"}
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" size="sm" className="gap-2 text-green-500 border-green-500/20 hover:bg-green-500/5" onClick={() => handleRestore(applicant)}>
+                      <RotateCcw className="w-4 h-4" /> Pulihkan
+                    </Button>
+                    <Button variant="outline" size="sm" className="gap-2 text-destructive border-destructive/20 hover:bg-destructive/5" onClick={() => handlePermanentDelete(applicant)}>
+                      <Trash2 className="w-4 h-4" /> Hapus Permanen
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  )
+}

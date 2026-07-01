@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { 
-  Search, Plus, Loader2, Camera, Eye, User, Home, MapPin, Phone, Users as UsersIcon, Pencil
+  Search, Plus, Loader2, Camera, Eye, User, Home, MapPin, Phone, Users as UsersIcon, Pencil, Trash2
 } from "lucide-react"
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
@@ -121,15 +121,17 @@ export default function ApplicantsPage() {
 
   const applicantsQuery = useMemoFirebase(() => {
     if (!db) return null
-    return query(collection(db, 'applicants'), orderBy('createdAt', 'desc'), limit(100))
+    return query(collection(db, 'applicants'), orderBy('createdAt', 'desc'), limit(500))
   }, [db])
 
   const { data: applicants, loading } = useCollection<Applicant>(applicantsQuery)
 
   const filteredApplicants = useMemo(() => {
     if (!applicants) return []
+    // Filter out deleted items and apply search
     return applicants.filter(a => 
-      a.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || a.NISN.includes(searchTerm)
+      !a.isDeleted &&
+      (a.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || a.NISN.includes(searchTerm))
     )
   }, [applicants, searchTerm])
 
@@ -186,6 +188,21 @@ export default function ApplicantsPage() {
     setIsDialogOpen(true)
   }
 
+  const handleDelete = async (applicant: Applicant) => {
+    if (!db) return
+    if (!confirm(`Pindahkan ${applicant.fullName} ke tempat sampah?`)) return
+    
+    const docRef = doc(db, 'applicants', applicant.id)
+    updateDoc(docRef, { 
+      isDeleted: true,
+      deletedAt: new Date().toISOString()
+    }).then(() => {
+      toast({ title: "Data dipindahkan ke sampah" })
+    }).catch(async () => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'update' }))
+    })
+  }
+
   const handleAddNew = () => {
     setEditingApplicant(null)
     form.reset({
@@ -235,6 +252,7 @@ export default function ApplicantsPage() {
           verificationStatus: 'Belum Diverifikasi',
           admissionStatus: 'pending',
           createdAt: new Date().toISOString(),
+          isDeleted: false
         }
 
         await addDoc(collection(db, 'applicants'), newApplicant)
@@ -530,6 +548,9 @@ export default function ApplicantsPage() {
                     </Button>
                     <Button variant="ghost" size="icon" asChild className="hover:text-primary">
                       <Link href={`/dashboard/applicants/${applicant.id}`}><Eye className="w-4 h-4" /></Link>
+                    </Button>
+                    <Button variant="ghost" size="icon" className="hover:text-destructive" onClick={() => handleDelete(applicant)}>
+                      <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
                 </TableCell>

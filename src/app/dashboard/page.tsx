@@ -38,10 +38,15 @@ export default function OverviewPage() {
   
   const applicantsQuery = useMemoFirebase(() => {
     if (!db) return null
-    return query(collection(db, 'applicants'), limit(500))
+    return query(collection(db, 'applicants'), limit(1000))
   }, [db])
 
-  const { data: applicants, loading } = useCollection<Applicant>(applicantsQuery)
+  const { data: allApplicants, loading } = useCollection<Applicant>(applicantsQuery)
+
+  const applicants = useMemo(() => {
+    if (!allApplicants) return []
+    return allApplicants.filter(a => !a.isDeleted)
+  }, [allApplicants])
 
   const stats = useMemo(() => {
     if (!applicants) return []

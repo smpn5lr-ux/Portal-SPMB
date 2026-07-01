@@ -34,6 +34,8 @@ export interface Applicant {
   verificationStatus: VerificationStatus;
   admissionStatus: AdmissionStatus;
   createdAt: string;
+  isDeleted?: boolean;
+  deletedAt?: string;
   
   // Parent/Guardian Details
   fatherName?: string;

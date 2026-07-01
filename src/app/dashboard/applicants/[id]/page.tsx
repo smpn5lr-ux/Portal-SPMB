@@ -2,8 +2,8 @@
 "use client"
 
 import { useState } from 'react'
-import { useParams } from 'next/navigation'
-import { ArrowLeft, User, Download, MapPin, Briefcase, Info, Loader2, Sparkles, CheckCircle2, XCircle, Users, AlertCircle, ClipboardCheck, School, GraduationCap, Calendar, Phone } from "lucide-react"
+import { useParams, useRouter } from 'next/navigation'
+import { ArrowLeft, User, Download, MapPin, Briefcase, Info, Loader2, Sparkles, CheckCircle2, XCircle, Users, AlertCircle, ClipboardCheck, School, GraduationCap, Calendar, Phone, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast'
 
 export default function ApplicantDetailPage() {
   const { id } = useParams()
+  const router = useRouter()
   const db = useFirestore()
   const { toast } = useToast()
   
@@ -53,6 +54,21 @@ export default function ApplicantDetailPage() {
       .catch(async () => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: applicantRef.path, operation: 'update' }))
       })
+  }
+
+  const handleDelete = async () => {
+    if (!db || !applicantRef || !applicant) return
+    if (!confirm(`Pindahkan ${applicant.fullName} ke tempat sampah?`)) return
+    
+    updateDoc(applicantRef, { 
+      isDeleted: true,
+      deletedAt: new Date().toISOString()
+    }).then(() => {
+      toast({ title: "Data dipindahkan ke sampah" })
+      router.push('/dashboard/applicants')
+    }).catch(async () => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: applicantRef.path, operation: 'update' }))
+    })
   }
 
   const handleDownloadPDF = async () => {
@@ -138,7 +154,7 @@ export default function ApplicantDetailPage() {
   }
 
   if (loading) return <div className="flex justify-center py-24"><Loader2 className="animate-spin" /></div>
-  if (!applicant) return <div className="text-center py-24">Data tidak ditemukan.</div>
+  if (!applicant || applicant.isDeleted) return <div className="text-center py-24">Data tidak ditemukan atau sudah dihapus.</div>
 
   const isAccepted = applicant.admissionStatus === 'accepted';
 
@@ -166,6 +182,9 @@ export default function ApplicantDetailPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleDownloadPDF} className="gap-2"><Download className="w-4 h-4" /> Cetak Biodata</Button>
+          <Button variant="outline" onClick={handleDelete} className="gap-2 text-destructive border-destructive/20 hover:bg-destructive/5">
+            <Trash2 className="w-4 h-4" /> Hapus
+          </Button>
         </div>
       </div>
 

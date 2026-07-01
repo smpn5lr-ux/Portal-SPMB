@@ -40,22 +40,23 @@ export default function VerificationPage() {
     return query(
       collection(db, 'applicants'), 
       orderBy('createdAt', 'desc'),
-      limit(100)
+      limit(500)
     )
   }, [db])
 
-  const { data: applicants, loading } = useCollection<Applicant>(applicantsQuery)
+  const { data: allApplicants, loading } = useCollection<Applicant>(applicantsQuery)
 
   const filteredApplicants = useMemo(() => {
-    if (!applicants) return []
-    return applicants.filter(a => {
+    if (!allApplicants) return []
+    return allApplicants.filter(a => {
+      if (a.isDeleted) return false
       const matchesSearch = a.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || a.NISN.includes(searchTerm)
       if (activeTab === 'pending') return matchesSearch && a.verificationStatus === 'Belum Diverifikasi'
       if (activeTab === 'revision') return matchesSearch && a.verificationStatus === 'Perlu Perbaikan'
       if (activeTab === 'completed') return matchesSearch && (a.verificationStatus === 'Lengkap' || a.verificationStatus === 'Ditolak')
       return matchesSearch
     })
-  }, [applicants, searchTerm, activeTab])
+  }, [allApplicants, searchTerm, activeTab])
 
   const handleQuickVerify = (id: string, status: string) => {
     if (!db) return
@@ -75,7 +76,7 @@ export default function VerificationPage() {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div>
         <h1 className="text-3xl font-headline font-bold">Verifikasi Berkas</h1>
-        <p className="text-muted-foreground mt-1">Validasi dokumen murid (Dibatasi 100 data terbaru).</p>
+        <p className="text-muted-foreground mt-1">Validasi dokumen murid aktif.</p>
       </div>
 
       <Tabs defaultValue="pending" onValueChange={setActiveTab} className="w-full">

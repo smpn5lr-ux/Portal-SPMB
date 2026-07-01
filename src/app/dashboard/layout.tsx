@@ -15,7 +15,8 @@ import {
   UserCircle,
   LogOut,
   Loader2,
-  Pencil
+  Pencil,
+  Trash2
 } from "lucide-react"
 import { 
   Sidebar, 
@@ -54,6 +55,7 @@ const navigation = [
   { name: 'Sistem Seleksi', href: '/dashboard/selection', icon: Target },
   { name: 'Manajemen Kelas', href: '/dashboard/classes', icon: School },
   { name: 'Laporan', href: '/dashboard/reports', icon: BarChart3 },
+  { name: 'Sampah', href: '/dashboard/trash', icon: Trash2 },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
