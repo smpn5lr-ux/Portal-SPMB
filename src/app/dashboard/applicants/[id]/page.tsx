@@ -28,6 +28,16 @@ export default function ApplicantDetailPage() {
 
   const { data: applicant, loading } = useDoc<Applicant>(applicantRef)
 
+  const formatDate = (dateStr: string | undefined) => {
+    if (!dateStr) return "-";
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      // Convert YYYY-MM-DD to DD-MM-YYYY
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return dateStr;
+  }
+
   const handleUpdateStatus = (status: string) => {
     if (!applicantRef) return
     updateDoc(applicantRef, { verificationStatus: status })
@@ -47,58 +57,58 @@ export default function ApplicantDetailPage() {
     doc.line(20, 25, 190, 25)
 
     const data = [
-      ["No. Registrasi", applicant.registrationNumber || "-"],
-      ["NISN", applicant.NISN || "-"],
-      ["NIK", applicant.NIK || "-"],
-      ["No. KK", applicant.familyCardNumber || "-"],
-      ["No. Akta Lahir", applicant.aktaLahirNumber || "-"],
-      ["Nama Lengkap", (applicant.fullName || "-").toUpperCase()],
-      ["Tempat, Tgl Lahir", `${applicant.birthPlace || "-"}, ${applicant.birthDate || "-"}`],
-      ["Jenis Kelamin", applicant.gender || "-"],
-      ["Agama", applicant.religion || "-"],
-      ["Anak Ke-", applicant.childOrder?.toString() || "-"],
-      ["Jml Saudara", applicant.numberOfSiblings?.toString() || "-"],
-      ["Alamat", `${applicant.address || "-"}, RT ${applicant.rt || "-"} RW ${applicant.rw || "-"}, Kel. ${applicant.kelurahan || "-"}, Kec. ${applicant.kecamatan || "-"}, ${applicant.propinsi || "-"}`],
-      ["Transportasi", applicant.transportation || "-"],
-      ["Tinggal Bersama", applicant.livingWith || "-"],
-      ["HP Siswa", applicant.studentPhone || "-"],
+      ["No. Registrasi :", applicant.registrationNumber || "-"],
+      ["NISN :", applicant.NISN || "-"],
+      ["NIK :", applicant.NIK || "-"],
+      ["No. KK :", applicant.familyCardNumber || "-"],
+      ["No. Akta Lahir :", applicant.aktaLahirNumber || "-"],
+      ["Nama Lengkap :", (applicant.fullName || "-").toUpperCase()],
+      ["Tempat, Tgl Lahir :", `${applicant.birthPlace || "-"}, ${formatDate(applicant.birthDate)}`],
+      ["Jenis Kelamin :", applicant.gender || "-"],
+      ["Agama :", applicant.religion || "-"],
+      ["Anak Ke- :", applicant.childOrder?.toString() || "-"],
+      ["Jml Saudara :", applicant.numberOfSiblings?.toString() || "-"],
+      ["Alamat :", `${applicant.address || "-"}, RT ${applicant.rt || "-"} RW ${applicant.rw || "-"}, Kel. ${applicant.kelurahan || "-"}, Kec. ${applicant.kecamatan || "-"}, ${applicant.propinsi || "-"}`],
+      ["Transportasi :", applicant.transportation || "-"],
+      ["Tinggal Bersama :", applicant.livingWith || "-"],
+      ["HP Siswa :", applicant.studentPhone || "-"],
       ["", ""],
       ["DATA AYAH", ""],
-      ["Nama Ayah", applicant.fatherName || "-"],
-      ["NIK Ayah", applicant.fatherNIK || "-"],
-      ["Thn Lahir Ayah", applicant.fatherBirthYear || "-"],
-      ["Pendidikan Ayah", applicant.fatherEducation || "-"],
-      ["Pekerjaan Ayah", applicant.fatherJob || "-"],
-      ["Penghasilan Ayah", applicant.fatherIncome || "-"],
+      ["Nama Ayah :", applicant.fatherName || "-"],
+      ["NIK Ayah :", applicant.fatherNIK || "-"],
+      ["Thn Lahir Ayah :", applicant.fatherBirthYear || "-"],
+      ["Pendidikan Ayah :", applicant.fatherEducation || "-"],
+      ["Pekerjaan Ayah :", applicant.fatherJob || "-"],
+      ["Penghasilan Ayah :", applicant.fatherIncome || "-"],
       ["", ""],
       ["DATA IBU", ""],
-      ["Nama Ibu", applicant.motherName || "-"],
-      ["NIK Ibu", applicant.motherNIK || "-"],
-      ["Thn Lahir Ibu", applicant.motherBirthYear || "-"],
-      ["Pendidikan Ibu", applicant.motherEducation || "-"],
-      ["Pekerjaan Ibu", applicant.motherJob || "-"],
-      ["Penghasilan Ibu", applicant.motherIncome || "-"],
+      ["Nama Ibu :", applicant.motherName || "-"],
+      ["NIK Ibu :", applicant.motherNIK || "-"],
+      ["Thn Lahir Ibu :", applicant.motherBirthYear || "-"],
+      ["Pendidikan Ibu :", applicant.motherEducation || "-"],
+      ["Pekerjaan Ibu :", applicant.motherJob || "-"],
+      ["Penghasilan Ibu :", applicant.motherIncome || "-"],
     ]
 
     if (applicant.livingWith !== 'Bersama Orang Tua') {
       data.push(
         ["", ""],
         ["DATA WALI", ""],
-        ["Nama Wali", applicant.guardianName || "-"],
-        ["NIK Wali", applicant.guardianNIK || "-"],
-        ["Thn Lahir Wali", applicant.guardianBirthYear || "-"],
-        ["Pendidikan Wali", applicant.guardianEducation || "-"],
-        ["Pekerjaan Wali", applicant.guardianJob || "-"],
-        ["Penghasilan Wali", applicant.guardianIncome || "-"]
+        ["Nama Wali :", applicant.guardianName || "-"],
+        ["NIK Wali :", applicant.guardianNIK || "-"],
+        ["Thn Lahir Wali :", applicant.guardianBirthYear || "-"],
+        ["Pendidikan Wali :", applicant.guardianEducation || "-"],
+        ["Pekerjaan Wali :", applicant.guardianJob || "-"],
+        ["Penghasilan Wali :", applicant.guardianIncome || "-"]
       )
     }
 
     data.push(
       ["", ""],
       ["INFO PENDAFTARAN", ""],
-      ["Sekolah Asal", applicant.originSchool || "-"],
-      ["Jalur Pendaftaran", applicant.applicationPath || "-"],
-      ["Status Verifikasi", applicant.verificationStatus || "-"]
+      ["Sekolah Asal :", applicant.originSchool || "-"],
+      ["Jalur Pendaftaran :", applicant.applicationPath || "-"],
+      ["Status Verifikasi :", applicant.verificationStatus || "-"]
     )
 
     autoTable(doc, {
@@ -148,24 +158,24 @@ export default function ApplicantDetailPage() {
                 <div className="space-y-4">
                   <h4 className="text-[10px] font-bold uppercase tracking-widest text-primary">I. Data Pribadi</h4>
                   <div className="space-y-2 text-sm">
-                    <div className="flex justify-between"><span className="text-muted-foreground">NISN</span><span className="font-mono">{applicant.NISN || "-"}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">NIK</span><span className="font-mono">{applicant.NIK || "-"}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">JK</span><span>{applicant.gender || "-"}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Agama</span><span>{applicant.religion || "-"}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">TTL</span><span>{applicant.birthPlace || "-"}, {applicant.birthDate || "-"}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Anak Ke-</span><span>{applicant.childOrder || "-"}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Saudara</span><span>{applicant.numberOfSiblings || "-"}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">NISN :</span><span className="font-mono">{applicant.NISN || "-"}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">NIK :</span><span className="font-mono">{applicant.NIK || "-"}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">JK :</span><span>{applicant.gender || "-"}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Agama :</span><span>{applicant.religion || "-"}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">TTL :</span><span>{applicant.birthPlace || "-"}, {formatDate(applicant.birthDate)}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Anak Ke- :</span><span>{applicant.childOrder || "-"}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Saudara :</span><span>{applicant.numberOfSiblings || "-"}</span></div>
                   </div>
                 </div>
                 <div className="space-y-4">
                   <h4 className="text-[10px] font-bold uppercase tracking-widest text-primary">II. Alamat & Kontak</h4>
                   <div className="space-y-2 text-sm">
-                    <div className="flex flex-col"><span className="text-muted-foreground">Alamat</span><span>{applicant.address || "-"}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">RT/RW</span><span>{applicant.rt || "-"} / {applicant.rw || "-"}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Kelurahan</span><span>{applicant.kelurahan || "-"}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Kecamatan</span><span>{applicant.kecamatan || "-"}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Provinsi</span><span>{applicant.propinsi || "-"}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">HP Siswa</span><span>{applicant.studentPhone || "-"}</span></div>
+                    <div className="flex flex-col"><span className="text-muted-foreground">Alamat :</span><span>{applicant.address || "-"}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">RT/RW :</span><span>{applicant.rt || "-"} / {applicant.rw || "-"}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Kelurahan :</span><span>{applicant.kelurahan || "-"}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Kecamatan :</span><span>{applicant.kecamatan || "-"}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Provinsi :</span><span>{applicant.propinsi || "-"}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">HP Siswa :</span><span>{applicant.studentPhone || "-"}</span></div>
                   </div>
                 </div>
               </div>
@@ -177,28 +187,28 @@ export default function ApplicantDetailPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between font-bold text-xs text-muted-foreground uppercase"><span className="text-accent">Data Ayah</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">Nama</span><span className="font-medium">{applicant.fatherName || "-"}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">NIK</span><span className="font-mono">{applicant.fatherNIK || "-"}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">Thn Lahir</span><span>{applicant.fatherBirthYear || "-"}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Nama :</span><span className="font-medium">{applicant.fatherName || "-"}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">NIK :</span><span className="font-mono">{applicant.fatherNIK || "-"}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Thn Lahir :</span><span>{applicant.fatherBirthYear || "-"}</span></div>
                     </div>
                     <div className="space-y-2 text-sm pt-4">
-                      <div className="flex justify-between"><span className="text-muted-foreground">Pendidikan</span><span>{applicant.fatherEducation || "-"}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">Pekerjaan</span><span>{applicant.fatherJob || "-"}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">Penghasilan</span><span>{applicant.fatherIncome || "-"}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Pendidikan :</span><span>{applicant.fatherEducation || "-"}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Pekerjaan :</span><span>{applicant.fatherJob || "-"}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Penghasilan :</span><span>{applicant.fatherIncome || "-"}</span></div>
                     </div>
                   </div>
                   <Separator className="bg-border/30" />
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between font-bold text-xs text-muted-foreground uppercase"><span className="text-accent">Data Ibu</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">Nama</span><span className="font-medium">{applicant.motherName || "-"}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">NIK</span><span className="font-mono">{applicant.motherNIK || "-"}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">Thn Lahir</span><span>{applicant.motherBirthYear || "-"}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Nama :</span><span className="font-medium">{applicant.motherName || "-"}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">NIK :</span><span className="font-mono">{applicant.motherNIK || "-"}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Thn Lahir :</span><span>{applicant.motherBirthYear || "-"}</span></div>
                     </div>
                     <div className="space-y-2 text-sm pt-4">
-                      <div className="flex justify-between"><span className="text-muted-foreground">Pendidikan</span><span>{applicant.motherEducation || "-"}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">Pekerjaan</span><span>{applicant.motherJob || "-"}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">Penghasilan</span><span>{applicant.motherIncome || "-"}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Pendidikan :</span><span>{applicant.motherEducation || "-"}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Pekerjaan :</span><span>{applicant.motherJob || "-"}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Penghasilan :</span><span>{applicant.motherIncome || "-"}</span></div>
                     </div>
                   </div>
                 </div>
@@ -208,14 +218,14 @@ export default function ApplicantDetailPage() {
                     <h4 className="text-[10px] font-bold uppercase tracking-widest text-primary border-b pb-1">IV. Data Wali</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       <div className="space-y-2 text-sm">
-                        <div className="flex justify-between"><span className="text-muted-foreground">Nama Wali</span><span className="font-medium">{applicant.guardianName || "-"}</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">NIK Wali</span><span className="font-mono">{applicant.guardianNIK || "-"}</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Thn Lahir</span><span>{applicant.guardianBirthYear || "-"}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Nama Wali :</span><span className="font-medium">{applicant.guardianName || "-"}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">NIK Wali :</span><span className="font-mono">{applicant.guardianNIK || "-"}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Thn Lahir :</span><span>{applicant.guardianBirthYear || "-"}</span></div>
                       </div>
                       <div className="space-y-2 text-sm">
-                        <div className="flex justify-between"><span className="text-muted-foreground">Pendidikan</span><span>{applicant.guardianEducation || "-"}</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Pekerjaan</span><span>{applicant.guardianJob || "-"}</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Penghasilan</span><span>{applicant.guardianIncome || "-"}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Pendidikan :</span><span>{applicant.guardianEducation || "-"}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Pekerjaan :</span><span>{applicant.guardianJob || "-"}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Penghasilan :</span><span>{applicant.guardianIncome || "-"}</span></div>
                       </div>
                     </div>
                   </div>
@@ -240,9 +250,9 @@ export default function ApplicantDetailPage() {
           <Card>
             <CardHeader><CardTitle className="text-sm uppercase tracking-wider">Info Pendaftaran</CardTitle></CardHeader>
             <CardContent className="space-y-3 text-sm">
-              <div className="flex justify-between"><span className="text-muted-foreground">Jalur</span><Badge variant="secondary">{applicant.applicationPath || "-"}</Badge></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Sekolah Asal</span><span className="text-right">{applicant.originSchool || "-"}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Tgl Daftar</span><span>{applicant.createdAt ? new Date(applicant.createdAt).toLocaleDateString() : "-"}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Jalur :</span><Badge variant="secondary">{applicant.applicationPath || "-"}</Badge></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Sekolah Asal :</span><span className="text-right">{applicant.originSchool || "-"}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Tgl Daftar :</span><span>{applicant.createdAt ? new Date(applicant.createdAt).toLocaleDateString() : "-"}</span></div>
             </CardContent>
           </Card>
         </div>
