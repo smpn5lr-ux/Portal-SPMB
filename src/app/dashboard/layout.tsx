@@ -14,7 +14,8 @@ import {
   Search,
   UserCircle,
   LogOut,
-  Loader2
+  Loader2,
+  Pencil
 } from "lucide-react"
 import { 
   Sidebar, 
@@ -29,11 +30,22 @@ import {
   SidebarTrigger 
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase"
-import { signOut } from "firebase/auth"
+import { signOut, updateProfile } from "firebase/auth"
 import { doc } from "firebase/firestore"
+import { useToast } from "@/hooks/use-toast"
 
 const navigation = [
   { name: 'Ringkasan', href: '/dashboard', icon: LayoutDashboard },
@@ -49,18 +61,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter()
   const auth = useAuth()
   const db = useFirestore()
+  const { toast } = useToast()
   const { user, loading: userLoading } = useUser()
+  
+  const [isProfileOpen, setIsProfileOpen] = React.useState(false)
+  const [newName, setNewName] = React.useState("")
+  const [updating, setUpdating] = React.useState(false)
 
   const settingsRef = useMemoFirebase(() => {
     if (!db) return null
     return doc(db, 'settings', 'system')
   }, [db])
 
-  const { data: config, loading: configLoading } = useDoc<any>(settingsRef)
+  const { data: config } = useDoc<any>(settingsRef)
 
   React.useEffect(() => {
     if (!userLoading && !user) {
       router.push('/login')
+    }
+    if (user) {
+      setNewName(user.displayName || "")
     }
   }, [user, userLoading, router])
 
@@ -70,6 +90,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       router.push('/login')
     } catch (error) {
       console.error("Logout error", error)
+    }
+  }
+
+  const handleUpdateName = async () => {
+    if (!user || !newName.trim() || updating) return
+    setUpdating(true)
+    try {
+      await updateProfile(user, { displayName: newName.trim() })
+      toast({
+        title: "Profil Diperbarui",
+        description: "Nama tampilan Anda berhasil diubah.",
+      })
+      setIsProfileOpen(false)
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Gagal Memperbarui",
+        description: "Terjadi kesalahan saat mengubah nama.",
+      })
+    } finally {
+      setUpdating(false)
     }
   }
 
@@ -174,17 +215,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <span className="absolute top-2 right-2 w-2 h-2 bg-destructive rounded-full border-2 border-background"></span>
               </Button>
               <div className="h-8 w-px bg-border"></div>
-              <div className="flex items-center gap-3 pl-2">
+              
+              <div 
+                className="flex items-center gap-3 pl-2 cursor-pointer hover:bg-muted/30 p-1.5 rounded-lg transition-colors group"
+                onClick={() => setIsProfileOpen(true)}
+              >
                 <div className="flex flex-col items-end hidden sm:flex">
-                  <span className="text-sm font-semibold">{user?.displayName || 'Admin'}</span>
+                  <span className="text-sm font-semibold group-hover:text-primary transition-colors">
+                    {user?.displayName || 'Admin'}
+                  </span>
                   <span className="text-[10px] text-primary font-bold uppercase tracking-widest">Administrator</span>
                 </div>
-                <div className="w-9 h-9 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary overflow-hidden">
+                <div className="w-9 h-9 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary overflow-hidden relative">
                   {user?.photoURL ? (
                     <img src={user.photoURL} alt="profil" className="w-full h-full object-cover" />
                   ) : (
                     <UserCircle className="w-6 h-6" />
                   )}
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                    <Pencil className="w-3 h-3 text-white" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -195,6 +245,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </main>
         </SidebarInset>
       </div>
+
+      <Dialog open={isProfileOpen} onOpenChange={setIsProfileOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Ubah Nama Profil</DialogTitle>
+            <DialogDescription>
+              Ubah nama tampilan administrator Anda di sistem.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Nama Lengkap</Label>
+              <Input
+                id="name"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="Masukkan nama baru..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsProfileOpen(false)}>Batal</Button>
+            <Button onClick={handleUpdateName} disabled={updating}>
+              {updating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Simpan Perubahan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </SidebarProvider>
   )
 }
