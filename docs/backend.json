@@ -77,6 +77,19 @@
         "currentEnrollment": { "type": "number" },
         "students": { "type": "array", "items": { "type": "string" } }
       }
+    },
+    "Staff": {
+      "title": "Staff",
+      "description": "Information about school staff or employees.",
+      "type": "object",
+      "properties": {
+        "fullName": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["Admin", "Pegawai"] },
+        "phone": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["fullName", "email", "role"]
     }
   },
   "auth": {
@@ -90,6 +103,10 @@
     "/classes/{classId}": {
       "schema": "Classroom",
       "description": "Collection of class groups."
+    },
+    "/staff/{staffId}": {
+      "schema": "Staff",
+      "description": "Collection of school staff members."
     },
     "/settings/{settingId}": {
       "schema": "object",

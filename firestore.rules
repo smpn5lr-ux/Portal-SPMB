@@ -2,20 +2,29 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Hanya izinkan baca/tulis jika pengguna sudah terautentikasi (Admin)
+    // Fungsi pembantu untuk cek otentikasi
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Izinkan baca/tulis jika pengguna terautentikasi (Admin/Staff)
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isAuthenticated();
     }
     
-    // Khusus pendaftar mungkin butuh akses baca publik jika ada fitur cek status mandiri nantinya
+    // Akses publik untuk cek status (hanya baca)
     match /applicants/{applicantId} {
-      allow read: if true; // Izinkan publik baca untuk cek status
-      allow write: if request.auth != null; // Hanya admin bisa tulis
+      allow read: if true;
+      allow write: if isAuthenticated();
     }
     
     match /settings/{settingId} {
-      allow read: if true; // Izinkan publik baca nama sekolah dll
-      allow write: if request.auth != null;
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    match /staff/{staffId} {
+      allow read, write: if isAuthenticated();
     }
   }
 }

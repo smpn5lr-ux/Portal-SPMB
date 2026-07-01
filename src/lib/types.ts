@@ -69,3 +69,12 @@ export interface Classroom {
   currentEnrollment: number;
   students: string[];
 }
+
+export interface Staff {
+  id: string;
+  fullName: string;
+  email: string;
+  role: 'Admin' | 'Pegawai';
+  phone?: string;
+  createdAt: string;
+}

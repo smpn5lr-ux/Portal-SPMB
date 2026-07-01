@@ -16,7 +16,8 @@ import {
   LogOut,
   Loader2,
   Pencil,
-  Trash2
+  Trash2,
+  UserPlus
 } from "lucide-react"
 import { 
   Sidebar, 
@@ -55,6 +56,7 @@ const navigation = [
   { name: 'Verifikasi Berkas', href: '/dashboard/verification', icon: CheckSquare },
   { name: 'Sistem Seleksi', href: '/dashboard/selection', icon: Target },
   { name: 'Manajemen Kelas', href: '/dashboard/classes', icon: School },
+  { name: 'Manajemen Pegawai', href: '/dashboard/staff', icon: UserPlus },
   { name: 'Laporan', href: '/dashboard/reports', icon: BarChart3 },
   { name: 'Sampah', href: '/dashboard/trash', icon: Trash2 },
 ]
