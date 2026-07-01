@@ -202,7 +202,6 @@ export default function ReportsPage() {
       const { default: autoTable } = await import('jspdf-autotable')
       const doc = new jsPDF('landscape')
       
-      // KOP SURAT
       doc.setFontSize(12)
       doc.setFont("helvetica", "bold")
       doc.setTextColor(0, 0, 0)

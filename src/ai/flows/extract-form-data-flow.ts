@@ -34,7 +34,6 @@ const extractFormDataFlow = ai.defineFlow(
     outputSchema: ExtractFormDataOutputSchema,
   },
   async (input) => {
-    // Pastikan data URI diformat dengan benar untuk Genkit
     const mimeMatch = input.photoDataUri.match(/^data:([^;]+);base64,/);
     const contentType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
 
