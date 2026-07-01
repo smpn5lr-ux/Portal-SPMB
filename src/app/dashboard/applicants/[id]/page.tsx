@@ -26,7 +26,13 @@ export default function ApplicantDetailPage() {
     return doc(db, 'applicants', id as string)
   }, [db, id])
 
+  const settingsRef = useMemoFirebase(() => {
+    if (!db) return null
+    return doc(db, 'settings', 'system')
+  }, [db])
+
   const { data: applicant, loading } = useDoc<Applicant>(applicantRef)
+  const { data: config } = useDoc<any>(settingsRef)
 
   const formatDate = (dateStr: string | undefined) => {
     if (!dateStr) return "-";
@@ -275,7 +281,7 @@ export default function ApplicantDetailPage() {
                   <div className="space-y-3 text-sm">
                     <div className="flex justify-between"><span className="text-muted-foreground">Jalur Seleksi :</span><Badge variant="secondary">{applicant.applicationPath}</Badge></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">Status Verifikasi :</span><span className="text-green-600 font-bold">LENGKAP</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Tahun Masuk :</span><span className="font-bold">2024 / 2025</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Tahun Masuk :</span><span className="font-bold">{config?.academicYear || "2024 / 2025"}</span></div>
                   </div>
                   <Button variant="outline" onClick={() => handleUpdateStatus('Belum Diverifikasi')} className="w-full mt-4 text-xs">Batalkan Kelulusan</Button>
                 </CardContent>
