@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { 
   Settings, 
   School, 
@@ -20,7 +20,8 @@ import {
   Map,
   Hash,
   ImageIcon,
-  Type
+  Type,
+  Upload
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -39,6 +40,7 @@ export default function SettingsPage() {
   const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
   const [newSchool, setNewSchool] = useState("")
+  const logoInputRef = useRef<HTMLInputElement>(null)
   
   const settingsRef = useMemoFirebase(() => {
     if (!db) return null
@@ -85,6 +87,41 @@ export default function SettingsPage() {
       setLocalSchools(schoolsData.list)
     }
   }, [schoolsData])
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml']
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        variant: "destructive",
+        title: "Format Tidak Didukung",
+        description: "Gunakan JPG, PNG, WEBP, atau SVG.",
+      })
+      return
+    }
+
+    if (file.size > 512000) {
+      toast({
+        variant: "destructive",
+        title: "File Terlalu Besar",
+        description: "Maksimal ukuran logo adalah 500KB.",
+      })
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string
+      setLocalConfig({ ...localConfig, appLogoUrl: base64 })
+      toast({
+        title: "Logo Diunggah",
+        description: "Klik 'Simpan Profil' untuk menerapkan perubahan.",
+      })
+    }
+    reader.readAsDataURL(file)
+  }
 
   const handleQuotaChange = (key: string, newValue: number) => {
     const keys = ["quotaZonasi", "quotaPrestasi", "quotaAfirmasi", "quotaPerpindahan"];
@@ -194,8 +231,8 @@ export default function SettingsPage() {
               </div>
               <CardDescription>Sesuaikan nama dan logo aplikasi untuk Login & Dashboard.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1">
                     <Type className="w-3 h-3" /> Nama Aplikasi
@@ -208,20 +245,40 @@ export default function SettingsPage() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1">
-                    <ImageIcon className="w-3 h-3" /> URL Logo Gambar (Opsional)
+                    <ImageIcon className="w-3 h-3" /> Logo Aplikasi
                   </label>
-                  <Input 
-                    value={localConfig.appLogoUrl}
-                    onChange={(e) => setLocalConfig({...localConfig, appLogoUrl: e.target.value})}
-                    placeholder="https://link-gambar-anda.com/logo.png" 
-                  />
+                  <div className="flex gap-2">
+                    <Input 
+                      value={localConfig.appLogoUrl.startsWith('data:') ? 'Terunggah dari lokal' : localConfig.appLogoUrl}
+                      onChange={(e) => setLocalConfig({...localConfig, appLogoUrl: e.target.value})}
+                      placeholder="URL Gambar atau Unggah..." 
+                      className="flex-1"
+                    />
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => logoInputRef.current?.click()}
+                      className="shrink-0 gap-2 border-primary/20 text-primary hover:bg-primary/5"
+                    >
+                      <Upload className="w-4 h-4" /> Unggah
+                    </Button>
+                    <input 
+                      type="file" 
+                      ref={logoInputRef} 
+                      onChange={handleFileUpload} 
+                      accept=".jpg,.jpeg,.png,.webp,.svg" 
+                      className="hidden" 
+                    />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Mendukung JPG, PNG, WEBP, SVG (Maks. 500KB).</p>
                 </div>
               </div>
               {localConfig.appLogoUrl && (
-                <div className="mt-4 p-4 border rounded-lg bg-muted/20 flex items-center justify-center">
-                  <div className="flex flex-col items-center gap-2">
-                    <span className="text-[10px] uppercase font-bold text-muted-foreground">Pratinjau Logo</span>
-                    <img src={localConfig.appLogoUrl} alt="Logo Preview" className="h-12 object-contain rounded" />
+                <div className="mt-2 p-6 border rounded-xl bg-muted/20 flex flex-col items-center justify-center border-dashed">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground mb-4 tracking-widest">Pratinjau Branding</span>
+                  <div className="flex items-center gap-4 bg-card p-4 rounded-lg shadow-sm border border-border/50">
+                    <img src={localConfig.appLogoUrl} alt="Logo Preview" className="h-10 w-10 object-contain" />
+                    <span className="font-headline font-bold text-lg">{localConfig.appName}</span>
                   </div>
                 </div>
               )}
