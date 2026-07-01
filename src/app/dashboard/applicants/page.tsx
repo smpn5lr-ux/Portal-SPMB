@@ -128,10 +128,9 @@ export default function ApplicantsPage() {
 
   const filteredApplicants = useMemo(() => {
     if (!applicants) return []
-    // Filter out deleted items and apply search
     return applicants.filter(a => 
       !a.isDeleted &&
-      (a.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || a.NISN.includes(searchTerm))
+      ((a.fullName || "").toLowerCase().includes(searchTerm.toLowerCase()) || (a.NISN || "").includes(searchTerm))
     )
   }, [applicants, searchTerm])
 

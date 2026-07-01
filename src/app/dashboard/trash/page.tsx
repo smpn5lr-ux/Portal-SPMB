@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase'
-import { collection, query, orderBy, doc, updateDoc, deleteDoc, limit } from 'firebase/firestore'
+import { collection, doc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { Applicant } from '@/lib/types'
 import { errorEmitter } from '@/firebase/error-emitter'
 import { FirestorePermissionError } from '@/firebase/errors'
@@ -25,7 +25,7 @@ export default function TrashPage() {
 
   const trashQuery = useMemoFirebase(() => {
     if (!db) return null
-    return query(collection(db, 'applicants'), orderBy('createdAt', 'desc'), limit(500))
+    return collection(db, 'applicants')
   }, [db])
 
   const { data: allApplicants, loading } = useCollection<Applicant>(trashQuery)
@@ -34,7 +34,7 @@ export default function TrashPage() {
     if (!allApplicants) return []
     return allApplicants.filter(a => 
       a.isDeleted &&
-      (a.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || a.NISN.includes(searchTerm))
+      ((a.fullName || "").toLowerCase().includes(searchTerm.toLowerCase()) || (a.NISN || "").includes(searchTerm))
     )
   }, [allApplicants, searchTerm])
 

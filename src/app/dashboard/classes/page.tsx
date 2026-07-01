@@ -209,7 +209,7 @@ export default function ClassesPage() {
       return
     }
 
-    const acceptedStudents = applicants.filter(a => a.admissionStatus === 'accepted')
+    const acceptedStudents = applicants.filter(a => a.admissionStatus === 'accepted' && !a.isDeleted)
     
     if (acceptedStudents.length === 0) {
       toast({
@@ -362,14 +362,14 @@ export default function ClassesPage() {
 
   const handleDeleteClass = async (id: string) => {
     if (!db) return
-    if (!confirm("Hapus kelas ini? Murid di dalamnya akan keluar dari rombel.")) return
+    if (!confirm("Apakah Anda yakin ingin menghapus kelas ini? Murid di dalamnya akan keluar dari rombel.")) return
     await deleteDoc(doc(db, 'classes', id))
     toast({ title: "Kelas Dihapus" })
   }
 
   const getStudentsInClass = (studentIds: string[]) => {
     if (!applicants) return []
-    return applicants.filter(a => studentIds.includes(a.id))
+    return applicants.filter(a => studentIds.includes(a.id) && !a.isDeleted)
   }
 
   if (loadingClasses) return <div className="flex justify-center py-24"><Loader2 className="animate-spin text-primary" /></div>
@@ -446,9 +446,9 @@ export default function ClassesPage() {
         {classes?.map((cls) => (
           <Card key={cls.id} className="border-border/50 hover:border-primary/30 transition-all group relative">
             <Button 
-              variant="ghost" 
+              variant="outline" 
               size="icon" 
-              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-destructive hover:bg-destructive/10"
+              className="absolute top-2 right-2 text-destructive border-destructive/20 hover:bg-destructive/10"
               onClick={() => handleDeleteClass(cls.id)}
             >
               <Trash2 className="w-4 h-4" />

@@ -58,7 +58,7 @@ export default function ApplicantDetailPage() {
 
   const handleDelete = async () => {
     if (!db || !applicantRef || !applicant) return
-    if (!confirm(`Pindahkan ${applicant.fullName} ke tempat sampah?`)) return
+    if (!confirm(`Apakah Anda yakin ingin memindahkan ${applicant.fullName} ke tempat sampah?`)) return
     
     updateDoc(applicantRef, { 
       isDeleted: true,
