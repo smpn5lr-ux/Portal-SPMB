@@ -55,13 +55,29 @@ const formSchema = z.object({
   studentPhone: z.string().min(10, "No. HP Siswa minimal 10 digit"),
   numberOfSiblings: z.string().min(1, "Jumlah saudara harus diisi"),
   
-  // Conditional Data
+  // Father Data
   fatherName: z.string().optional(),
   fatherNIK: z.string().optional(),
+  fatherBirthYear: z.string().optional(),
+  fatherEducation: z.string().optional(),
+  fatherJob: z.string().optional(),
+  fatherIncome: z.string().optional(),
+  
+  // Mother Data
   motherName: z.string().optional(),
   motherNIK: z.string().optional(),
+  motherBirthYear: z.string().optional(),
+  motherEducation: z.string().optional(),
+  motherJob: z.string().optional(),
+  motherIncome: z.string().optional(),
+  
+  // Guardian Data
   guardianName: z.string().optional(),
   guardianNIK: z.string().optional(),
+  guardianBirthYear: z.string().optional(),
+  guardianEducation: z.string().optional(),
+  guardianJob: z.string().optional(),
+  guardianIncome: z.string().optional(),
 
   // Required Metadata
   originSchool: z.string().min(2, "Asal sekolah harus diisi"),
@@ -86,7 +102,9 @@ export default function ApplicantsPage() {
       livingWith: "Bersama Orang Tua", transportation: "Jalan Kaki",
       childOrder: "1", studentPhone: "", numberOfSiblings: "0",
       originSchool: "", applicationPath: "Zonasi",
-      fatherName: "", fatherNIK: "", motherName: "", motherNIK: "", guardianName: "", guardianNIK: ""
+      fatherName: "", fatherNIK: "", fatherBirthYear: "", fatherEducation: "", fatherJob: "", fatherIncome: "",
+      motherName: "", motherNIK: "", motherBirthYear: "", motherEducation: "", motherJob: "", motherIncome: "",
+      guardianName: "", guardianNIK: "", guardianBirthYear: "", guardianEducation: "", guardianJob: "", guardianIncome: ""
     },
   })
 
@@ -143,7 +161,7 @@ export default function ApplicantsPage() {
         ...values,
         childOrder: Number(values.childOrder),
         numberOfSiblings: Number(values.numberOfSiblings),
-        parentName: values.livingWith === 'Wali' ? values.guardianName : values.fatherName,
+        parentName: values.livingWith === 'Wali' ? (values.guardianName || "") : (values.fatherName || ""),
         parentPhone: values.studentPhone, 
         registrationNumber: `REG-2024-${nextSequence.toString().padStart(4, '0')}`,
         registrationSequence: nextSequence,
@@ -209,7 +227,7 @@ export default function ApplicantsPage() {
                           <FormItem><FormLabel>NIK</FormLabel><FormControl><Input placeholder="16 Digit" {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name="familyCardNumber" render={({ field }) => (
-                          <FormItem><FormLabel>No. Kartu Keluarga (KK)</FormLabel><FormControl><Input placeholder="16 Digit" {...field} /></FormControl><FormMessage /></FormItem>
+                          <FormItem><FormLabel>No. Kartu Keluarga (KK)</FormLabel><FormControl><Input placeholder="16 Digit" {...field} /></FormControl><FormMessage /></FormMessage>
                         )} />
                         <FormField control={form.control} name="birthPlace" render={({ field }) => (
                           <FormItem><FormLabel>Tempat Lahir</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
@@ -286,19 +304,48 @@ export default function ApplicantsPage() {
                       </div>
                       
                       {watchLivingWith !== 'Wali' ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
-                          <FormField control={form.control} name="fatherName" render={({ field }) => (
-                            <FormItem><FormLabel>Nama Ayah Kandung</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                          )} />
-                          <FormField control={form.control} name="fatherNIK" render={({ field }) => (
-                            <FormItem><FormLabel>NIK Ayah</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                          )} />
-                          <FormField control={form.control} name="motherName" render={({ field }) => (
-                            <FormItem><FormLabel>Nama Ibu Kandung</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                          )} />
-                          <FormField control={form.control} name="motherNIK" render={({ field }) => (
-                            <FormItem><FormLabel>NIK Ibu</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                          )} />
+                        <div className="space-y-8 animate-in fade-in slide-in-from-top-2">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField control={form.control} name="fatherName" render={({ field }) => (
+                              <FormItem><FormLabel>Nama Ayah Kandung</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name="fatherNIK" render={({ field }) => (
+                              <FormItem><FormLabel>NIK Ayah</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name="fatherBirthYear" render={({ field }) => (
+                              <FormItem><FormLabel>Tahun Lahir Ayah</FormLabel><FormControl><Input placeholder="YYYY" {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name="fatherEducation" render={({ field }) => (
+                              <FormItem><FormLabel>Pendidikan Ayah</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name="fatherJob" render={({ field }) => (
+                              <FormItem><FormLabel>Pekerjaan Ayah</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name="fatherIncome" render={({ field }) => (
+                              <FormItem><FormLabel>Penghasilan Ayah</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                          </div>
+                          <Separator className="bg-border/30" />
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField control={form.control} name="motherName" render={({ field }) => (
+                              <FormItem><FormLabel>Nama Ibu Kandung</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name="motherNIK" render={({ field }) => (
+                              <FormItem><FormLabel>NIK Ibu</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name="motherBirthYear" render={({ field }) => (
+                              <FormItem><FormLabel>Tahun Lahir Ibu</FormLabel><FormControl><Input placeholder="YYYY" {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name="motherEducation" render={({ field }) => (
+                              <FormItem><FormLabel>Pendidikan Ibu</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name="motherJob" render={({ field }) => (
+                              <FormItem><FormLabel>Pekerjaan Ibu</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                            <FormField control={form.control} name="motherIncome" render={({ field }) => (
+                              <FormItem><FormLabel>Penghasilan Ibu</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                          </div>
                         </div>
                       ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
@@ -307,6 +354,18 @@ export default function ApplicantsPage() {
                           )} />
                           <FormField control={form.control} name="guardianNIK" render={({ field }) => (
                             <FormItem><FormLabel>NIK Wali</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                          <FormField control={form.control} name="guardianBirthYear" render={({ field }) => (
+                            <FormItem><FormLabel>Tahun Lahir Wali</FormLabel><FormControl><Input placeholder="YYYY" {...field} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                          <FormField control={form.control} name="guardianEducation" render={({ field }) => (
+                            <FormItem><FormLabel>Pendidikan Wali</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                          <FormField control={form.control} name="guardianJob" render={({ field }) => (
+                            <FormItem><FormLabel>Pekerjaan Wali</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                          <FormField control={form.control} name="guardianIncome" render={({ field }) => (
+                            <FormItem><FormLabel>Penghasilan Wali</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                           )} />
                         </div>
                       )}

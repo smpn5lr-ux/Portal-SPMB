@@ -38,10 +38,24 @@ export interface Applicant {
   // Parent/Guardian Details
   fatherName?: string;
   fatherNIK?: string;
+  fatherBirthYear?: string;
+  fatherEducation?: string;
+  fatherJob?: string;
+  fatherIncome?: string;
+  
   motherName?: string;
   motherNIK?: string;
+  motherBirthYear?: string;
+  motherEducation?: string;
+  motherJob?: string;
+  motherIncome?: string;
+  
   guardianName?: string;
   guardianNIK?: string;
+  guardianBirthYear?: string;
+  guardianEducation?: string;
+  guardianJob?: string;
+  guardianIncome?: string;
 }
 
 export interface Classroom {
