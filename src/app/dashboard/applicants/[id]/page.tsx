@@ -3,7 +3,7 @@
 
 import { useState } from 'react'
 import { useParams } from 'next/navigation'
-import { ArrowLeft, User, Download, MapPin, Briefcase, Info, Loader2, Sparkles, CheckCircle2, XCircle, Users } from "lucide-react"
+import { ArrowLeft, User, Download, MapPin, Briefcase, Info, Loader2, Sparkles, CheckCircle2, XCircle, Users, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -41,6 +41,9 @@ export default function ApplicantDetailPage() {
   const handleUpdateStatus = (status: string) => {
     if (!applicantRef) return
     updateDoc(applicantRef, { verificationStatus: status })
+      .then(() => {
+        toast({ title: `Status diubah menjadi ${status}` })
+      })
       .catch(async () => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: applicantRef.path, operation: 'update' }))
       })
@@ -131,6 +134,15 @@ export default function ApplicantDetailPage() {
   if (loading) return <div className="flex justify-center py-24"><Loader2 className="animate-spin" /></div>
   if (!applicant) return <div className="text-center py-24">Data tidak ditemukan.</div>
 
+  const getStatusStyles = (status: string) => {
+    switch (status) {
+      case 'Lengkap': return 'bg-green-500/10 text-green-500 border-green-500/20';
+      case 'Perlu Perbaikan': return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
+      case 'Ditolak': return 'bg-destructive/10 text-destructive border-destructive/20';
+      default: return 'bg-slate-500/10 text-slate-400 border-slate-500/20';
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -173,7 +185,7 @@ export default function ApplicantDetailPage() {
                     <div className="flex flex-col"><span className="text-muted-foreground">Alamat :</span><span>{applicant.address || "-"}</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">RT/RW :</span><span>{applicant.rt || "-"} / {applicant.rw || "-"}</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">Kelurahan :</span><span>{applicant.kelurahan || "-"}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Kecamatan :</span><span>{applicant.kecamatan || "-"}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Kecamatan :</span><span>{applicant.id && applicant.kecamatan || "-"}</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">Provinsi :</span><span>{applicant.propinsi || "-"}</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">HP Siswa :</span><span>{applicant.studentPhone || "-"}</span></div>
                   </div>
@@ -242,8 +254,11 @@ export default function ApplicantDetailPage() {
               <div className="grid grid-cols-2 gap-2">
                 <Button variant="outline" onClick={() => handleUpdateStatus('Lengkap')} className="text-green-500 border-green-500/20 hover:bg-green-500/5"><CheckCircle2 className="w-4 h-4 mr-2" /> Lengkap</Button>
                 <Button variant="outline" onClick={() => handleUpdateStatus('Ditolak')} className="text-destructive border-destructive/20 hover:bg-destructive/5"><XCircle className="w-4 h-4 mr-2" /> Tolak</Button>
+                <Button variant="outline" onClick={() => handleUpdateStatus('Perlu Perbaikan')} className="col-span-2 text-amber-500 border-amber-500/20 hover:bg-amber-500/5"><AlertCircle className="w-4 h-4 mr-2" /> Belum Lengkap</Button>
               </div>
-              <Badge className="w-full justify-center py-2 text-sm">{applicant.verificationStatus || "-"}</Badge>
+              <Badge variant="outline" className={`w-full justify-center py-2 text-sm uppercase font-bold ${getStatusStyles(applicant.verificationStatus)}`}>
+                {applicant.verificationStatus || "-"}
+              </Badge>
             </CardContent>
           </Card>
           
