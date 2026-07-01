@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo } from "react"
@@ -299,7 +298,7 @@ export default function ReportsPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="border-border/50">
+        <Card className="border-border/50 bg-card shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
               <Users className="w-4 h-4 text-primary" /> Total Murid Pendaftar
@@ -310,7 +309,7 @@ export default function ReportsPage() {
             <p className="text-xs text-green-500 mt-1 font-bold flex items-center gap-1"><TrendingUp className="w-3 h-3" /> Sinkron Firestore Live</p>
           </CardContent>
         </Card>
-        <Card className="border-border/50">
+        <Card className="border-border/50 bg-card shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
               <School className="w-4 h-4 text-accent" /> Rata-rata Skor Murid
@@ -321,7 +320,7 @@ export default function ReportsPage() {
             <p className="text-xs text-muted-foreground mt-1">Berdasarkan pendaftar Jalur Prestasi</p>
           </CardContent>
         </Card>
-        <Card className="border-border/50">
+        <Card className="border-border/50 bg-card shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
               <Calendar className="w-4 h-4 text-pink-500" /> Sisa Kuota Sekolah
@@ -335,13 +334,14 @@ export default function ReportsPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="border-border/50">
+        <Card className="border-border/50 bg-card shadow-sm">
           <CardHeader>
             <CardTitle className="font-headline text-lg">Asal Sekolah Dasar Terbanyak</CardTitle>
+            <CardDescription>Lima sekolah asal pendaftar terbanyak.</CardDescription>
           </CardHeader>
-          <CardContent className="h-[300px]">
+          <CardContent className="h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={schoolData}>
+              <BarChart data={schoolData} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                 <XAxis 
                   dataKey="name" 
@@ -368,11 +368,13 @@ export default function ReportsPage() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
-        <Card className="border-border/50">
+        
+        <Card className="border-border/50 bg-card shadow-sm">
           <CardHeader>
             <CardTitle className="font-headline text-lg">Demografi Usia Murid</CardTitle>
+            <CardDescription>Persentase persebaran usia calon murid baru.</CardDescription>
           </CardHeader>
-          <CardContent className="h-[300px] flex items-center">
+          <CardContent className="h-[320px] flex items-center justify-center">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie 
@@ -383,12 +385,13 @@ export default function ReportsPage() {
                   outerRadius={100} 
                   paddingAngle={8} 
                   dataKey="value"
+                  label={({ name, value }) => `${name}: ${value}%`}
                 >
                   {ageData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>

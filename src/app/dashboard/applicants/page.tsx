@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo, useRef } from 'react'
@@ -100,7 +99,7 @@ export default function ApplicantsPage() {
           toast({ title: "Scan Berhasil", description: "Hanya data yang terbaca jelas yang diisi otomatis." })
         }
       } catch (err) {
-        toast({ variant: "destructive", title: "Scan Gagal", description: "Pastikan gambar tajam." })
+        toast({ variant: "destructive", title: "Scan Gagal", description: "Pastikan gambar tajam dan terbaca jelas." })
       } finally {
         setIsScanning(false)
       }
@@ -147,23 +146,24 @@ export default function ApplicantsPage() {
           <DialogTrigger asChild>
             <Button className="gap-2"><Plus className="w-4 h-4" /> Murid Baru</Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[800px] h-[90vh] p-0 flex flex-col overflow-hidden">
+          <DialogContent className="sm:max-w-[800px] h-[90vh] p-0 flex flex-col overflow-hidden border-border/50">
             <DialogHeader className="p-6 pb-2 border-b flex flex-row items-center justify-between shrink-0">
               <div>
-                <DialogTitle>Formulir Pendaftaran</DialogTitle>
-                <DialogDescription>Gunakan Scan AI untuk membaca formulir manual.</DialogDescription>
+                <DialogTitle className="text-2xl font-headline">Formulir Pendaftaran</DialogTitle>
+                <DialogDescription>Gunakan Scan AI untuk membaca formulir manual secara otomatis.</DialogDescription>
               </div>
-              <Button onClick={() => scanInputRef.current?.click()} disabled={isScanning} variant="outline" size="sm" className="gap-2">
+              <Button onClick={() => scanInputRef.current?.click()} disabled={isScanning} variant="outline" size="sm" className="gap-2 border-primary/20 text-primary">
                 {isScanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />} Scan AI
               </Button>
             </DialogHeader>
             <input type="file" ref={scanInputRef} onChange={handleScanForm} accept="image/*" className="hidden" />
+            
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col min-h-0">
-                <ScrollArea className="flex-1">
-                  <div className="p-8 space-y-8">
+                <ScrollArea className="flex-1 px-8">
+                  <div className="py-6 space-y-8">
                     <section className="space-y-4">
-                      <h3 className="text-sm font-bold uppercase tracking-widest text-primary border-b pb-1">I. Identitas Murid</h3>
+                      <h3 className="text-sm font-bold uppercase tracking-widest text-primary border-b border-primary/20 pb-1">I. Identitas Murid</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField control={form.control} name="fullName" render={({ field }) => (
                           <FormItem><FormLabel>Nama Lengkap</FormLabel><FormControl><Input placeholder="SESUAI IJAZAH" {...field} className="uppercase" /></FormControl><FormMessage /></FormItem>
@@ -177,27 +177,41 @@ export default function ApplicantsPage() {
                         <FormField control={form.control} name="NIK" render={({ field }) => (
                           <FormItem><FormLabel>NIK (16 Digit)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
+                        <FormField control={form.control} name="familyCardNumber" render={({ field }) => (
+                          <FormItem><FormLabel>No. Kartu Keluarga (KK)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="birthPlace" render={({ field }) => (
+                          <FormItem><FormLabel>Tempat Lahir</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="birthDate" render={({ field }) => (
+                          <FormItem><FormLabel>Tanggal Lahir</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="religion" render={({ field }) => (
+                          <FormItem><FormLabel>Agama</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Islam">Islam</SelectItem><SelectItem value="Kristen">Kristen</SelectItem><SelectItem value="Katolik">Katolik</SelectItem><SelectItem value="Hindu">Hindu</SelectItem><SelectItem value="Budha">Budha</SelectItem></SelectContent></Select><FormMessage /></FormItem>
+                        )} />
                       </div>
                     </section>
+                    
                     <section className="space-y-4">
-                      <h3 className="text-sm font-bold uppercase tracking-widest text-primary border-b pb-1">II. Alamat & Orang Tua</h3>
+                      <h3 className="text-sm font-bold uppercase tracking-widest text-primary border-b border-primary/20 pb-1">II. Alamat & Kontak</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField control={form.control} name="address" render={({ field }) => (
-                          <FormItem className="md:col-span-2"><FormLabel>Alamat Rumah</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                          <FormItem className="md:col-span-2"><FormLabel>Alamat Lengkap (Jl/Dusun/RT/RW)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name="parentName" render={({ field }) => (
                           <FormItem><FormLabel>Nama Orang Tua/Wali</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name="parentPhone" render={({ field }) => (
-                          <FormItem><FormLabel>No. HP Aktif</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                          <FormItem><FormLabel>Nomor HP Aktif (WhatsApp)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                       </div>
                     </section>
+
                     <section className="space-y-4">
-                      <h3 className="text-sm font-bold uppercase tracking-widest text-primary border-b pb-1">III. Registrasi Sekolah</h3>
+                      <h3 className="text-sm font-bold uppercase tracking-widest text-primary border-b border-primary/20 pb-1">III. Sekolah Asal & Jalur</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField control={form.control} name="originSchool" render={({ field }) => (
-                          <FormItem><FormLabel>Asal Sekolah (SD/MI)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                          <FormItem><FormLabel>Asal Sekolah Dasar (SD/MI)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name="applicationPath" render={({ field }) => (
                           <FormItem><FormLabel>Jalur Pendaftaran</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Zonasi">Zonasi</SelectItem><SelectItem value="Prestasi">Prestasi</SelectItem><SelectItem value="Afirmasi">Afirmasi</SelectItem><SelectItem value="Perpindahan Orang Tua">Perpindahan Orang Tua</SelectItem></SelectContent></Select><FormMessage /></FormItem>
@@ -208,8 +222,8 @@ export default function ApplicantsPage() {
                 </ScrollArea>
                 <DialogFooter className="p-6 border-t bg-muted/20 shrink-0">
                   <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Batal</Button>
-                  <Button type="submit" disabled={submitting}>
-                    {submitting && <Loader2 className="w-4 h-4 animate-spin mr-2" />} Simpan Data
+                  <Button type="submit" disabled={submitting} className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20">
+                    {submitting && <Loader2 className="w-4 h-4 animate-spin mr-2" />} Simpan Data Pendaftar
                   </Button>
                 </DialogFooter>
               </form>
@@ -218,38 +232,46 @@ export default function ApplicantsPage() {
         </Dialog>
       </div>
 
-      <div className="bg-card border rounded-xl overflow-hidden shadow-sm">
-        <div className="p-4 border-b flex items-center gap-4">
+      <div className="bg-card border border-border/50 rounded-xl overflow-hidden shadow-sm">
+        <div className="p-4 border-b border-border/50 flex items-center gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Cari Nama atau NISN..." className="pl-9" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            <Input placeholder="Cari Nama atau NISN..." className="pl-9 bg-muted/20" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
         </div>
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-primary/5">
             <TableRow>
-              <TableHead>NISN</TableHead>
-              <TableHead>Nama Lengkap</TableHead>
-              <TableHead>Asal Sekolah</TableHead>
-              <TableHead>Jalur</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Aksi</TableHead>
+              <TableHead className="font-bold text-primary">NISN</TableHead>
+              <TableHead className="font-bold text-primary">Nama Lengkap</TableHead>
+              <TableHead className="font-bold text-primary">Asal Sekolah</TableHead>
+              <TableHead className="font-bold text-primary">Jalur</TableHead>
+              <TableHead className="font-bold text-primary">Status</TableHead>
+              <TableHead className="text-right font-bold text-primary">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow><TableCell colSpan={6} className="text-center py-12"><Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" /></TableCell></TableRow>
             ) : filteredApplicants.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">Tidak ada pendaftar.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">Tidak ada pendaftar ditemukan.</TableCell></TableRow>
             ) : filteredApplicants.map((applicant) => (
-              <TableRow key={applicant.id}>
+              <TableRow key={applicant.id} className="hover:bg-muted/10 transition-colors">
                 <TableCell className="font-mono text-xs">{applicant.NISN}</TableCell>
                 <TableCell className="font-medium">{applicant.fullName}</TableCell>
                 <TableCell className="text-sm">{applicant.originSchool}</TableCell>
-                <TableCell><Badge variant="outline">{applicant.applicationPath}</Badge></TableCell>
-                <TableCell><Badge variant="outline" className="text-[10px] uppercase font-bold">{applicant.verificationStatus}</Badge></TableCell>
+                <TableCell><Badge variant="outline" className="text-[10px] font-bold uppercase">{applicant.applicationPath}</Badge></TableCell>
+                <TableCell>
+                  <Badge variant="outline" className={`text-[10px] uppercase font-bold ${
+                    applicant.verificationStatus === 'Lengkap' ? 'bg-green-500/10 text-green-500 border-green-500/20' :
+                    applicant.verificationStatus === 'Ditolak' ? 'bg-destructive/10 text-destructive border-destructive/20' :
+                    'bg-slate-500/10 text-slate-400'
+                  }`}>
+                    {applicant.verificationStatus}
+                  </Badge>
+                </TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="icon" asChild><Link href={`/dashboard/applicants/${applicant.id}`}><Eye className="w-4 h-4" /></Link></Button>
+                  <Button variant="ghost" size="icon" asChild className="hover:text-primary"><Link href={`/dashboard/applicants/${applicant.id}`}><Eye className="w-4 h-4" /></Link></Button>
                 </TableCell>
               </TableRow>
             ))}

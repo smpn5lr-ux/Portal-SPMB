@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview Flow Genkit untuk ekstraksi data formulir pendaftaran murid.
@@ -35,7 +34,7 @@ const extractFormDataFlow = ai.defineFlow(
     outputSchema: ExtractFormDataOutputSchema,
   },
   async (input) => {
-    // Ensure the data URI is properly formatted for Genkit
+    // Pastikan data URI diformat dengan benar untuk Genkit
     const mimeMatch = input.photoDataUri.match(/^data:([^;]+);base64,/);
     const contentType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
 
@@ -45,14 +44,14 @@ const extractFormDataFlow = ai.defineFlow(
         {
           text: `Anda adalah asisten administrasi sekolah yang bertugas memindahkan data dari formulir kertas ke sistem digital.
           
-          ATURAN KRITIKAL:
-          1. AKURASI ADALAH PRIORITAS UTAMA.
-          2. DILARANG KERAS MENEBAK (HALLUCINATION). Jika tulisan tangan buram, terpotong, atau meragukan, biarkan kolom tersebut KOSONG (undefined).
-          3. Untuk Identitas Angka (NISN/NIK): Jika ada satu angka pun yang tidak terbaca 100% jelas, kosongkan seluruh kolom nomor tersebut.
+          ATURAN KRITIKAL (ZERO TOLERANCE FOR HALLUCINATION):
+          1. AKURASI ADALAH PRIORITAS UTAMA. Lebih baik kolom kosong daripada data salah.
+          2. DILARANG KERAS MENEBAK. Jika tulisan tangan buram, terpotong, atau meragukan, biarkan kolom tersebut KOSONG (undefined).
+          3. Untuk NISN/NIK: Jika ada satu angka pun yang tidak terbaca 100% jelas, kosongkan seluruh kolom nomor tersebut.
           4. Baca Nama pendaftar dari kotak-kotak karakter dengan sangat teliti.
           5. Pastikan format Tanggal Lahir adalah YYYY-MM-DD.
           
-          Integritas data jauh lebih penting daripada kelengkapan data hasil scan.`
+          Integritas data jauh lebih penting daripada kelengkapan data hasil scan. Jika gambar terlalu gelap atau buram, jangan paksakan ekstraksi.`
         },
         {
           media: {
