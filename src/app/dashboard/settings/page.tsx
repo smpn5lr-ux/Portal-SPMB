@@ -182,6 +182,7 @@ export default function SettingsPage() {
   }
 
   const handleRemoveSchool = (name: string) => {
+    if (!confirm(`Apakah Anda yakin ingin menghapus "${name}" dari daftar sekolah asal?`)) return
     const updated = localSchools.filter(s => s !== name)
     setLocalSchools(updated)
     saveSchools(updated)
