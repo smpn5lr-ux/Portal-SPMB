@@ -257,6 +257,10 @@ export default function ClassesPage() {
     if (!applicants) return
     setIsExporting(true)
     const students = getStudentsInClass(cls.students)
+    const maleCount = students.filter(s => s.gender === 'Laki-laki').length
+    const femaleCount = students.filter(s => s.gender === 'Perempuan').length
+    const genderSummary = `L: ${maleCount}, P: ${femaleCount}`
+
     try {
       if (format === 'excel') {
         const data = students.map((s, idx) => ({
@@ -294,7 +298,7 @@ export default function ClassesPage() {
           doc.setFontSize(10)
           doc.setTextColor(100)
           doc.setFont("helvetica", "normal")
-          doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'} | Total: ${students.length} Murid`, 14, 38)
+          doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'} | Total: ${students.length} Murid (${genderSummary})`, 14, 38)
           const body = students.map((s, idx) => [idx + 1, s.fullName, s.NISN, s.gender, s.originSchool])
           autoTable(doc, {
             head: [['No.', 'Nama Lengkap', 'NISN', 'Jenis Kelamin', 'Sekolah Asal']],
@@ -310,7 +314,7 @@ export default function ClassesPage() {
           doc.setFontSize(10)
           doc.setTextColor(100)
           doc.setFont("helvetica", "normal")
-          doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'} | Tahun Ajaran ${academicYear}`, 14, 38)
+          doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'} | Total: ${students.length} Murid (${genderSummary})`, 14, 38)
           const body = students.map((s, idx) => [
             idx + 1, 
             s.fullName, 
@@ -369,6 +373,9 @@ export default function ClassesPage() {
         classes.forEach((cls, idx) => {
           if (idx > 0) doc.addPage()
           const students = getStudentsInClass(cls.students)
+          const maleCount = students.filter(s => s.gender === 'Laki-laki').length
+          const femaleCount = students.filter(s => s.gender === 'Perempuan').length
+          const genderSummary = `L: ${maleCount}, P: ${femaleCount}`
           
           // KOP SURAT
           doc.setFontSize(10)
@@ -389,7 +396,7 @@ export default function ClassesPage() {
             doc.setFontSize(10)
             doc.setTextColor(100)
             doc.setFont("helvetica", "normal")
-            doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'} | Total: ${students.length} Murid`, 14, 38)
+            doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'} | Total: ${students.length} Murid (${genderSummary})`, 14, 38)
             const body = students.map((s, studentIdx) => [studentIdx + 1, s.fullName, s.NISN, s.gender, s.originSchool])
             autoTable(doc, {
               head: [['No.', 'Nama Lengkap', 'NISN', 'Jenis Kelamin', 'Sekolah Asal']],
@@ -405,7 +412,7 @@ export default function ClassesPage() {
             doc.setFontSize(10)
             doc.setTextColor(100)
             doc.setFont("helvetica", "normal")
-            doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'} | Tahun Ajaran ${academicYear}`, 14, 38)
+            doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'} | Total: ${students.length} Murid (${genderSummary})`, 14, 38)
             const body = students.map((s, studentIdx) => [
               studentIdx + 1, 
               s.fullName, 
