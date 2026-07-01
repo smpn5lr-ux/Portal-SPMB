@@ -141,6 +141,11 @@ export default function ClassesPage() {
     }
   }, [editingClass, form])
 
+  const handleView = (cls: Classroom) => {
+    setSelectedClassForView(cls)
+    setIsViewOpen(true)
+  }
+
   const onClassSubmit = (values: z.infer<typeof classFormSchema>) => {
     if (!db || submitting || !classes) return
     
