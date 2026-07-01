@@ -70,6 +70,7 @@ import { useToast } from '@/hooks/use-toast'
 import { Switch } from "@/components/ui/switch"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import * as XLSX from 'xlsx'
+import Link from 'next/link'
 
 const classFormSchema = z.object({
   name: z.string().min(1, "Nama kelas harus diisi"),
@@ -491,7 +492,7 @@ export default function ClassesPage() {
       </div>
 
       <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
-        <DialogContent className="sm:max-w-[750px] max-h-[90vh] flex flex-col p-0">
+        <DialogContent className="sm:max-w-[850px] max-h-[90vh] flex flex-col p-0">
           <DialogHeader className="p-6 pb-2 border-b bg-muted/20">
             <div className="flex items-center justify-between">
               <div>
@@ -530,20 +531,32 @@ export default function ClassesPage() {
                     <TableHead>NISN</TableHead>
                     <TableHead>JK</TableHead>
                     <TableHead>Asal Sekolah</TableHead>
+                    <TableHead className="text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {selectedClassForView && getStudentsInClass(selectedClassForView.students).map((s, idx) => (
                     <TableRow key={s.id} className="hover:bg-muted/30">
                       <TableCell className="text-xs">{idx + 1}</TableCell>
-                      <TableCell className="font-medium text-sm">{s.fullName}</TableCell>
+                      <TableCell className="font-medium text-sm">
+                        <Link href={`/dashboard/applicants/${s.id}`} className="hover:text-primary transition-colors">
+                          {s.fullName}
+                        </Link>
+                      </TableCell>
                       <TableCell className="font-mono text-xs">{s.NISN}</TableCell>
                       <TableCell className="text-xs">{s.gender === 'Laki-laki' ? 'L' : 'P'}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{s.originSchool}</TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" asChild className="h-8 w-8 hover:text-primary">
+                          <Link href={`/dashboard/applicants/${s.id}`}>
+                            <Eye className="w-4 h-4" />
+                          </Link>
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                   {selectedClassForView?.students.length === 0 && (
-                    <TableRow><TableCell colSpan={5} className="text-center py-10 text-muted-foreground italic">Belum ada murid di kelas ini.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground italic">Belum ada murid di kelas ini.</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
