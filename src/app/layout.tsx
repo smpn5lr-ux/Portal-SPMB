@@ -18,12 +18,16 @@ export const metadata: Metadata = {
   manifest: '/manifest',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
+    statusBarStyle: 'black-translucent',
     title: 'Portal SPMB',
   },
   formatDetection: {
     telephone: false,
   },
+  icons: {
+    icon: 'https://picsum.photos/seed/school/32/32',
+    apple: 'https://picsum.photos/seed/school/180/180',
+  }
 };
 
 export default function RootLayout({
@@ -39,7 +43,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
       <body className="font-body antialiased bg-background text-foreground min-h-screen">
         <FirebaseClientProvider>

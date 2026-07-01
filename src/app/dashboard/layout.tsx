@@ -17,7 +17,8 @@ import {
   Loader2,
   Pencil,
   Trash2,
-  UserPlus
+  UserPlus,
+  Menu
 } from "lucide-react"
 import { 
   Sidebar, 
@@ -144,9 +145,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       <Sidebar className="border-r border-border">
         <SidebarHeader className="p-4">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-10 h-10 overflow-hidden shrink-0">
+            <div className="flex items-center justify-center w-10 h-10 overflow-hidden shrink-0 bg-transparent">
               {appLogoUrl ? (
-                <img src={appLogoUrl} alt="App Logo" className="w-full h-full object-contain" />
+                <img src={appLogoUrl} alt="App Logo" className="w-full h-full object-contain bg-transparent" />
               ) : (
                 <div className="bg-primary p-2 rounded-lg shadow-lg shadow-primary/20 flex items-center justify-center w-full h-full">
                   <School className="w-6 h-6 text-primary-foreground" />
@@ -218,7 +219,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       <SidebarInset className="flex flex-col flex-1 overflow-hidden">
         <header className="h-16 border-b border-border flex items-center justify-between px-6 bg-card/40 backdrop-blur-sm sticky top-0 z-10">
           <div className="flex items-center gap-4">
-            <SidebarTrigger className="lg:hidden" />
+            <SidebarTrigger className="lg:hidden">
+              <Menu className="w-5 h-5" />
+            </SidebarTrigger>
             <div className="hidden md:flex items-center bg-muted/30 px-3 py-1.5 rounded-full border border-border/50 w-80">
               <Search className="w-4 h-4 text-muted-foreground mr-2" />
               <input 
