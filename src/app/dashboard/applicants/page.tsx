@@ -227,7 +227,7 @@ export default function ApplicantsPage() {
                           <FormItem><FormLabel>NIK</FormLabel><FormControl><Input placeholder="16 Digit" {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name="familyCardNumber" render={({ field }) => (
-                          <FormItem><FormLabel>No. Kartu Keluarga (KK)</FormLabel><FormControl><Input placeholder="16 Digit" {...field} /></FormControl><FormMessage /></FormMessage>
+                          <FormItem><FormLabel>No. Kartu Keluarga (KK)</FormLabel><FormControl><Input placeholder="16 Digit" {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name="birthPlace" render={({ field }) => (
                           <FormItem><FormLabel>Tempat Lahir</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
