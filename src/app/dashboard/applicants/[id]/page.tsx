@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { useParams } from 'next/navigation'
 import { ArrowLeft, User, Download, MapPin, Briefcase, Info, Loader2, Sparkles, CheckCircle2, XCircle, Users, AlertCircle, ClipboardCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/badge"
+import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import Link from 'next/link'
