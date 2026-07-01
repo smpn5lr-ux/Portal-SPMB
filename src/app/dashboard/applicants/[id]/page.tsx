@@ -125,48 +125,51 @@ export default function ApplicantDetailPage() {
               </div>
 
               <div className="space-y-6">
-                <h4 className="text-[10px] font-bold uppercase tracking-widest text-primary border-b pb-1">III. Data Orang Tua / Wali</h4>
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-primary border-b pb-1">III. Data Orang Tua</h4>
                 
-                {applicant.livingWith === 'Wali' ? (
+                <div className="space-y-8">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-2 text-sm">
-                      <div className="flex justify-between"><span className="text-muted-foreground">Nama Wali</span><span className="font-medium">{applicant.guardianName || "-"}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">NIK Wali</span><span className="font-mono">{applicant.guardianNIK || "-"}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">Thn Lahir</span><span>{applicant.guardianBirthYear || "-"}</span></div>
+                      <div className="flex justify-between font-bold text-xs text-muted-foreground uppercase"><span className="text-accent">Data Ayah</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Nama</span><span className="font-medium">{applicant.fatherName || "-"}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">NIK</span><span className="font-mono">{applicant.fatherNIK || "-"}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Thn Lahir</span><span>{applicant.fatherBirthYear || "-"}</span></div>
                     </div>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between"><span className="text-muted-foreground">Pendidikan</span><span>{applicant.guardianEducation || "-"}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">Pekerjaan</span><span>{applicant.guardianJob || "-"}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">Penghasilan</span><span>{applicant.guardianIncome || "-"}</span></div>
+                    <div className="space-y-2 text-sm pt-4">
+                      <div className="flex justify-between"><span className="text-muted-foreground">Pendidikan</span><span>{applicant.fatherEducation || "-"}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Pekerjaan</span><span>{applicant.fatherJob || "-"}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Penghasilan</span><span>{applicant.fatherIncome || "-"}</span></div>
                     </div>
                   </div>
-                ) : (
-                  <div className="space-y-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between font-bold text-xs text-muted-foreground uppercase"><span className="text-accent">Data Ayah</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Nama</span><span className="font-medium">{applicant.fatherName || "-"}</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">NIK</span><span className="font-mono">{applicant.fatherNIK || "-"}</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Thn Lahir</span><span>{applicant.fatherBirthYear || "-"}</span></div>
-                      </div>
-                      <div className="space-y-2 text-sm pt-4">
-                        <div className="flex justify-between"><span className="text-muted-foreground">Pendidikan</span><span>{applicant.fatherEducation || "-"}</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Pekerjaan</span><span>{applicant.fatherJob || "-"}</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Penghasilan</span><span>{applicant.fatherIncome || "-"}</span></div>
-                      </div>
+                  <Separator className="bg-border/30" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between font-bold text-xs text-muted-foreground uppercase"><span className="text-accent">Data Ibu</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Nama</span><span className="font-medium">{applicant.motherName || "-"}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">NIK</span><span className="font-mono">{applicant.motherNIK || "-"}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Thn Lahir</span><span>{applicant.motherBirthYear || "-"}</span></div>
                     </div>
-                    <Separator className="bg-border/30" />
+                    <div className="space-y-2 text-sm pt-4">
+                      <div className="flex justify-between"><span className="text-muted-foreground">Pendidikan</span><span>{applicant.motherEducation || "-"}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Pekerjaan</span><span>{applicant.motherJob || "-"}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Penghasilan</span><span>{applicant.motherIncome || "-"}</span></div>
+                    </div>
+                  </div>
+                </div>
+
+                {applicant.livingWith !== 'Bersama Orang Tua' && (
+                  <div className="pt-10 space-y-6">
+                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-primary border-b pb-1">IV. Data Wali</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       <div className="space-y-2 text-sm">
-                        <div className="flex justify-between font-bold text-xs text-muted-foreground uppercase"><span className="text-accent">Data Ibu</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Nama</span><span className="font-medium">{applicant.motherName || "-"}</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">NIK</span><span className="font-mono">{applicant.motherNIK || "-"}</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Thn Lahir</span><span>{applicant.motherBirthYear || "-"}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Nama Wali</span><span className="font-medium">{applicant.guardianName || "-"}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">NIK Wali</span><span className="font-mono">{applicant.guardianNIK || "-"}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Thn Lahir</span><span>{applicant.guardianBirthYear || "-"}</span></div>
                       </div>
-                      <div className="space-y-2 text-sm pt-4">
-                        <div className="flex justify-between"><span className="text-muted-foreground">Pendidikan</span><span>{applicant.motherEducation || "-"}</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Pekerjaan</span><span>{applicant.motherJob || "-"}</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Penghasilan</span><span>{applicant.motherIncome || "-"}</span></div>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between"><span className="text-muted-foreground">Pendidikan</span><span>{applicant.guardianEducation || "-"}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Pekerjaan</span><span>{applicant.guardianJob || "-"}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Penghasilan</span><span>{applicant.guardianIncome || "-"}</span></div>
                       </div>
                     </div>
                   </div>
