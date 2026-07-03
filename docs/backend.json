@@ -61,7 +61,9 @@
         "guardianEducation": { "type": "string" },
         "guardianJob": { "type": "string" },
         "guardianIncome": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "createdAt": { "type": "string", "format": "date-time" },
+        "isDeleted": { "type": "boolean" },
+        "deletedAt": { "type": "string" }
       },
       "required": ["NISN", "fullName", "applicationPath"]
     },

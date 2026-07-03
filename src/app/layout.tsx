@@ -5,7 +5,6 @@ import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { Toaster } from '@/components/ui/toaster';
 
 const LOGO_URL = "https://firebasestorage.googleapis.com/v0/b/studio-8340795105-269f9.firebasestorage.app/o/logo.png?alt=media&token=c272e094-a169-42b7-a3aa-e8838d77c413";
-// Menambahkan cache busting agar browser segera memperbarui ikon
 const ICON_URL = `${LOGO_URL}&v=2`;
 
 export const viewport: Viewport = {
@@ -47,7 +46,6 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
-        {/* Memaksa link rel icon di head untuk prioritas tertinggi */}
         <link rel="icon" href={ICON_URL} sizes="any" />
         <link rel="shortcut icon" href={ICON_URL} />
         <link rel="apple-touch-icon" href={ICON_URL} />

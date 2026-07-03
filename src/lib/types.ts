@@ -27,8 +27,8 @@ export interface Applicant {
   childOrder: number;
   numberOfSiblings: number;
   studentPhone: string;
-  parentName: string; // Contact person
-  parentPhone: string; // Contact phone
+  parentName: string;
+  parentPhone: string;
   originSchool: string;
   applicationPath: AdmissionPath;
   verificationStatus: VerificationStatus;
@@ -36,8 +36,9 @@ export interface Applicant {
   createdAt: string;
   isDeleted?: boolean;
   deletedAt?: string;
+  restoredAt?: string;
+  rankingInPath?: number;
   
-  // Parent/Guardian Details
   fatherName?: string;
   fatherNIK?: string;
   fatherBirthYear?: string;

@@ -10,10 +10,6 @@ import {
   ShieldCheck, 
   Search, 
   Loader2,
-  MoreVertical,
-  CheckCircle2,
-  XCircle,
-  AlertCircle,
   ShieldAlert
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -305,35 +301,6 @@ export default function StaffManagementPage() {
             </TableBody>
           </Table>
         </Card>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card className="border-border/50 bg-accent/5">
-            <CardContent className="p-6">
-              <div className="flex items-start gap-4">
-                <ShieldCheck className="w-6 h-6 text-accent mt-1" />
-                <div>
-                  <h4 className="font-bold text-sm">Panduan Akses Pegawai</h4>
-                  <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-                    Setiap pegawai yang ditambahkan di atas harus melakukan registrasi mandiri di halaman login menggunakan email yang sama. Sistem akan otomatis mengenali mereka sebagai staf sekolah setelah login.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-border/50 bg-primary/5">
-            <CardContent className="p-6">
-              <div className="flex items-start gap-4">
-                <AlertCircle className="w-6 h-6 text-primary mt-1" />
-                <div>
-                  <h4 className="font-bold text-sm">Izin Operasional</h4>
-                  <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-                    Pegawai dengan hak akses <b>Pegawai</b> dapat mengelola pendaftaran, verifikasi, seleksi, dan kelas, namun tidak dapat mengubah pengaturan sistem global.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
       </div>
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
