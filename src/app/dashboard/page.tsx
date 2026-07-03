@@ -11,7 +11,8 @@ import {
   Trophy,
   Heart,
   Truck,
-  User
+  User,
+  CalendarDays
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { 
@@ -26,8 +27,8 @@ import {
   PieChart,
   Pie
 } from "recharts"
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
-import { collection, query, limit } from "firebase/firestore"
+import { useCollection, useFirestore, useMemoFirebase, useDoc } from "@/firebase"
+import { collection, query, limit, doc } from "firebase/firestore"
 import { Applicant } from "@/lib/types"
 import { Skeleton } from "@/components/ui/skeleton"
 import { format, subDays, isSameDay } from "date-fns"
@@ -42,7 +43,13 @@ export default function OverviewPage() {
     return query(collection(db, 'applicants'), limit(1000))
   }, [db])
 
-  const { data: allApplicants, loading } = useCollection<Applicant>(applicantsQuery)
+  const settingsRef = useMemoFirebase(() => {
+    if (!db) return null
+    return doc(db, 'settings', 'system')
+  }, [db])
+
+  const { data: allApplicants, loading: loadingApplicants } = useCollection<Applicant>(applicantsQuery)
+  const { data: config, loading: loadingConfig } = useDoc<any>(settingsRef)
 
   const applicants = useMemo(() => {
     if (!allApplicants) return []
@@ -55,14 +62,46 @@ export default function OverviewPage() {
     const accepted = applicants.filter(a => a.admissionStatus === 'accepted').length
     const pending = applicants.filter(a => a.verificationStatus === 'Belum Diverifikasi').length
     const rejected = applicants.filter(a => a.verificationStatus === 'Ditolak').length
+    
+    const totalQuota = config?.totalQuota || 0
+    const remainingQuota = Math.max(0, totalQuota - accepted)
 
     return [
-      { name: 'Total Murid Pendaftar', value: total.toLocaleString(), icon: Users, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/applicants' },
-      { name: 'Murid Diterima', value: accepted.toLocaleString(), icon: CheckCircle2, color: 'text-green-500', bg: 'bg-green-500/10', href: '/dashboard/selection' },
-      { name: 'Menunggu Verifikasi', value: pending.toLocaleString(), icon: Clock, color: 'text-amber-500', bg: 'bg-amber-500/10', href: '/dashboard/verification' },
-      { name: 'Pendaftaran Ditolak', value: rejected.toLocaleString(), icon: AlertCircle, color: 'text-destructive', bg: 'bg-destructive/10', href: '/dashboard/verification' },
+      { 
+        name: 'Sisa Kuota Sekolah', 
+        value: `${remainingQuota} dari ${totalQuota}`, 
+        subValue: `Terisi: ${accepted}`,
+        icon: CalendarDays, 
+        color: 'text-primary', 
+        bg: 'bg-primary/10', 
+        href: '/dashboard/selection' 
+      },
+      { 
+        name: 'Total Pendaftar', 
+        value: total.toLocaleString(), 
+        icon: Users, 
+        color: 'text-accent', 
+        bg: 'bg-accent/10', 
+        href: '/dashboard/applicants' 
+      },
+      { 
+        name: 'Menunggu Verifikasi', 
+        value: pending.toLocaleString(), 
+        icon: Clock, 
+        color: 'text-amber-500', 
+        bg: 'bg-amber-500/10', 
+        href: '/dashboard/verification' 
+      },
+      { 
+        name: 'Pendaftaran Ditolak', 
+        value: rejected.toLocaleString(), 
+        icon: AlertCircle, 
+        color: 'text-destructive', 
+        bg: 'bg-destructive/10', 
+        href: '/dashboard/verification' 
+      },
     ]
-  }, [applicants])
+  }, [applicants, config])
 
   const pathStats = useMemo(() => {
     if (!applicants || applicants.length === 0) return []
@@ -119,6 +158,8 @@ export default function OverviewPage() {
     return last7Days.map(({ day, count }) => ({ day, count }))
   }, [applicants])
 
+  const loading = loadingApplicants || loadingConfig
+
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -145,7 +186,8 @@ export default function OverviewPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider group-hover:text-primary transition-colors">{stat.name}</p>
-                      <h3 className="text-3xl font-bold mt-2">{stat.value}</h3>
+                      <h3 className="text-2xl font-bold mt-2">{stat.value}</h3>
+                      {stat.subValue && <p className="text-[10px] text-muted-foreground mt-1">{stat.subValue}</p>}
                     </div>
                     <div className={`${stat.bg} p-3 rounded-xl group-hover:scale-110 transition-transform`}>
                       <stat.icon className={`w-6 h-6 ${stat.color}`} />

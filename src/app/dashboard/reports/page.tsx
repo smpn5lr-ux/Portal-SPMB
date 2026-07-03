@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo } from "react"
@@ -13,10 +14,11 @@ import {
   Download,
   Loader2,
   FileSpreadsheet,
-  FileText as FilePdf,
+  FilePdf,
   FileCode,
   CheckCircle2,
-  Settings2
+  Settings2,
+  CalendarDays
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -97,8 +99,8 @@ export default function ReportsPage() {
   const npsn = systemSettings?.npsn || "-"
 
   const stats = useMemo(() => {
-    const totalQuota = systemSettings?.totalQuota || 250
-    if (!applicants) return { total: 0, avgScore: 0, remainingQuota: totalQuota, acceptedCount: 0, totalQuota }
+    const totalQuota = systemSettings?.totalQuota || 0
+    if (!applicants) return { total: 0, avgScore: 0, remainingQuota: 0, acceptedCount: 0, totalQuota }
     const total = applicants.length
     const prestasiApplicants = applicants.filter(a => a.applicationPath === 'Prestasi' && a.academicScore)
     const avgScore = prestasiApplicants.length 
@@ -156,6 +158,7 @@ export default function ReportsPage() {
     setIsExporting(true)
     try {
       const data = getExportData()
+      if (data.length === 0) return;
       const headers = Object.keys(data[0])
       const csvContent = [
         headers.join(","),
@@ -300,12 +303,12 @@ export default function ReportsPage() {
         <Card className="border-border/50 bg-card shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-              <Users className="w-4 h-4 text-primary" /> Total Murid Pendaftar
+              <CalendarDays className="w-4 h-4 text-primary" /> Sisa Kuota Sekolah
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold">{loading ? "..." : stats.total}</div>
-            <p className="text-xs text-green-500 mt-1 font-bold flex items-center gap-1"><TrendingUp className="w-3 h-3" /> Sinkron Firestore Live</p>
+            <div className="text-3xl font-bold">{loading ? "..." : `${stats.remainingQuota} dari ${stats.totalQuota}`}</div>
+            <p className="text-xs text-green-500 mt-1 font-bold flex items-center gap-1">Terisi: {stats.acceptedCount} Murid</p>
           </CardContent>
         </Card>
         <Card className="border-border/50 bg-card shadow-sm">
@@ -316,18 +319,18 @@ export default function ReportsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-4xl font-bold">{loading ? "..." : stats.avgScore}</div>
-            <p className="text-xs text-muted-foreground mt-1">Berdasarkan pendaftar Jalur Prestasi</p>
+            <p className="text-xs text-muted-foreground mt-1">Berdasarkan Jalur Prestasi</p>
           </CardContent>
         </Card>
         <Card className="border-border/50 bg-card shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-pink-500" /> Sisa Kuota Sekolah
+              <Users className="w-4 h-4 text-pink-500" /> Total Pendaftar
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold">{loading ? "..." : stats.remainingQuota}</div>
-            <p className="text-xs text-amber-500 mt-1 font-bold">Kuota Terisi: {stats.acceptedCount} / {stats.totalQuota}</p>
+            <div className="text-4xl font-bold">{loading ? "..." : stats.total}</div>
+            <p className="text-xs text-muted-foreground mt-1">Total data masuk sistem</p>
           </CardContent>
         </Card>
       </div>
