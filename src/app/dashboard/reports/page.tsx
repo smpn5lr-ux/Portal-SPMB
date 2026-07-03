@@ -101,12 +101,12 @@ export default function ReportsPage() {
   const stats = useMemo(() => {
     const totalQuota = systemSettings?.totalQuota || 0
     if (!applicants) return { total: 0, avgScore: 0, remainingQuota: 0, acceptedCount: 0, totalQuota }
-    const total = applicants.length
-    const prestasiApplicants = applicants.filter(a => a.applicationPath === 'Prestasi' && a.academicScore)
+    const total = applicants.filter(a => !a.isDeleted).length
+    const prestasiApplicants = applicants.filter(a => !a.isDeleted && a.applicationPath === 'Prestasi' && a.academicScore)
     const avgScore = prestasiApplicants.length 
       ? (prestasiApplicants.reduce((acc, curr) => acc + (curr.academicScore || 0), 0) / prestasiApplicants.length).toFixed(1)
       : 0
-    const acceptedCount = applicants.filter(a => a.admissionStatus === 'accepted').length
+    const acceptedCount = applicants.filter(a => !a.isDeleted && a.admissionStatus === 'accepted').length
     const remainingQuota = Math.max(0, totalQuota - acceptedCount)
     return { total, avgScore, remainingQuota, acceptedCount, totalQuota }
   }, [applicants, systemSettings])
@@ -114,7 +114,7 @@ export default function ReportsPage() {
   const schoolData = useMemo(() => {
     if (!applicants) return []
     const counts: Record<string, number> = {}
-    applicants.forEach(a => {
+    applicants.filter(a => !a.isDeleted).forEach(a => {
       counts[a.originSchool] = (counts[a.originSchool] || 0) + 1
     })
     return Object.entries(counts)
@@ -129,20 +129,21 @@ export default function ReportsPage() {
   const ageData = useMemo(() => {
     if (!applicants || applicants.length === 0) return []
     const ages: Record<string, number> = {}
-    applicants.forEach(a => {
+    const filtered = applicants.filter(a => !a.isDeleted)
+    filtered.forEach(a => {
       const label = `${a.ageYears || 12} Thn`
       ages[label] = (ages[label] || 0) + 1
     })
-    const total = applicants.length
+    const totalCount = filtered.length
     return Object.entries(ages).map(([name, count]) => ({
       name,
-      value: Math.round((count / total) * 100)
+      value: totalCount > 0 ? Math.round((count / totalCount) * 100) : 0
     }))
   }, [applicants])
 
   const getExportData = () => {
     if (!applicants) return []
-    return applicants.map((a, idx) => {
+    return applicants.filter(a => !a.isDeleted).map((a, idx) => {
       const row: any = { "No.": idx + 1 }
       EXPORT_COLUMNS.forEach(col => {
         if (selectedColumns.includes(col.id)) {
@@ -217,6 +218,7 @@ export default function ReportsPage() {
       doc.line(14, 28, 283, 28)
 
       const data = getExportData()
+      if (data.length === 0) return;
       const headers = [Object.keys(data[0])]
       const body = data.map(item => Object.values(item))
 

@@ -70,7 +70,7 @@ export default function OverviewPage() {
       { 
         name: 'Sisa Kuota Sekolah', 
         value: `${remainingQuota} dari ${totalQuota}`, 
-        subValue: `Terisi: ${accepted}`,
+        subValue: `Terisi: ${accepted} Murid`,
         icon: CalendarDays, 
         color: 'text-primary', 
         bg: 'bg-primary/10', 
@@ -187,7 +187,7 @@ export default function OverviewPage() {
                     <div>
                       <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider group-hover:text-primary transition-colors">{stat.name}</p>
                       <h3 className="text-2xl font-bold mt-2">{stat.value}</h3>
-                      {stat.subValue && <p className="text-[10px] text-muted-foreground mt-1">{stat.subValue}</p>}
+                      {stat.subValue && <p className="text-[10px] text-green-500 font-bold mt-1 uppercase tracking-tighter">{stat.subValue}</p>}
                     </div>
                     <div className={`${stat.bg} p-3 rounded-xl group-hover:scale-110 transition-transform`}>
                       <stat.icon className={`w-6 h-6 ${stat.color}`} />
