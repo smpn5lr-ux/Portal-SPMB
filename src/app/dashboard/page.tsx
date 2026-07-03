@@ -32,6 +32,7 @@ import { Applicant } from "@/lib/types"
 import { Skeleton } from "@/components/ui/skeleton"
 import { format, subDays, isSameDay } from "date-fns"
 import { id } from "date-fns/locale"
+import Link from "next/link"
 
 export default function OverviewPage() {
   const db = useFirestore()
@@ -56,10 +57,10 @@ export default function OverviewPage() {
     const rejected = applicants.filter(a => a.verificationStatus === 'Ditolak').length
 
     return [
-      { name: 'Total Murid Pendaftar', value: total.toLocaleString(), icon: Users, color: 'text-primary', bg: 'bg-primary/10' },
-      { name: 'Murid Diterima', value: accepted.toLocaleString(), icon: CheckCircle2, color: 'text-green-500', bg: 'bg-green-500/10' },
-      { name: 'Menunggu Verifikasi', value: pending.toLocaleString(), icon: Clock, color: 'text-amber-500', bg: 'bg-amber-500/10' },
-      { name: 'Pendaftaran Ditolak', value: rejected.toLocaleString(), icon: AlertCircle, color: 'text-destructive', bg: 'bg-destructive/10' },
+      { name: 'Total Murid Pendaftar', value: total.toLocaleString(), icon: Users, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/applicants' },
+      { name: 'Murid Diterima', value: accepted.toLocaleString(), icon: CheckCircle2, color: 'text-green-500', bg: 'bg-green-500/10', href: '/dashboard/selection' },
+      { name: 'Menunggu Verifikasi', value: pending.toLocaleString(), icon: Clock, color: 'text-amber-500', bg: 'bg-amber-500/10', href: '/dashboard/verification' },
+      { name: 'Pendaftaran Ditolak', value: rejected.toLocaleString(), icon: AlertCircle, color: 'text-destructive', bg: 'bg-destructive/10', href: '/dashboard/verification' },
     ]
   }, [applicants])
 
@@ -138,19 +139,21 @@ export default function OverviewPage() {
           ))
         ) : (
           stats.map((stat) => (
-            <Card key={stat.name} className="border-border/50 hover:border-primary/50 transition-all duration-300">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{stat.name}</p>
-                    <h3 className="text-3xl font-bold mt-2">{stat.value}</h3>
+            <Link key={stat.name} href={stat.href} className="block">
+              <Card className="border-border/50 hover:border-primary/50 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 group cursor-pointer">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider group-hover:text-primary transition-colors">{stat.name}</p>
+                      <h3 className="text-3xl font-bold mt-2">{stat.value}</h3>
+                    </div>
+                    <div className={`${stat.bg} p-3 rounded-xl group-hover:scale-110 transition-transform`}>
+                      <stat.icon className={`w-6 h-6 ${stat.color}`} />
+                    </div>
                   </div>
-                  <div className={`${stat.bg} p-3 rounded-xl`}>
-                    <stat.icon className={`w-6 h-6 ${stat.color}`} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </Link>
           ))
         )}
       </div>
