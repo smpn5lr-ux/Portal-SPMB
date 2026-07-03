@@ -102,12 +102,14 @@ export default function ReportsPage() {
     const totalQuota = systemSettings?.totalQuota || 0
     if (!applicants) return { total: 0, avgScore: 0, remainingQuota: 0, acceptedCount: 0, totalQuota }
     const total = applicants.filter(a => !a.isDeleted).length
+    const acceptedCount = applicants.filter(a => !a.isDeleted && a.admissionStatus === 'accepted').length
+    const remainingQuota = Math.max(0, totalQuota - acceptedCount)
+    
     const prestasiApplicants = applicants.filter(a => !a.isDeleted && a.applicationPath === 'Prestasi' && a.academicScore)
     const avgScore = prestasiApplicants.length 
       ? (prestasiApplicants.reduce((acc, curr) => acc + (curr.academicScore || 0), 0) / prestasiApplicants.length).toFixed(1)
       : 0
-    const acceptedCount = applicants.filter(a => !a.isDeleted && a.admissionStatus === 'accepted').length
-    const remainingQuota = Math.max(0, totalQuota - acceptedCount)
+      
     return { total, avgScore, remainingQuota, acceptedCount, totalQuota }
   }, [applicants, systemSettings])
 

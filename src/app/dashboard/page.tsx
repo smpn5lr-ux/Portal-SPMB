@@ -181,7 +181,7 @@ export default function OverviewPage() {
         ) : (
           stats.map((stat) => (
             <Link key={stat.name} href={stat.href} className="block">
-              <Card className="border-border/50 hover:border-primary/50 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 group cursor-pointer">
+              <Card className="border-border/50 hover:border-primary/50 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 group cursor-pointer h-full">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
