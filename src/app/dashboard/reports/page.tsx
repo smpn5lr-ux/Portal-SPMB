@@ -14,7 +14,7 @@ import {
   Download,
   Loader2,
   FileSpreadsheet,
-  FilePdf,
+  FileText as FilePdf,
   FileCode,
   CheckCircle2,
   Settings2,
