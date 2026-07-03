@@ -4,6 +4,8 @@ import './globals.css';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { Toaster } from '@/components/ui/toaster';
 
+const LOGO_URL = "https://firebasestorage.googleapis.com/v0/b/studio-8340795105-269f9.firebasestorage.app/o/logo.png?alt=media&token=c272e094-a169-42b7-a3aa-e8838d77c413";
+
 export const viewport: Viewport = {
   themeColor: '#4361ee',
   width: 'device-width',
@@ -20,14 +22,15 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: 'black-translucent',
     title: 'Portal SPMB',
+    startupImage: [LOGO_URL],
   },
   formatDetection: {
     telephone: false,
   },
   icons: {
-    icon: 'https://picsum.photos/seed/school/512/512',
-    shortcut: 'https://picsum.photos/seed/school/192/192',
-    apple: 'https://picsum.photos/seed/school/512/512',
+    icon: LOGO_URL,
+    shortcut: LOGO_URL,
+    apple: LOGO_URL,
   }
 };
 
