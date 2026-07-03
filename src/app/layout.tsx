@@ -25,8 +25,9 @@ export const metadata: Metadata = {
     telephone: false,
   },
   icons: {
-    icon: 'https://picsum.photos/seed/school/32/32',
-    apple: 'https://picsum.photos/seed/school/180/180',
+    icon: 'https://picsum.photos/seed/school/512/512',
+    shortcut: 'https://picsum.photos/seed/school/192/192',
+    apple: 'https://picsum.photos/seed/school/512/512',
   }
 };
 
