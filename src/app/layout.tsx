@@ -3,8 +3,8 @@ import './globals.css';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { Toaster } from '@/components/ui/toaster';
 
-// Cache-busting v30 untuk memaksa browser mengganti ikon lama dengan logo Portal SPMB baru
-const ICON_URL = "/icon-logo.webp?v=30";
+// Menggunakan v40 untuk memaksa browser membuang cache ikon lama (ikon Firebase)
+const ICON_URL = "/icon-logo.webp?v=40";
 
 export const viewport: Viewport = {
   themeColor: '#4361ee',
@@ -45,7 +45,7 @@ export default function RootLayout({
   return (
     <html lang="id" className="dark">
       <head>
-        {/* Explicit override: Memaksa browser memprioritaskan logo sekolah di atas favicon.ico default */}
+        {/* Explicit override: Memaksa browser menggunakan logo Portal SPMB di atas cache favicon.ico lama */}
         <link rel="icon" href={ICON_URL} />
         <link rel="shortcut icon" href={ICON_URL} />
         <link rel="apple-touch-icon" href={ICON_URL} />

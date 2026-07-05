@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useMemo } from "react"
@@ -63,6 +62,7 @@ export default function OverviewPage() {
     const pending = applicants.filter(a => a.verificationStatus === 'Belum Diverifikasi').length
     const rejected = applicants.filter(a => a.verificationStatus === 'Ditolak').length
     
+    // Logika Kuota Paten: Sisa = Total Kuota - Jumlah yang Diterima
     const totalQuota = config?.totalQuota || 0
     const remainingQuota = Math.max(0, totalQuota - accepted)
 
