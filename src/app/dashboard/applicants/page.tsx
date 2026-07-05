@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { 
-  Search, Plus, Loader2, Camera, Eye, User, Home, MapPin, Phone, Users as UsersIcon, Pencil, Trash2
+  Search, Plus, Loader2, Camera, Eye, User, Home, MapPin, Phone, Users as UsersIcon, Pencil, Trash2, Scale, Ruler, Clock
 } from "lucide-react"
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
@@ -66,6 +66,14 @@ const formSchema = z.object({
   studentPhone: z.string().optional(),
   numberOfSiblings: z.string().optional(),
   
+  // Data Periodik
+  heightCm: z.string().optional(),
+  weightKg: z.string().optional(),
+  travelTimeMinutes: z.string().optional(),
+  welfareType: z.enum(['PIP', 'PKH', 'KKS', 'KPS', 'Tidak Ada']).optional(),
+  welfareCardNumber: z.string().optional(),
+  welfareCardName: z.string().optional(),
+  
   // Father Data
   fatherName: z.string().optional(),
   fatherNIK: z.string().optional(),
@@ -116,6 +124,8 @@ export default function ApplicantsPage() {
       address: "", rt: "", rw: "", kelurahan: "", kecamatan: "", propinsi: "Jawa Barat",
       livingWith: "Bersama Orang Tua", transportation: "Jalan Kaki",
       childOrder: "1", studentPhone: "", numberOfSiblings: "0",
+      heightCm: "", weightKg: "", travelTimeMinutes: "", welfareType: "Tidak Ada",
+      welfareCardNumber: "", welfareCardName: "",
       originSchool: "", applicationPath: "Zonasi",
       fatherName: "", fatherNIK: "", fatherBirthYear: "", fatherEducation: "", fatherJob: "", fatherIncome: "",
       motherName: "", motherNIK: "", motherBirthYear: "", motherEducation: "", motherJob: "", motherIncome: "",
@@ -178,13 +188,19 @@ export default function ApplicantsPage() {
       ...applicant,
       childOrder: applicant.childOrder?.toString() || "",
       numberOfSiblings: applicant.numberOfSiblings?.toString() || "",
+      heightCm: applicant.heightCm?.toString() || "",
+      weightKg: applicant.weightKg?.toString() || "",
+      travelTimeMinutes: applicant.travelTimeMinutes?.toString() || "",
+      welfareType: applicant.welfareType || "Tidak Ada",
+      welfareCardNumber: applicant.welfareCardNumber || "",
+      welfareCardName: applicant.welfareCardName || "",
       fatherName: applicant.fatherName || "",
       fatherNIK: applicant.fatherNIK || "",
       fatherBirthYear: applicant.fatherBirthYear || "",
       fatherEducation: applicant.fatherEducation || "",
       fatherJob: applicant.fatherJob || "",
       fatherIncome: applicant.fatherIncome || "",
-      motherName: applicant.motherName || "",
+      motherName: applicant.motherName || "" ,
       motherNIK: applicant.motherNIK || "",
       motherBirthYear: applicant.motherBirthYear || "",
       motherEducation: applicant.motherEducation || "",
@@ -228,6 +244,8 @@ export default function ApplicantsPage() {
       address: "", rt: "", rw: "", kelurahan: "", kecamatan: "", propinsi: "Jawa Barat",
       livingWith: "Bersama Orang Tua", transportation: "Jalan Kaki",
       childOrder: "1", studentPhone: "", numberOfSiblings: "0",
+      heightCm: "", weightKg: "", travelTimeMinutes: "", welfareType: "Tidak Ada",
+      welfareCardNumber: "", welfareCardName: "",
       originSchool: "", applicationPath: "Zonasi",
       fatherName: "", fatherNIK: "", fatherBirthYear: "", fatherEducation: "", fatherJob: "", fatherIncome: "",
       motherName: "", motherNIK: "", motherBirthYear: "", motherEducation: "", motherJob: "", motherIncome: "",
@@ -244,6 +262,9 @@ export default function ApplicantsPage() {
         ...values,
         childOrder: Number(values.childOrder) || 0,
         numberOfSiblings: Number(values.numberOfSiblings) || 0,
+        heightCm: Number(values.heightCm) || 0,
+        weightKg: Number(values.weightKg) || 0,
+        travelTimeMinutes: Number(values.travelTimeMinutes) || 0,
         parentName: values.livingWith === 'Wali' ? (values.guardianName || values.fatherName || "") : (values.fatherName || ""),
         parentPhone: values.studentPhone || "",
       }
@@ -408,9 +429,36 @@ export default function ApplicantsPage() {
 
                     <section className="space-y-4">
                       <div className="flex items-center gap-2 text-primary">
+                        <Scale className="w-5 h-5" />
+                        <h3 className="text-sm font-bold uppercase tracking-widest border-b border-primary/20 pb-1 flex-1">D. Data Periodik</h3>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <FormField control={form.control} name="heightCm" render={({ field }) => (
+                          <FormItem><FormLabel>Tinggi Badan (CM) :</FormLabel><FormControl><Input type="number" placeholder="0" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="weightKg" render={({ field }) => (
+                          <FormItem><FormLabel>Berat Badan (KG) :</FormLabel><FormControl><Input type="number" placeholder="0" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="travelTimeMinutes" render={({ field }) => (
+                          <FormItem><FormLabel>Waktu Tempuh (Menit) :</FormLabel><FormControl><Input type="number" placeholder="0" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="welfareType" render={({ field }) => (
+                          <FormItem><FormLabel>Jenis Kesejahteraan :</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Tidak Ada">Tidak Ada / Umum</SelectItem><SelectItem value="PIP">PIP</SelectItem><SelectItem value="PKH">PKH</SelectItem><SelectItem value="KKS">KKS</SelectItem><SelectItem value="KPS">KPS</SelectItem></SelectContent></Select><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="welfareCardNumber" render={({ field }) => (
+                          <FormItem><FormLabel>Nomor Kartu :</FormLabel><FormControl><Input placeholder="Nomor Kartu Kesejahteraan" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="welfareCardName" render={({ field }) => (
+                          <FormItem><FormLabel>Nama di Kartu :</FormLabel><FormControl><Input placeholder="Nama Sesuai Kartu" {...field} /></FormControl><FormMessage /></FormItem>
+                        )} />
+                      </div>
+                    </section>
+
+                    <section className="space-y-4">
+                      <div className="flex items-center gap-2 text-primary">
                         <UsersIcon className="w-5 h-5" />
                         <h3 className="text-sm font-bold uppercase tracking-widest border-b border-primary/20 pb-1 flex-1">
-                          D. Data Orang Tua
+                          E. Data Orang Tua
                         </h3>
                       </div>
                       
@@ -463,7 +511,7 @@ export default function ApplicantsPage() {
                           <div className="flex items-center gap-2 text-primary">
                             <UsersIcon className="w-5 h-5" />
                             <h3 className="text-sm font-bold uppercase tracking-widest border-b border-primary/20 pb-1 flex-1">
-                              E. Data Wali
+                              F. Data Wali
                             </h3>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -493,7 +541,7 @@ export default function ApplicantsPage() {
                     <section className="space-y-4">
                       <div className="flex items-center gap-2 text-primary">
                         <MapPin className="w-5 h-5" />
-                        <h3 className="text-sm font-bold uppercase tracking-widest border-b border-primary/20 pb-1 flex-1">E. Jalur & Asal Sekolah</h3>
+                        <h3 className="text-sm font-bold uppercase tracking-widest border-b border-primary/20 pb-1 flex-1">G. Jalur & Asal Sekolah</h3>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField control={form.control} name="originSchool" render={({ field }) => (

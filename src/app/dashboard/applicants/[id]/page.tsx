@@ -3,7 +3,7 @@
 
 import { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, User, Download, MapPin, Briefcase, Info, Loader2, Sparkles, CheckCircle2, XCircle, Users, AlertCircle, ClipboardCheck, School, GraduationCap, Calendar, Phone, Trash2, ShieldAlert } from "lucide-react"
+import { ArrowLeft, User, Download, MapPin, Briefcase, Info, Loader2, Sparkles, CheckCircle2, XCircle, Users, AlertCircle, ClipboardCheck, School, GraduationCap, Calendar, Phone, Trash2, ShieldAlert, Scale, Ruler, Clock, CreditCard } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -107,6 +107,14 @@ export default function ApplicantDetailPage() {
       ["Tinggal Bersama :", applicant.livingWith || "-"],
       ["HP Siswa :", applicant.studentPhone || "-"],
       ["", ""],
+      ["DATA PERIODIK", ""],
+      ["Tinggi Badan :", `${applicant.heightCm || "-"} CM`],
+      ["Berat Badan :", `${applicant.weightKg || "-"} KG`],
+      ["Waktu Tempuh :", `${applicant.travelTimeMinutes || "-"} MENIT`],
+      ["Jns Kesejahteraan:", applicant.welfareType || "Tidak Ada"],
+      ["Nomor Kartu :", applicant.welfareCardNumber || "-"],
+      ["Nama di Kartu :", applicant.welfareCardName || "-"],
+      ["", ""],
       ["DATA AYAH", ""],
       ["Nama Ayah :", applicant.fatherName || "-"],
       ["NIK Ayah :", applicant.fatherNIK || "-"],
@@ -152,7 +160,7 @@ export default function ApplicantDetailPage() {
       styles: { fontSize: 9, cellPadding: 1.5 },
       columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 } },
       didParseCell: (data) => {
-        if (["DATA AYAH", "DATA IBU", "DATA WALI", "INFO PENDAFTARAN"].includes(data.cell.text[0])) {
+        if (["DATA PERIODIK", "DATA AYAH", "DATA IBU", "DATA WALI", "INFO PENDAFTARAN"].includes(data.cell.text[0])) {
           data.cell.styles.fontStyle = 'bold';
           data.cell.styles.textColor = [67, 97, 238];
         }
@@ -242,9 +250,32 @@ export default function ApplicantDetailPage() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div className="space-y-5">
+                  <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary"></div> III. DATA PERIODIK
+                  </h4>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between border-b border-border/30 pb-1"><span className="text-muted-foreground">Tinggi Badan :</span><span className="font-bold">{applicant.heightCm || "-"} CM</span></div>
+                    <div className="flex justify-between border-b border-border/30 pb-1"><span className="text-muted-foreground">Berat Badan :</span><span className="font-bold">{applicant.weightKg || "-"} KG</span></div>
+                    <div className="flex justify-between border-b border-border/30 pb-1"><span className="text-muted-foreground">Waktu Tempuh :</span><span className="font-bold">{applicant.travelTimeMinutes || "-"} MENIT</span></div>
+                  </div>
+                </div>
+                <div className="space-y-5">
+                  <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary"></div> IV. KESEJAHTERAAN
+                  </h4>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between border-b border-border/30 pb-1"><span className="text-muted-foreground">Jenis :</span><Badge variant="secondary">{applicant.welfareType || "Tidak Ada"}</Badge></div>
+                    <div className="flex justify-between border-b border-border/30 pb-1"><span className="text-muted-foreground">Nomor Kartu :</span><span className="font-mono">{applicant.welfareCardNumber || "-"}</span></div>
+                    <div className="flex justify-between border-b border-border/30 pb-1"><span className="text-muted-foreground">Nama di Kartu :</span><span>{applicant.welfareCardName || "-"}</span></div>
+                  </div>
+                </div>
+              </div>
+
               <div className="space-y-8">
                 <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary flex items-center gap-2 border-b pb-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary"></div> III. DATA ORANG TUA KANDUNG
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary"></div> V. DATA ORANG TUA KANDUNG
                 </h4>
                 
                 <div className="space-y-8">
@@ -273,7 +304,7 @@ export default function ApplicantDetailPage() {
                 {applicant.livingWith !== 'Bersama Orang Tua' && (
                   <div className="pt-10 space-y-6">
                     <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary flex items-center gap-2 border-b pb-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-primary"></div> IV. DATA WALI SISWA
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary"></div> VI. DATA WALI SISWA
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                       <div className="space-y-3 text-sm">

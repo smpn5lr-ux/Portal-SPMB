@@ -2,6 +2,7 @@
 export type AdmissionPath = 'Zonasi' | 'Prestasi' | 'Afirmasi' | 'Perpindahan Orang Tua';
 export type VerificationStatus = 'Belum Diverifikasi' | 'Lengkap' | 'Perlu Perbaikan' | 'Ditolak';
 export type AdmissionStatus = 'accepted' | 'waitlisted' | 'rejected' | 'pending';
+export type WelfareType = 'PIP' | 'PKH' | 'KKS' | 'KPS' | 'Tidak Ada';
 
 export interface Applicant {
   id: string;
@@ -38,6 +39,14 @@ export interface Applicant {
   deletedAt?: string;
   restoredAt?: string;
   rankingInPath?: number;
+  
+  // Data Periodik
+  heightCm?: number;
+  weightKg?: number;
+  travelTimeMinutes?: number;
+  welfareType?: WelfareType;
+  welfareCardNumber?: string;
+  welfareCardName?: string;
   
   fatherName?: string;
   fatherNIK?: string;
