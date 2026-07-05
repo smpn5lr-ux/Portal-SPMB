@@ -3,8 +3,8 @@ import './globals.css';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { Toaster } from '@/components/ui/toaster';
 
-// Menggunakan v40 untuk memaksa browser membuang cache ikon lama (ikon Firebase)
-const ICON_URL = "/icon-logo.webp?v=40";
+// Menggunakan v50 untuk memaksa browser membuang cache ikon lama (ikon Firebase)
+const ICON_URL = "/icon-logo.webp?v=50";
 
 export const viewport: Viewport = {
   themeColor: '#4361ee',

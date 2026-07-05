@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next'
 
-// Menggunakan v40 agar sinkron dengan layout dan menghancurkan cache browser
-const ICON_URL = "/icon-logo.webp?v=40";
+// Menggunakan v50 agar sinkron dengan layout dan menghancurkan cache browser
+const ICON_URL = "/icon-logo.webp?v=50";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
