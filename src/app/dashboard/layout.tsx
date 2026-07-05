@@ -138,7 +138,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   if (!user) return null
 
   const appName = config?.appName || "Portal SPMB"
-  const appLogoUrl = config?.appLogoUrl
+  // Gunakan logo lokal sebagai fallback jika di database kosong
+  const appLogoUrl = config?.appLogoUrl || "/icon-logo.webp"
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">

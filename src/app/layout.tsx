@@ -4,9 +4,8 @@ import './globals.css';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { Toaster } from '@/components/ui/toaster';
 
-const LOGO_URL = "https://firebasestorage.googleapis.com/v0/b/studio-8340795105-269f9.firebasestorage.app/o/logo.png?alt=media&token=c272e094-a169-42b7-a3aa-e8838d77c413";
-// Menambahkan cache busting v=10 untuk memaksa browser mengganti ikon lama
-const ICON_URL = `${LOGO_URL}&v=10`;
+// Menggunakan path lokal (pastikan file dipindah ke folder /public)
+const ICON_URL = "/icon-logo.webp";
 
 export const viewport: Viewport = {
   themeColor: '#4361ee',
@@ -23,12 +22,12 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: ICON_URL, sizes: 'any' },
-      { url: ICON_URL, type: 'image/png', sizes: '32x32' },
-      { url: ICON_URL, type: 'image/png', sizes: '192x192' },
+      { url: ICON_URL, type: 'image/webp', sizes: '32x32' },
+      { url: ICON_URL, type: 'image/webp', sizes: '192x192' },
     ],
     shortcut: [ICON_URL],
     apple: [
-      { url: ICON_URL, sizes: '180x180', type: 'image/png' },
+      { url: ICON_URL, sizes: '180x180', type: 'image/webp' },
     ],
   },
   appleWebApp: {

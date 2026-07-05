@@ -81,7 +81,8 @@ export default function LoginPage() {
   if (authLoading) return null
 
   const appName = config?.appName || "Portal SPMB"
-  const appLogoUrl = config?.appLogoUrl
+  // Gunakan logo lokal sebagai fallback jika di database kosong
+  const appLogoUrl = config?.appLogoUrl || "/icon-logo.webp"
 
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-background/50 relative overflow-hidden p-4">
