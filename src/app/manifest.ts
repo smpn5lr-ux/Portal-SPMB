@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next'
 
-// Menggunakan v=100 agar sinkron dengan layout dan menghancurkan cache browser
-const ICON_URL = "/icon-logo.webp?v=100";
+// Menggunakan v=200 agar sinkron dengan layout dan menghancurkan cache browser
+const ICON_URL = "/icon-logo.png?v=200";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
@@ -16,13 +16,13 @@ export default function manifest(): MetadataRoute.Manifest {
       {
         src: ICON_URL,
         sizes: '192x192',
-        type: 'image/webp',
+        type: 'image/png',
         purpose: 'maskable'
       },
       {
         src: ICON_URL,
         sizes: '512x512',
-        type: 'image/webp',
+        type: 'image/png',
         purpose: 'any'
       },
     ],
