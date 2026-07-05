@@ -1,7 +1,7 @@
 
 import { MetadataRoute } from 'next'
 
-const ICON_URL = "/icon-logo.webp";
+const ICON_URL = "/icon-logo.webp?v=12";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
@@ -21,7 +21,7 @@ export default function manifest(): MetadataRoute.Manifest {
       },
       {
         src: ICON_URL,
-        sizes: '512:512',
+        sizes: '512x512',
         type: 'image/webp',
         purpose: 'any'
       },

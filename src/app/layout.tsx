@@ -4,8 +4,8 @@ import './globals.css';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { Toaster } from '@/components/ui/toaster';
 
-// Menggunakan path lokal (pastikan file dipindah ke folder /public)
-const ICON_URL = "/icon-logo.webp";
+// Menggunakan logo lokal dengan cache busting untuk memaksa browser memperbarui ikon
+const ICON_URL = "/icon-logo.webp?v=12";
 
 export const viewport: Viewport = {
   themeColor: '#4361ee',
