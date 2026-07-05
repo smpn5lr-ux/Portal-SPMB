@@ -5,7 +5,8 @@ import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { Toaster } from '@/components/ui/toaster';
 
 const LOGO_URL = "https://firebasestorage.googleapis.com/v0/b/studio-8340795105-269f9.firebasestorage.app/o/logo.png?alt=media&token=c272e094-a169-42b7-a3aa-e8838d77c413";
-const ICON_URL = `${LOGO_URL}&v=2`;
+// Menambahkan cache busting v=10 untuk memaksa browser mengganti ikon lama
+const ICON_URL = `${LOGO_URL}&v=10`;
 
 export const viewport: Viewport = {
   themeColor: '#4361ee',
@@ -23,15 +24,17 @@ export const metadata: Metadata = {
     icon: [
       { url: ICON_URL, sizes: 'any' },
       { url: ICON_URL, type: 'image/png', sizes: '32x32' },
+      { url: ICON_URL, type: 'image/png', sizes: '192x192' },
     ],
-    shortcut: ICON_URL,
-    apple: ICON_URL,
+    shortcut: [ICON_URL],
+    apple: [
+      { url: ICON_URL, sizes: '180x180', type: 'image/png' },
+    ],
   },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
     title: 'Portal SPMB',
-    startupImage: [ICON_URL],
   },
 };
 
@@ -46,12 +49,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
-        <link rel="icon" href={ICON_URL} sizes="any" />
-        <link rel="shortcut icon" href={ICON_URL} />
-        <link rel="apple-touch-icon" href={ICON_URL} />
         <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
       <body className="font-body antialiased bg-background text-foreground min-h-screen">
         <FirebaseClientProvider>
