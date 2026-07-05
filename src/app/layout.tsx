@@ -3,8 +3,8 @@ import './globals.css';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { Toaster } from '@/components/ui/toaster';
 
-// Menggunakan logo sekolah dengan cache busting v15 untuk memaksa pembaruan di browser
-const ICON_URL = "/icon-logo.webp?v=15";
+// Cache-busting v20 untuk memastikan logo sekolah menggantikan ikon Firebase di browser
+const ICON_URL = "/icon-logo.webp?v=20";
 
 export const viewport: Viewport = {
   themeColor: '#4361ee',
@@ -44,6 +44,11 @@ export default function RootLayout({
   return (
     <html lang="id" className="dark">
       <head>
+        {/* Explicit override untuk memaksa browser menggunakan logo sekolah daripada favicon.ico default */}
+        <link rel="icon" href={ICON_URL} />
+        <link rel="shortcut icon" href={ICON_URL} />
+        <link rel="apple-touch-icon" href={ICON_URL} />
+        
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
