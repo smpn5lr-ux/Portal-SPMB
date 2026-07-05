@@ -3,8 +3,8 @@ import './globals.css';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { Toaster } from '@/components/ui/toaster';
 
-// Menggunakan v70 untuk menghancurkan cache browser terhadap ikon lama secara agresif
-const ICON_URL = "/icon-logo.webp?v=70";
+// Menggunakan v=100 untuk menghancurkan cache browser terhadap ikon lama (Firebase) secara total
+const ICON_URL = "/icon-logo.webp?v=100";
 
 export const viewport: Viewport = {
   themeColor: '#4361ee',
