@@ -1,11 +1,10 @@
-
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { Toaster } from '@/components/ui/toaster';
 
-// Menggunakan logo lokal dengan cache busting untuk memaksa browser memperbarui ikon
-const ICON_URL = "/icon-logo.webp?v=12";
+// Menggunakan logo sekolah dengan cache busting v15 untuk memaksa pembaruan di browser
+const ICON_URL = "/icon-logo.webp?v=15";
 
 export const viewport: Viewport = {
   themeColor: '#4361ee',

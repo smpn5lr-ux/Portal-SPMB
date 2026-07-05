@@ -1,7 +1,6 @@
-
 import { MetadataRoute } from 'next'
 
-const ICON_URL = "/icon-logo.webp?v=12";
+const ICON_URL = "/icon-logo.webp?v=15";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
