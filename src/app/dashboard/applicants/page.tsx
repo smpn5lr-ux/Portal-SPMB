@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { 
-  Search, Plus, Loader2, Camera, Eye, User, Home, MapPin, Phone, Users as UsersIcon, Pencil, Trash2, Scale, Ruler, Clock, Hash, FileUp, FileSpreadsheet, FileText, CheckCircle2, AlertTriangle, Upload
+  Search, Plus, Loader2, Camera, Eye, User, Home, MapPin, Phone, Users as UsersIcon, Pencil, Trash2, Scale, Ruler, Clock, Hash, FileUp, FileSpreadsheet, FileText, CheckCircle2, AlertTriangle, Upload, AlertCircle
 } from "lucide-react"
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
@@ -107,6 +107,7 @@ export default function ApplicantsPage() {
   const [editingApplicant, setEditingApplicant] = useState<Applicant | null>(null)
   const [applicantToDelete, setApplicantToDelete] = useState<Applicant | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false)
   
   const scanInputRef = useRef<HTMLInputElement>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
@@ -357,6 +358,30 @@ export default function ApplicantsPage() {
       })
   }
 
+  const executeDeleteAll = async () => {
+    if (!db || !filteredApplicants.length) return
+    setSubmitting(true)
+    const batch = writeBatch(db)
+    const now = new Date().toISOString()
+
+    try {
+      filteredApplicants.forEach((applicant) => {
+        const docRef = doc(db, 'applicants', applicant.id)
+        batch.update(docRef, { 
+          isDeleted: true, 
+          deletedAt: now 
+        })
+      })
+      await batch.commit()
+      toast({ title: "Berhasil", description: `${filteredApplicants.length} data dipindahkan ke sampah.` })
+      setIsDeleteAllDialogOpen(false)
+    } catch (err) {
+      toast({ variant: "destructive", title: "Gagal menghapus semua" })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   const handleAddNew = () => {
     setEditingApplicant(null)
     form.reset({
@@ -432,6 +457,15 @@ export default function ApplicantsPage() {
           <p className="text-muted-foreground mt-1">Manajemen data pendaftaran murid baru sesuai standar Dapodik.</p>
         </div>
         <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            className="gap-2 border-destructive/20 text-destructive hover:bg-destructive/10"
+            onClick={() => setIsDeleteAllDialogOpen(true)}
+            disabled={filteredApplicants.length === 0}
+          >
+            <Trash2 className="w-4 h-4" /> Hapus Semua
+          </Button>
+
           <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" className="gap-2 border-primary/20 text-primary">
@@ -839,6 +873,26 @@ export default function ApplicantsPage() {
             <AlertDialogCancel onClick={() => setApplicantToDelete(null)}>Batal</AlertDialogCancel>
             <AlertDialogAction onClick={executeDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Pindahkan ke Sampah
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isDeleteAllDialogOpen} onOpenChange={setIsDeleteAllDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-destructive" /> Hapus Semua Data Murid?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Anda akan memindahkan <strong>{filteredApplicants.length}</strong> data murid yang sedang ditampilkan ke tempat sampah. Tindakan ini dapat dibatalkan melalui menu Sampah.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={executeDeleteAll} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Ya, Hapus Semua
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

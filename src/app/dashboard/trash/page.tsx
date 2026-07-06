@@ -3,7 +3,7 @@
 
 import { useState, useMemo } from 'react'
 import { 
-  Search, Loader2, RotateCcw, Trash2, ShieldAlert
+  Search, Loader2, RotateCcw, Trash2, ShieldAlert, AlertCircle
 } from "lucide-react"
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase'
-import { collection, doc, updateDoc, deleteDoc } from 'firebase/firestore'
+import { collection, doc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore'
 import { Applicant } from '@/lib/types'
 import { errorEmitter } from '@/firebase/error-emitter'
 import { FirestorePermissionError } from '@/firebase/errors'
@@ -32,6 +32,8 @@ export default function TrashPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [applicantToDelete, setApplicantToDelete] = useState<Applicant | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isDeleteAllPermanentlyDialogOpen, setIsDeleteAllPermanentlyDialogOpen] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
   
   const { toast } = useToast()
   const db = useFirestore()
@@ -81,6 +83,26 @@ export default function TrashPage() {
     })
   }
 
+  const executeDeleteAllPermanently = async () => {
+    if (!db || !deletedApplicants.length) return
+    setIsProcessing(true)
+    const batch = writeBatch(db)
+
+    try {
+      deletedApplicants.forEach((applicant) => {
+        const docRef = doc(db, 'applicants', applicant.id)
+        batch.delete(docRef)
+      })
+      await batch.commit()
+      toast({ title: "Sampah Dikosongkan", description: `${deletedApplicants.length} data dihapus selamanya.` })
+      setIsDeleteAllPermanentlyDialogOpen(false)
+    } catch (err) {
+      toast({ variant: "destructive", title: "Gagal mengosongkan sampah" })
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -88,6 +110,14 @@ export default function TrashPage() {
           <h1 className="text-3xl font-headline font-bold">Tempat Sampah</h1>
           <p className="text-muted-foreground mt-1">Data murid yang dihapus sementara. Pulihkan atau hapus permanen.</p>
         </div>
+        <Button 
+          variant="outline" 
+          className="gap-2 border-destructive/20 text-destructive hover:bg-destructive/10"
+          onClick={() => setIsDeleteAllPermanentlyDialogOpen(true)}
+          disabled={deletedApplicants.length === 0}
+        >
+          <Trash2 className="w-4 h-4" /> Kosongkan Sampah
+        </Button>
       </div>
 
       <div className="bg-card border border-border/50 rounded-xl overflow-hidden shadow-sm">
@@ -153,6 +183,26 @@ export default function TrashPage() {
             <AlertDialogCancel onClick={() => setApplicantToDelete(null)}>Batal</AlertDialogCancel>
             <AlertDialogAction onClick={executePermanentDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Hapus Selamanya
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isDeleteAllPermanentlyDialogOpen} onOpenChange={setIsDeleteAllPermanentlyDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-destructive" /> Kosongkan Semua Sampah?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Anda akan menghapus secara permanen <strong>{deletedApplicants.length}</strong> data murid. Tindakan ini <strong>tidak dapat dibatalkan</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={executeDeleteAllPermanently} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {isProcessing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Ya, Kosongkan Permanen
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
