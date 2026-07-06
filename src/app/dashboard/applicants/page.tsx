@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { 
-  Search, Plus, Loader2, Camera, Eye, User, Home, MapPin, Phone, Users as UsersIcon, Pencil, Trash2, Scale, Ruler, Clock, Hash, FileUp, FileSpreadsheet, FileText, CheckCircle2, AlertTriangle, Upload, AlertCircle
+  Search, Plus, Loader2, Camera, Eye, User, Home, MapPin, Phone, Users as UsersIcon, Pencil, Trash2, Scale, Ruler, Clock, Hash, FileUp, FileSpreadsheet, FileText, CheckCircle2, AlertTriangle, Upload, AlertCircle, Download, FileCode, Check, Settings2
 } from "lucide-react"
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
@@ -32,6 +32,8 @@ import {
 } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -96,10 +98,31 @@ const formSchema = z.object({
   applicationPath: z.enum(['Zonasi', 'Prestasi', 'Afirmasi', 'Perpindahan Orang Tua']),
 })
 
+const TEMPLATE_COLUMNS = [
+  { id: 'registrationSequence', label: 'No. Urut' },
+  { id: 'registrationNumber', label: 'No. Registrasi' },
+  { id: 'NISN', label: 'NISN' },
+  { id: 'NIK', label: 'NIK' },
+  { id: 'fullName', label: 'Nama Lengkap' },
+  { id: 'gender', label: 'Jenis Kelamin' },
+  { id: 'originSchool', label: 'Sekolah Asal' },
+  { id: 'applicationPath', label: 'Jalur Masuk' },
+  { id: 'academicScore', label: 'Skor Akademik' },
+  { id: 'distanceToSchoolKm', label: 'Jarak (Km)' },
+  { id: 'verificationStatus', label: 'Status Verifikasi' },
+  { id: 'admissionStatus', label: 'Hasil Seleksi' },
+  { id: 'parentName', label: 'Nama Orang Tua' },
+  { id: 'studentPhone', label: 'No. Telepon' },
+  { id: 'address', label: 'Alamat Lengkap' },
+  { id: 'birthDate', label: 'Tanggal Lahir' },
+  { id: 'religion', label: 'Agama' },
+]
+
 export default function ApplicantsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
+  const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [isScanning, setIsScanning] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
@@ -108,6 +131,7 @@ export default function ApplicantsPage() {
   const [applicantToDelete, setApplicantToDelete] = useState<Applicant | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false)
+  const [selectedTemplateCols, setSelectedTemplateCols] = useState<string[]>(TEMPLATE_COLUMNS.map(c => c.id))
   
   const scanInputRef = useRef<HTMLInputElement>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
@@ -217,11 +241,13 @@ export default function ApplicantsPage() {
           const mappedData = data.map((row: any) => {
             let birthPlace = "";
             let birthDate = "";
-            const ttl = row['Tempat Tanggal Lahir'] || row['Tempat, Tanggal Lahir'] || "";
-            if (ttl.includes(',')) {
+            const ttl = row['Tempat Tanggal Lahir'] || row['Tempat, Tanggal Lahir'] || row['Tanggal Lahir'] || "";
+            if (typeof ttl === 'string' && ttl.includes(',')) {
               const parts = ttl.split(',');
               birthPlace = parts[0].trim();
               birthDate = parseIndonesianDate(parts[1]);
+            } else {
+              birthDate = ttl;
             }
 
             return {
@@ -231,12 +257,12 @@ export default function ApplicantsPage() {
               birthPlace,
               birthDate,
               originSchool: row['SEKOLAH ASAL'] || row['Sekolah Asal'] || "",
-              fatherName: row['NAMA ORANG TUA'] || row['Orang Tua'] || "",
+              fatherName: row['NAMA ORANG TUA'] || row['Orang Tua'] || row['Nama Orang Tua'] || "",
               kelurahan: row['KELURAHAN'] || row['Kelurahan'] || "",
               kecamatan: row['KECAMATAN'] || row['Kecamatan'] || "",
               propinsi: row['PROVINSI'] || row['Provinsi'] || "",
-              registrationSequence: Number(row['NO Daftar'] || row['No Daftar'] || 0),
-              applicationPath: row['Jalur'] || 'Zonasi',
+              registrationSequence: Number(row['NO Daftar'] || row['No Daftar'] || row['No. Urut'] || 0),
+              applicationPath: row['Jalur'] || row['Jalur Masuk'] || 'Zonasi',
             }
           })
           setImportData(mappedData)
@@ -264,6 +290,42 @@ export default function ApplicantsPage() {
     } else {
       reader.readAsBinaryString(file)
     }
+  }
+
+  const handleDownloadTemplate = async (format: 'csv' | 'excel' | 'pdf') => {
+    const selectedHeaders = TEMPLATE_COLUMNS.filter(c => selectedTemplateCols.includes(c.id)).map(c => c.label)
+    
+    if (format === 'excel') {
+      const worksheet = XLSX.utils.json_to_sheet([])
+      XLSX.utils.sheet_add_aoa(worksheet, [selectedHeaders], { origin: "A1" })
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Template")
+      XLSX.writeFile(workbook, "Template_Pendaftaran_SPMB.xlsx")
+    } else if (format === 'csv') {
+      const csvContent = selectedHeaders.join(",")
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.setAttribute("href", url)
+      link.setAttribute("download", "Template_Pendaftaran_SPMB.csv")
+      link.click()
+    } else if (format === 'pdf') {
+      const { default: jsPDF } = await import('jspdf')
+      const { default: autoTable } = await import('jspdf-autotable')
+      const doc = new jsPDF('l')
+      doc.setFontSize(16)
+      doc.text("FORMULIR PENDAFTARAN KOSONG", 148, 20, { align: "center" })
+      autoTable(doc, {
+        head: [selectedHeaders],
+        body: Array.from({ length: 5 }).map(() => selectedHeaders.map(() => "")),
+        startY: 30,
+        theme: 'grid',
+        styles: { fontSize: 8, minCellHeight: 10 }
+      })
+      doc.save("Formulir_Pendaftaran_Manual.pdf")
+    }
+    setIsTemplateDialogOpen(false)
+    toast({ title: "Berhasil", description: `Template ${format.toUpperCase()} telah diunduh.` })
   }
 
   const executeBulkImport = async () => {
@@ -465,6 +527,43 @@ export default function ApplicantsPage() {
           >
             <Trash2 className="w-4 h-4" /> Hapus Semua
           </Button>
+
+          <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="gap-2 border-accent/20 text-accent">
+                <Download className="w-4 h-4" /> Unduh Template
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[700px] border-border/50 bg-card">
+              <DialogHeader>
+                <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                  <Settings2 className="w-5 h-5 text-primary" /> Kustomisasi Kolom Template
+                </DialogTitle>
+                <DialogDescription>Pilih kolom yang ingin disertakan dalam file template Anda.</DialogDescription>
+              </DialogHeader>
+              <div className="py-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 p-6 bg-muted/20 rounded-xl border border-border/50 max-h-[350px] overflow-y-auto">
+                  {TEMPLATE_COLUMNS.map((col) => (
+                    <div key={col.id} className="flex items-center space-x-3">
+                      <Checkbox 
+                        id={`template-col-${col.id}`} 
+                        checked={selectedTemplateCols.includes(col.id)} 
+                        onCheckedChange={() => {
+                          setSelectedTemplateCols(prev => prev.includes(col.id) ? prev.filter(c => c !== col.id) : [...prev, col.id])
+                        }} 
+                      />
+                      <Label htmlFor={`template-col-${col.id}`} className="text-xs font-medium cursor-pointer">{col.label}</Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <DialogFooter className="flex justify-end gap-2 pt-4 border-t">
+                <Button onClick={() => handleDownloadTemplate('csv')} variant="outline" className="gap-2"><FileCode className="w-3 h-3" /> CSV</Button>
+                <Button onClick={() => handleDownloadTemplate('excel')} variant="outline" className="gap-2 border-green-500/20 text-green-500"><FileSpreadsheet className="w-3 h-3" /> Excel</Button>
+                <Button onClick={() => handleDownloadTemplate('pdf')} className="gap-2 bg-primary"><FileText className="w-3 h-3" /> PDF</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
             <DialogTrigger asChild>
