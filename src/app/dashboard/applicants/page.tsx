@@ -46,8 +46,8 @@ import { extractFormData } from '@/ai/flows/extract-form-data-flow'
 
 const formSchema = z.object({
   registrationSequence: z.string().min(1, "No. Urut harus diisi"),
-  fullName: z.string().optional(),
-  gender: z.enum(['Laki-laki', 'Perempuan']).optional(),
+  fullName: z.string().min(2, "Nama minimal 2 karakter"),
+  gender: z.enum(['Laki-laki', 'Perempuan']),
   NISN: z.string().optional(),
   NIK: z.string().optional(),
   familyCardNumber: z.string().optional(),
@@ -61,8 +61,8 @@ const formSchema = z.object({
   kelurahan: z.string().optional(),
   kecamatan: z.string().optional(),
   propinsi: z.string().optional(),
-  livingWith: z.enum(['Bersama Orang Tua', 'Wali', 'Asrama', 'Kos']).optional(),
-  transportation: z.enum(['Jalan Kaki', 'Motor', 'Mobil', 'Angkot/Kendaraan Umum']).optional(),
+  livingWith: z.enum(['Bersama Orang Tua', 'Wali', 'Asrama', 'Kos']),
+  transportation: z.enum(['Jalan Kaki', 'Motor', 'Mobil', 'Angkot/Kendaraan Umum']),
   childOrder: z.string().optional(),
   studentPhone: z.string().optional(),
   numberOfSiblings: z.string().optional(),
@@ -71,7 +71,7 @@ const formSchema = z.object({
   heightCm: z.string().optional(),
   weightKg: z.string().optional(),
   travelTimeMinutes: z.string().optional(),
-  welfareType: z.enum(['PIP', 'PKH', 'KKS', 'KPS', 'Tidak Ada']).optional(),
+  welfareType: z.enum(['PIP', 'PKH', 'KKS', 'KPS', 'Tidak Ada']),
   welfareCardNumber: z.string().optional(),
   welfareCardName: z.string().optional(),
   
@@ -101,7 +101,7 @@ const formSchema = z.object({
 
   // Required Metadata
   originSchool: z.string().optional(),
-  applicationPath: z.enum(['Zonasi', 'Prestasi', 'Afirmasi', 'Perpindahan Orang Tua']).optional(),
+  applicationPath: z.enum(['Zonasi', 'Prestasi', 'Afirmasi', 'Perpindahan Orang Tua']),
 })
 
 export default function ApplicantsPage() {
@@ -348,6 +348,7 @@ export default function ApplicantsPage() {
                         <h3 className="text-sm font-bold uppercase tracking-widest border-b border-primary/20 pb-1 flex-1">A. Data Murid Baru</h3>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* No Urut di bagian paling pertama */}
                         <FormField control={form.control} name="registrationSequence" render={({ field }) => (
                           <FormItem className="md:col-span-2">
                             <FormLabel className="flex items-center gap-2">No. Urut Pendaftaran : <Badge variant="secondary" className="font-mono">Manual</Badge></FormLabel>
@@ -360,6 +361,7 @@ export default function ApplicantsPage() {
                             <FormMessage />
                           </FormItem>
                         )} />
+                        
                         <FormField control={form.control} name="fullName" render={({ field }) => (
                           <FormItem className="md:col-span-2"><FormLabel>Nama Lengkap :</FormLabel><FormControl><Input placeholder="SESUAI IJAZAH" {...field} className="uppercase" /></FormControl><FormMessage /></FormItem>
                         )} />
@@ -430,7 +432,7 @@ export default function ApplicantsPage() {
                           <FormItem><FormLabel>Moda Transportasi :</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="Jalan Kaki">Jalan Kaki</SelectItem><SelectItem value="Motor">Motor</SelectItem><SelectItem value="Mobil">Mobil</SelectItem><SelectItem value="Angkot/Kendaraan Umum">Angkot/Kendaraan Umum</SelectItem></SelectContent></Select><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name="studentPhone" render={({ field }) => (
-                          <FormItem><FormLabel>No. HP Siswa :</FormLabel><FormControl><Input placeholder="08xxxx" {...field} /></FormControl><FormMessage /></FormItem>
+                          <FormItem><FormLabel>No. HP Siswa :</FormLabel><FormControl><Input placeholder="0812345678" {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
                         <FormField control={form.control} name="childOrder" render={({ field }) => (
                           <FormItem><FormLabel>Anak Ke- :</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>

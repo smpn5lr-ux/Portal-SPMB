@@ -92,6 +92,7 @@ export default function ApplicantDetailPage() {
 
     const data = [
       ["No. Registrasi :", applicant.registrationNumber || "-"],
+      ["No. Urut :", applicant.registrationSequence?.toString() || "-"],
       ["NISN :", applicant.NISN || "-"],
       ["NIK :", applicant.NIK || "-"],
       ["No. KK :", applicant.familyCardNumber || "-"],
@@ -194,7 +195,7 @@ export default function ApplicantDetailPage() {
               <h1 className="text-2xl font-bold">{applicant.fullName}</h1>
               {isAccepted && <Badge className="bg-green-500 hover:bg-green-600 gap-1"><CheckCircle2 className="w-3 h-3" /> SISWA AKTIF</Badge>}
             </div>
-            <p className="text-muted-foreground text-sm font-mono">{applicant.registrationNumber}</p>
+            <p className="text-muted-foreground text-sm font-mono">{applicant.registrationNumber} (Urut: {applicant.registrationSequence})</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -226,6 +227,7 @@ export default function ApplicantDetailPage() {
                     <div className="w-1.5 h-1.5 rounded-full bg-primary"></div> I. IDENTITAS PRIBADI
                   </h4>
                   <div className="space-y-3 text-sm">
+                    <div className="flex justify-between border-b border-border/30 pb-1"><span className="text-muted-foreground">No. Urut :</span><span className="font-bold text-primary">{applicant.registrationSequence || "-"}</span></div>
                     <div className="flex justify-between border-b border-border/30 pb-1"><span className="text-muted-foreground">NISN :</span><span className="font-mono font-bold text-accent">{applicant.NISN || "-"}</span></div>
                     <div className="flex justify-between border-b border-border/30 pb-1"><span className="text-muted-foreground">NIK :</span><span className="font-mono">{applicant.NIK || "-"}</span></div>
                     <div className="flex justify-between border-b border-border/30 pb-1"><span className="text-muted-foreground">Jenis Kelamin :</span><span>{applicant.gender || "-"}</span></div>
@@ -243,7 +245,7 @@ export default function ApplicantDetailPage() {
                     <div className="flex flex-col border-b border-border/30 pb-1"><span className="text-muted-foreground">Alamat Tinggal :</span><span className="font-medium mt-1">{applicant.address || "-"}</span></div>
                     <div className="flex justify-between border-b border-border/30 pb-1"><span className="text-muted-foreground">RT / RW :</span><span>{applicant.rt || "-"} / {applicant.rw || "-"}</span></div>
                     <div className="flex justify-between border-b border-border/30 pb-1"><span className="text-muted-foreground">Desa / Kelurahan :</span><span>{applicant.kelurahan || "-"}</span></div>
-                    <div className="flex justify-between border-b border-border/30 pb-1"><span className="text-muted-foreground">Kecamatan :</span><span>{applicant.kecamatan || "-"}</span></div>
+                    <div className="flex justify-between border-b border-border/30 pb-1"><span className="text-muted-foreground">Kecamatan :</span><span>{applicant.kelurahan || "-"}</span></div>
                     <div className="flex justify-between border-b border-border/30 pb-1"><span className="text-muted-foreground">Provinsi :</span><span>{applicant.propinsi || "-"}</span></div>
                     <div className="flex justify-between border-b border-border/30 pb-1 text-primary"><span className="text-muted-foreground">No. HP Siswa :</span><span className="font-bold">{applicant.studentPhone || "-"}</span></div>
                   </div>

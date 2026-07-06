@@ -1,9 +1,10 @@
+
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { Toaster } from '@/components/ui/toaster';
 
-// Menggunakan icon-logo.png dengan v=200 untuk memaksa browser mengganti ikon lama
+// Menggunakan v=200 untuk menghancurkan cache ikon lama secara paksa
 const ICON_URL = "/icon-logo.png?v=200";
 
 export const viewport: Viewport = {
