@@ -113,7 +113,10 @@ const TEMPLATE_COLUMNS = [
   { id: 'admissionStatus', label: 'Hasil Seleksi' },
   { id: 'parentName', label: 'Nama Orang Tua' },
   { id: 'studentPhone', label: 'No. Telepon' },
-  { id: 'address', label: 'Alamat Lengkap' },
+  { id: 'address', label: 'Alamat' },
+  { id: 'kelurahan', label: 'Kelurahan' },
+  { id: 'kecamatan', label: 'Kecamatan' },
+  { id: 'propinsi', label: 'Provinsi' },
   { id: 'birthDate', label: 'Tanggal Lahir' },
   { id: 'religion', label: 'Agama' },
 ]
@@ -258,9 +261,9 @@ export default function ApplicantsPage() {
               birthDate,
               originSchool: row['SEKOLAH ASAL'] || row['Sekolah Asal'] || "",
               fatherName: row['NAMA ORANG TUA'] || row['Orang Tua'] || row['Nama Orang Tua'] || "",
-              kelurahan: row['KELURAHAN'] || row['Kelurahan'] || "",
+              kelurahan: row['KELURAHAN'] || row['Kelurahan'] || row['Kelurahan/Desa'] || "",
               kecamatan: row['KECAMATAN'] || row['Kecamatan'] || "",
-              propinsi: row['PROVINSI'] || row['Provinsi'] || "",
+              propinsi: row['PROVINSI'] || row['Provinsi'] || row['Propinsi'] || "",
               registrationSequence: Number(row['NO Daftar'] || row['No Daftar'] || row['No. Urut'] || 0),
               applicationPath: row['Jalur'] || row['Jalur Masuk'] || 'Zonasi',
             }
@@ -610,7 +613,7 @@ export default function ApplicantsPage() {
                             <TableHead>Nama</TableHead>
                             <TableHead>NISN</TableHead>
                             <TableHead>JK</TableHead>
-                            <TableHead>Tempat, Tgl Lahir</TableHead>
+                            <TableHead>Domisili</TableHead>
                             <TableHead>Sekolah Asal</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -621,7 +624,7 @@ export default function ApplicantsPage() {
                               <TableCell className="font-medium text-xs">{row.fullName}</TableCell>
                               <TableCell className="text-xs font-mono">{row.NISN || "-"}</TableCell>
                               <TableCell className="text-xs">{row.gender === 'Perempuan' ? 'P' : 'L'}</TableCell>
-                              <TableCell className="text-xs">{row.birthPlace}, {row.birthDate}</TableCell>
+                              <TableCell className="text-xs">{row.kelurahan}, {row.kecamatan}, {row.propinsi}</TableCell>
                               <TableCell className="text-xs">{row.originSchool || "-"}</TableCell>
                             </TableRow>
                           ))}
