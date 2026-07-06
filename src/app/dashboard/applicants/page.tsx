@@ -155,6 +155,22 @@ export default function ApplicantsPage() {
     )
   }, [applicants, searchTerm])
 
+  const parseIndonesianDate = (dateStr: string) => {
+    if (!dateStr) return "";
+    const months: Record<string, string> = {
+      'Januari': '01', 'Februari': '02', 'Maret': '03', 'April': '04', 'Mei': '05', 'Juni': '06',
+      'Juli': '07', 'Agustus': '08', 'September': '09', 'Oktober': '10', 'November': '11', 'Desember': '12'
+    };
+    const parts = dateStr.trim().split(' ');
+    if (parts.length === 3) {
+      const day = parts[0].padStart(2, '0');
+      const month = months[parts[1]] || '01';
+      const year = parts[2];
+      return `${year}-${month}-${day}`;
+    }
+    return dateStr;
+  };
+
   const handleScanForm = async (fileInput: HTMLInputElement) => {
     const file = fileInput.files?.[0]
     if (!file) return
@@ -197,15 +213,31 @@ export default function ApplicantsPage() {
           const sheet = workbook.Sheets[sheetName]
           const data = XLSX.utils.sheet_to_json(sheet)
           
-          // Smart mapping: mencoba mencocokkan header kolom
-          const mappedData = data.map((row: any) => ({
-            fullName: row['Nama Lengkap'] || row['Nama'] || row['Name'] || "",
-            NISN: row['NISN'] || row['Nomor Induk Siswa Nasional'] || "",
-            originSchool: row['Sekolah Asal'] || row['Asal Sekolah'] || row['SD Asal'] || "",
-            parentName: row['Nama Orang Tua'] || row['Orang Tua'] || row['Ayah'] || "",
-            gender: (row['Jenis Kelamin'] || row['JK'] || 'Laki-laki').includes('P') ? 'Perempuan' : 'Laki-laki',
-            applicationPath: row['Jalur'] || 'Zonasi',
-          }))
+          const mappedData = data.map((row: any) => {
+            let birthPlace = "";
+            let birthDate = "";
+            const ttl = row['Tempat Tanggal Lahir'] || row['Tempat, Tanggal Lahir'] || "";
+            if (ttl.includes(',')) {
+              const parts = ttl.split(',');
+              birthPlace = parts[0].trim();
+              birthDate = parseIndonesianDate(parts[1]);
+            }
+
+            return {
+              fullName: row['NAMA'] || row['Nama Lengkap'] || row['Nama'] || "",
+              NISN: row['NISN']?.toString() || "",
+              gender: (row['Jenis Kelamin'] || row['JK'] || "").toString().toUpperCase().startsWith('P') ? 'Perempuan' : 'Laki-laki',
+              birthPlace,
+              birthDate,
+              originSchool: row['SEKOLAH ASAL'] || row['Sekolah Asal'] || "",
+              fatherName: row['NAMA ORANG TUA'] || row['Orang Tua'] || "",
+              kelurahan: row['KELURAHAN'] || row['Kelurahan'] || "",
+              kecamatan: row['KECAMATAN'] || row['Kecamatan'] || "",
+              propinsi: row['PROVINSI'] || row['Provinsi'] || "",
+              registrationSequence: Number(row['NO Daftar'] || row['No Daftar'] || 0),
+              applicationPath: row['Jalur'] || 'Zonasi',
+            }
+          })
           setImportData(mappedData)
         } else if (fileType.includes('pdf')) {
           const result = await extractFromFile({ 
@@ -240,11 +272,10 @@ export default function ApplicantsPage() {
     const prefix = systemConfig?.regPrefix || "REG-2024-";
     
     try {
-      // Ambil no urut terakhir
       const lastSeq = applicants?.reduce((max, a) => Math.max(max, a.registrationSequence || 0), 0) || 0
       
       importData.forEach((data, idx) => {
-        const seq = lastSeq + idx + 1
+        const seq = data.registrationSequence || (lastSeq + idx + 1)
         const regNumber = `${prefix}${seq.toString().padStart(4, '0')}`
         const newRef = doc(collection(db, 'applicants'))
         batch.set(newRef, {
@@ -442,19 +473,23 @@ export default function ApplicantsPage() {
                       <Table>
                         <TableHeader className="bg-muted/50 sticky top-0 z-10">
                           <TableRow>
+                            <TableHead className="w-[50px]">No Dftr</TableHead>
                             <TableHead>Nama</TableHead>
                             <TableHead>NISN</TableHead>
+                            <TableHead>JK</TableHead>
+                            <TableHead>Tempat, Tgl Lahir</TableHead>
                             <TableHead>Sekolah Asal</TableHead>
-                            <TableHead>Jalur</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {importData.map((row, i) => (
                             <TableRow key={i}>
+                              <TableCell className="text-xs font-bold text-primary">{row.registrationSequence || "-"}</TableCell>
                               <TableCell className="font-medium text-xs">{row.fullName}</TableCell>
                               <TableCell className="text-xs font-mono">{row.NISN || "-"}</TableCell>
+                              <TableCell className="text-xs">{row.gender === 'Perempuan' ? 'P' : 'L'}</TableCell>
+                              <TableCell className="text-xs">{row.birthPlace}, {row.birthDate}</TableCell>
                               <TableCell className="text-xs">{row.originSchool || "-"}</TableCell>
-                              <TableCell><Badge variant="outline" className="text-[9px]">{row.applicationPath}</Badge></TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
