@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { 
-  Search, Plus, Loader2, Camera, Eye, User, Home, MapPin, Phone, Users as UsersIcon, Pencil, Trash2, Scale, Ruler, Clock
+  Search, Plus, Loader2, Camera, Eye, User, Home, MapPin, Phone, Users as UsersIcon, Pencil, Trash2, Scale, Ruler, Clock, Hash
 } from "lucide-react"
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
@@ -45,6 +45,7 @@ import { useToast } from '@/hooks/use-toast'
 import { extractFormData } from '@/ai/flows/extract-form-data-flow'
 
 const formSchema = z.object({
+  registrationSequence: z.string().min(1, "No. Urut harus diisi"),
   fullName: z.string().optional(),
   gender: z.enum(['Laki-laki', 'Perempuan']).optional(),
   NISN: z.string().optional(),
@@ -119,6 +120,7 @@ export default function ApplicantsPage() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      registrationSequence: "",
       fullName: "", gender: "Laki-laki", NISN: "", NIK: "", familyCardNumber: "",
       birthPlace: "", birthDate: "", aktaLahirNumber: "", religion: "Katolik",
       address: "", rt: "", rw: "", kelurahan: "", kecamatan: "", propinsi: "Jawa Barat",
@@ -186,6 +188,7 @@ export default function ApplicantsPage() {
     setEditingApplicant(applicant)
     form.reset({
       ...applicant,
+      registrationSequence: applicant.registrationSequence?.toString() || "",
       childOrder: applicant.childOrder?.toString() || "",
       numberOfSiblings: applicant.numberOfSiblings?.toString() || "",
       heightCm: applicant.heightCm?.toString() || "",
@@ -239,6 +242,7 @@ export default function ApplicantsPage() {
   const handleAddNew = () => {
     setEditingApplicant(null)
     form.reset({
+      registrationSequence: "",
       fullName: "", gender: "Laki-laki", NISN: "", NIK: "", familyCardNumber: "",
       birthPlace: "", birthDate: "", aktaLahirNumber: "", religion: "Katolik",
       address: "", rt: "", rw: "", kelurahan: "", kecamatan: "", propinsi: "Jawa Barat",
@@ -258,8 +262,14 @@ export default function ApplicantsPage() {
     if (!db || submitting) return
     setSubmitting(true)
     try {
+      const seq = Number(values.registrationSequence) || 0;
+      const prefix = systemConfig?.regPrefix || "REG-2024-";
+      const regNumber = `${prefix}${seq.toString().padStart(4, '0')}`;
+
       const applicantData = {
         ...values,
+        registrationSequence: seq,
+        registrationNumber: regNumber,
         childOrder: Number(values.childOrder) || 0,
         numberOfSiblings: Number(values.numberOfSiblings) || 0,
         heightCm: Number(values.heightCm) || 0,
@@ -277,16 +287,8 @@ export default function ApplicantsPage() {
         })
         toast({ title: "Data Pendaftar Diperbarui" })
       } else {
-        const q = query(collection(db, 'applicants'), orderBy('registrationSequence', 'desc'), limit(1));
-        const snap = await getDocs(q);
-        const nextSequence = snap.empty ? 1 : (Number(snap.docs[0].data().registrationSequence) || 0) + 1;
-        
-        const prefix = systemConfig?.regPrefix || "REG-2024-";
-
         const newApplicant = {
           ...applicantData,
-          registrationNumber: `${prefix}${nextSequence.toString().padStart(4, '0')}`,
-          registrationSequence: nextSequence,
           verificationStatus: 'Belum Diverifikasi',
           admissionStatus: 'pending',
           createdAt: new Date().toISOString(),
@@ -346,6 +348,18 @@ export default function ApplicantsPage() {
                         <h3 className="text-sm font-bold uppercase tracking-widest border-b border-primary/20 pb-1 flex-1">A. Data Murid Baru</h3>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField control={form.control} name="registrationSequence" render={({ field }) => (
+                          <FormItem className="md:col-span-2">
+                            <FormLabel className="flex items-center gap-2">No. Urut Pendaftaran : <Badge variant="secondary" className="font-mono">Manual</Badge></FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-primary" />
+                                <Input type="number" placeholder="Contoh: 1, 2, 3..." {...field} className="pl-10 font-bold text-primary" />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
                         <FormField control={form.control} name="fullName" render={({ field }) => (
                           <FormItem className="md:col-span-2"><FormLabel>Nama Lengkap :</FormLabel><FormControl><Input placeholder="SESUAI IJAZAH" {...field} className="uppercase" /></FormControl><FormMessage /></FormItem>
                         )} />
