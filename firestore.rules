@@ -13,7 +13,7 @@ service cloud.firestore {
     }
     
     // Aturan spesifik untuk koleksi applicants
-    // Komentar pemicu redeploy: Sinkronisasi data parentName untuk konsistensi laporan
+    // Komentar pemicu redeploy: Perbaikan ReferenceError watchLivingWith dan sinkronisasi penomoran registrasi
     match /applicants/{applicantId} {
       allow read: if true;
       allow write: if isAuthenticated();

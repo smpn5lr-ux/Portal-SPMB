@@ -158,6 +158,9 @@ export default function ApplicantsPage() {
     },
   })
 
+  // Watch livingWith for conditional Wali field
+  const watchLivingWith = form.watch("livingWith")
+
   const settingsRef = useMemoFirebase(() => {
     if (!db) return null
     return doc(db, 'settings', 'system')
@@ -293,7 +296,7 @@ export default function ApplicantsPage() {
   }
 
   const handleDownloadTemplate = async (format: 'csv' | 'excel' | 'pdf') => {
-    const selectedHeaders = TEMPLATE_COLUMNS.filter(c => selectedTemplateCols.includes(col.id)).map(c => c.label)
+    const selectedHeaders = TEMPLATE_COLUMNS.filter(c => selectedTemplateCols.includes(c.id)).map(c => c.label)
     
     if (format === 'excel') {
       const worksheet = XLSX.utils.json_to_sheet([])
