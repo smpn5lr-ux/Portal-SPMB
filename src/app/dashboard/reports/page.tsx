@@ -119,7 +119,6 @@ export default function ReportsPage() {
     const counts: Record<string, number> = {}
     
     applicants.filter(a => !a.isDeleted).forEach(a => {
-      // Normalisasi: Trim dan Ubah ke Kapital agar SDK POKA dan SDK poka digabung
       const school = (a.originSchool || "TIDAK DIKETAHUI").trim().toUpperCase()
       counts[school] = (counts[school] || 0) + 1
     })
@@ -154,7 +153,19 @@ export default function ReportsPage() {
       const row: any = { "No.": idx + 1 }
       EXPORT_COLUMNS.forEach(col => {
         if (selectedColumns.includes(col.id)) {
-          row[col.label] = (a as any)[col.id] || '-'
+          let value = (a as any)[col.id];
+          
+          // Logic khusus untuk Nama Orang Tua agar tidak kosong
+          if (col.id === 'parentName' && (!value || value === '-' || value === "")) {
+            value = a.fatherName || a.motherName || a.guardianName || "-";
+          }
+          
+          // Logic khusus untuk No Telepon (jika parentPhone kosong, gunakan studentPhone)
+          if (col.id === 'parentPhone' && (!value || value === '-' || value === "")) {
+            value = a.studentPhone || "-";
+          }
+
+          row[col.label] = value || '-'
         }
       })
       return row

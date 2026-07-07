@@ -344,14 +344,17 @@ export default function ApplicantsPage() {
       const regNumber = `${prefix}${seq.toString().padStart(4, '0')}`
       const newRef = doc(collection(db, 'applicants'))
       
-      // Sanitize data for batch import
       const sanitizedData = Object.entries(data).reduce((acc, [key, value]) => {
         acc[key] = value === undefined ? "" : value;
         return acc;
       }, {} as any);
 
+      // Sinkronkan Nama Orang Tua agar tidak kosong di laporan
+      const pName = sanitizedData.parentName || sanitizedData.fatherName || sanitizedData.motherName || sanitizedData.guardianName || "";
+
       batch.set(newRef, {
         ...sanitizedData,
+        parentName: pName,
         registrationSequence: seq,
         registrationNumber: regNumber,
         verificationStatus: 'Belum Diverifikasi',
@@ -489,11 +492,10 @@ export default function ApplicantsPage() {
       heightCm: Number(values.heightCm) || 0,
       weightKg: Number(values.weightKg) || 0,
       travelTimeMinutes: Number(values.travelTimeMinutes) || 0,
-      parentName: values.livingWith === 'Wali' ? (values.guardianName || values.fatherName || "") : (values.fatherName || ""),
+      parentName: values.livingWith === 'Wali' ? (values.guardianName || values.fatherName || values.motherName || "") : (values.fatherName || values.motherName || ""),
       parentPhone: values.studentPhone || "",
     }
 
-    // Sanitize to avoid Firestore "undefined" field error
     const sanitizedData = Object.entries(applicantData).reduce((acc, [key, value]) => {
       acc[key] = value === undefined ? "" : value;
       return acc;
