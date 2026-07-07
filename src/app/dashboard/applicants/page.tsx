@@ -158,7 +158,6 @@ export default function ApplicantsPage() {
     },
   })
 
-  // Watch livingWith for conditional Wali field
   const watchLivingWith = form.watch("livingWith")
 
   const settingsRef = useMemoFirebase(() => {
@@ -336,16 +335,15 @@ export default function ApplicantsPage() {
     setIsImporting(true)
     const batch = writeBatch(db)
     
-    // Pastikan prefiks diakhiri tanda hubung untuk format REG-2026-01
-    let prefix = systemConfig?.regPrefix || "REG-2024-";
-    if (!prefix.endsWith('-')) prefix = `${prefix}-`;
+    let prefix = (systemConfig?.regPrefix || "REG-2024").trim();
+    if (prefix.endsWith('-')) prefix = prefix.slice(0, -1);
     
     const lastSeq = applicants?.reduce((max, a) => Math.max(max, a.registrationSequence || 0), 0) || 0
     
     importData.forEach((data, idx) => {
       const seqRaw = data.registrationSequence || (lastSeq + idx + 1)
       const seq = Number(seqRaw)
-      const regNumber = `${prefix}${seq.toString().padStart(2, '0')}`
+      const regNumber = `${prefix}-${seq.toString().padStart(2, '0')}`
       const newRef = doc(collection(db, 'applicants'))
       
       const sanitizedData = Object.entries(data).reduce((acc, [key, value]) => {
@@ -484,11 +482,10 @@ export default function ApplicantsPage() {
     
     const seq = Number(values.registrationSequence) || 0;
     
-    // Pastikan prefiks diakhiri tanda hubung untuk format REG-2026-01
-    let prefix = systemConfig?.regPrefix || "REG-2024-";
-    if (!prefix.endsWith('-')) prefix = `${prefix}-`;
+    let prefix = (systemConfig?.regPrefix || "REG-2024").trim();
+    if (prefix.endsWith('-')) prefix = prefix.slice(0, -1);
     
-    const regNumber = `${prefix}${seq.toString().padStart(2, '0')}`;
+    const regNumber = `${prefix}-${seq.toString().padStart(2, '0')}`;
 
     const applicantData = {
       ...values,
@@ -944,7 +941,7 @@ export default function ApplicantsPage() {
         <Table>
           <TableHeader className="bg-primary/5">
             <TableRow>
-              <TableHead className="font-bold text-primary">No. Urut (Reg)</TableHead>
+              <TableHead className="font-bold text-primary">No. Urut Pendaftaran (No Reg)</TableHead>
               <TableHead className="font-bold text-primary">Nama Lengkap</TableHead>
               <TableHead className="font-bold text-primary">Asal Sekolah</TableHead>
               <TableHead className="font-bold text-primary">Jalur</TableHead>
