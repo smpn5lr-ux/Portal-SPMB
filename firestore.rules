@@ -13,6 +13,7 @@ service cloud.firestore {
     }
     
     // Aturan spesifik untuk koleksi applicants
+    // Komentar pemicu redeploy: Memastikan akses tulis aman untuk dashboard admin
     match /applicants/{applicantId} {
       allow read: if true;
       allow write: if isAuthenticated();

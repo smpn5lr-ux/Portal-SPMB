@@ -343,18 +343,25 @@ export default function ApplicantsPage() {
       const seq = data.registrationSequence || (lastSeq + idx + 1)
       const regNumber = `${prefix}${seq.toString().padStart(4, '0')}`
       const newRef = doc(collection(db, 'applicants'))
+      
+      // Sanitize data for batch import
+      const sanitizedData = Object.entries(data).reduce((acc, [key, value]) => {
+        acc[key] = value === undefined ? "" : value;
+        return acc;
+      }, {} as any);
+
       batch.set(newRef, {
-        ...data,
+        ...sanitizedData,
         registrationSequence: seq,
         registrationNumber: regNumber,
         verificationStatus: 'Belum Diverifikasi',
         admissionStatus: 'pending',
         createdAt: new Date().toISOString(),
         isDeleted: false,
-        livingWith: data.livingWith || 'Bersama Orang Tua',
-        transportation: data.transportation || 'Jalan Kaki',
-        welfareType: data.welfareType || 'Tidak Ada',
-        religion: data.religion || 'Katolik'
+        livingWith: sanitizedData.livingWith || 'Bersama Orang Tua',
+        transportation: sanitizedData.transportation || 'Jalan Kaki',
+        welfareType: sanitizedData.welfareType || 'Tidak Ada',
+        religion: sanitizedData.religion || 'Katolik'
       })
     })
     
@@ -413,12 +420,12 @@ export default function ApplicantsPage() {
     if (!db || !applicantToDelete) return
     const docRef = doc(db, 'applicants', applicantToDelete.id)
     updateDoc(docRef, { isDeleted: true, deletedAt: new Date().toISOString() })
+      .catch(async () => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'update' }))
+      })
       .then(() => {
         toast({ title: "Data dipindahkan ke sampah" })
         setApplicantToDelete(null)
-      })
-      .catch(async () => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'update' }))
       })
   }
 
@@ -486,20 +493,26 @@ export default function ApplicantsPage() {
       parentPhone: values.studentPhone || "",
     }
 
+    // Sanitize to avoid Firestore "undefined" field error
+    const sanitizedData = Object.entries(applicantData).reduce((acc, [key, value]) => {
+      acc[key] = value === undefined ? "" : value;
+      return acc;
+    }, {} as any);
+
     if (editingApplicant) {
       const applicantRef = doc(db, 'applicants', editingApplicant.id)
-      updateDoc(applicantRef, { ...applicantData, updatedAt: new Date().toISOString() })
+      updateDoc(applicantRef, { ...sanitizedData, updatedAt: new Date().toISOString() })
         .catch(async () => {
           errorEmitter.emit('permission-error', new FirestorePermissionError({ 
             path: applicantRef.path, 
             operation: 'update',
-            requestResourceData: applicantData
+            requestResourceData: sanitizedData
           }))
         })
       toast({ title: "Data Pendaftar Diperbarui" })
     } else {
       const newApplicant = {
-        ...applicantData,
+        ...sanitizedData,
         verificationStatus: 'Belum Diverifikasi',
         admissionStatus: 'pending',
         createdAt: new Date().toISOString(),
