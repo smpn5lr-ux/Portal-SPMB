@@ -103,7 +103,6 @@ export default function ReportsPage() {
     if (!applicants) return { total: 0, avgScore: 0, remainingQuota: 0, acceptedCount: 0, totalQuota }
     const total = applicants.filter(a => !a.isDeleted).length
     const acceptedCount = applicants.filter(a => !a.isDeleted && a.admissionStatus === 'accepted').length
-    // Sisa Kuota = Total Kuota - Total Pendaftar yang ada (aktif)
     const remainingQuota = Math.max(0, totalQuota - total)
     
     const prestasiApplicants = applicants.filter(a => !a.isDeleted && a.applicationPath === 'Prestasi' && a.academicScore)
@@ -118,15 +117,16 @@ export default function ReportsPage() {
     if (!applicants) return []
     const counts: Record<string, number> = {}
     applicants.filter(a => !a.isDeleted).forEach(a => {
-      counts[a.originSchool] = (counts[a.originSchool] || 0) + 1
+      const school = a.originSchool || "Tidak Diketahui"
+      counts[school] = (counts[school] || 0) + 1
     })
     return Object.entries(counts)
       .map(([name, count]) => ({ 
-        name: name.length > 15 ? name.substring(0, 12) + "..." : name, 
+        name: name.length > 20 ? name.substring(0, 17) + "..." : name, 
+        fullName: name,
         count 
       }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 5)
   }, [applicants])
 
   const ageData = useMemo(() => {
@@ -343,36 +343,52 @@ export default function ReportsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="border-border/50 bg-card shadow-sm">
           <CardHeader>
-            <CardTitle className="font-headline text-lg">Asal Sekolah Dasar Terbanyak</CardTitle>
-            <CardDescription>Lima sekolah asal pendaftar terbanyak.</CardDescription>
+            <CardTitle className="font-headline text-lg">Distribusi Asal Sekolah Dasar</CardTitle>
+            <CardDescription>Semua nama sekolah asal pendaftar yang masuk ke sistem.</CardDescription>
           </CardHeader>
-          <CardContent className="h-[320px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={schoolData} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                <XAxis 
-                  dataKey="name" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                />
-                <Tooltip 
-                  cursor={{ fill: 'hsl(var(--muted)/0.3)' }} 
-                  contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }} 
-                />
-                <Bar 
-                  dataKey="count" 
-                  fill="hsl(var(--primary))" 
-                  radius={[4, 4, 0, 0]} 
-                  barSize={40} 
-                />
-              </BarChart>
-            </ResponsiveContainer>
+          <CardContent className="h-[400px]">
+            {loading ? (
+              <Skeleton className="w-full h-full" />
+            ) : schoolData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={schoolData} margin={{ top: 20, right: 30, left: 0, bottom: 60 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    angle={-45}
+                    textAnchor="end"
+                    interval={0}
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                  />
+                  <Tooltip 
+                    cursor={{ fill: 'hsl(var(--muted)/0.3)' }} 
+                    contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }} 
+                    labelFormatter={(value, payload) => payload[0]?.payload?.fullName || value}
+                  />
+                  <Bar 
+                    dataKey="count" 
+                    fill="#4361EE" 
+                    radius={[4, 4, 0, 0]} 
+                    barSize={30} 
+                  >
+                    {schoolData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-muted-foreground italic">
+                Belum ada data sekolah asal.
+              </div>
+            )}
           </CardContent>
         </Card>
         
@@ -381,7 +397,7 @@ export default function ReportsPage() {
             <CardTitle className="font-headline text-lg">Demografi Usia Murid</CardTitle>
             <CardDescription>Persentase persebaran usia calon murid baru.</CardDescription>
           </CardHeader>
-          <CardContent className="h-[320px] flex items-center justify-center">
+          <CardContent className="h-[400px] flex items-center justify-center">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie 

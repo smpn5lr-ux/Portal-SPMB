@@ -12,7 +12,8 @@ import {
   Heart,
   Truck,
   User,
-  CalendarDays
+  CalendarDays,
+  School
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { 
@@ -40,7 +41,7 @@ export default function OverviewPage() {
   
   const applicantsQuery = useMemoFirebase(() => {
     if (!db) return null
-    return query(collection(db, 'applicants'), limit(1000))
+    return query(collection(db, 'applicants'), limit(2000))
   }, [db])
 
   const settingsRef = useMemoFirebase(() => {
@@ -63,7 +64,6 @@ export default function OverviewPage() {
     const pending = applicants.filter(a => a.verificationStatus === 'Belum Diverifikasi').length
     const rejected = applicants.filter(a => a.verificationStatus === 'Ditolak').length
     
-    // Logika Kuota: Sisa = Total Kuota - Total Pendaftar Aktif
     const totalQuota = config?.totalQuota || 0
     const remainingQuota = Math.max(0, totalQuota - total)
 
@@ -103,6 +103,22 @@ export default function OverviewPage() {
       },
     ]
   }, [applicants, config])
+
+  const schoolData = useMemo(() => {
+    if (!applicants || applicants.length === 0) return []
+    const counts: Record<string, number> = {}
+    applicants.forEach(a => {
+      const school = a.originSchool || "Tidak Diketahui"
+      counts[school] = (counts[school] || 0) + 1
+    })
+    return Object.entries(counts)
+      .map(([name, count]) => ({ 
+        name: name.length > 20 ? name.substring(0, 17) + "..." : name, 
+        fullName: name,
+        count 
+      }))
+      .sort((a, b) => b.count - a.count)
+  }, [applicants])
 
   const pathStats = useMemo(() => {
     if (!applicants || applicants.length === 0) return []
@@ -319,6 +335,59 @@ export default function OverviewPage() {
           </Card>
         </div>
       </div>
+
+      <Card className="border-border/50 bg-card overflow-hidden">
+        <CardHeader>
+          <CardTitle className="font-headline text-lg flex items-center gap-2">
+            <School className="w-5 h-5 text-primary" /> Distribusi Asal Sekolah Dasar
+          </CardTitle>
+          <CardDescription>Statistik pendaftar berdasarkan sekolah asal (Semua Data).</CardDescription>
+        </CardHeader>
+        <CardContent className="h-[400px]">
+          {loading ? (
+            <Skeleton className="w-full h-full" />
+          ) : schoolData.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={schoolData} margin={{ top: 20, right: 30, left: 0, bottom: 60 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  angle={-45}
+                  textAnchor="end"
+                  interval={0}
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                />
+                <Tooltip 
+                  cursor={{ fill: 'hsl(var(--muted)/0.3)' }} 
+                  contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }} 
+                  labelFormatter={(value, payload) => payload[0]?.payload?.fullName || value}
+                />
+                <Bar 
+                  dataKey="count" 
+                  fill="#4361EE" 
+                  radius={[4, 4, 0, 0]} 
+                  barSize={30} 
+                >
+                  {schoolData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#4361EE' : '#4CC9F0'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-full text-muted-foreground italic">
+              Belum ada data sekolah asal.
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }
