@@ -158,9 +158,6 @@ export default function ApplicantsPage() {
     },
   })
 
-  const watchSeq = form.watch("registrationSequence")
-  const watchLivingWith = form.watch("livingWith")
-
   const settingsRef = useMemoFirebase(() => {
     if (!db) return null
     return doc(db, 'settings', 'system')
@@ -296,7 +293,7 @@ export default function ApplicantsPage() {
   }
 
   const handleDownloadTemplate = async (format: 'csv' | 'excel' | 'pdf') => {
-    const selectedHeaders = TEMPLATE_COLUMNS.filter(c => selectedTemplateCols.includes(c.id)).map(c => c.label)
+    const selectedHeaders = TEMPLATE_COLUMNS.filter(c => selectedTemplateCols.includes(col.id)).map(c => c.label)
     
     if (format === 'excel') {
       const worksheet = XLSX.utils.json_to_sheet([])
@@ -335,7 +332,10 @@ export default function ApplicantsPage() {
     if (!db || importData.length === 0) return
     setIsImporting(true)
     const batch = writeBatch(db)
-    const prefix = systemConfig?.regPrefix || "REG-2024-";
+    
+    // Pastikan prefiks diakhiri tanda hubung untuk format REG-2026-01
+    let prefix = systemConfig?.regPrefix || "REG-2024-";
+    if (!prefix.endsWith('-')) prefix = `${prefix}-`;
     
     const lastSeq = applicants?.reduce((max, a) => Math.max(max, a.registrationSequence || 0), 0) || 0
     
@@ -480,7 +480,11 @@ export default function ApplicantsPage() {
     setSubmitting(true)
     
     const seq = Number(values.registrationSequence) || 0;
-    const prefix = systemConfig?.regPrefix || "REG-2024-";
+    
+    // Pastikan prefiks diakhiri tanda hubung untuk format REG-2026-01
+    let prefix = systemConfig?.regPrefix || "REG-2024-";
+    if (!prefix.endsWith('-')) prefix = `${prefix}-`;
+    
     const regNumber = `${prefix}${seq.toString().padStart(2, '0')}`;
 
     const applicantData = {
