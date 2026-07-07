@@ -335,7 +335,7 @@ export default function ApplicantsPage() {
     setIsImporting(true)
     const batch = writeBatch(db)
     
-    let prefix = (systemConfig?.regPrefix || "REG-2024").trim();
+    let prefix = (systemConfig?.regPrefix !== undefined ? systemConfig.regPrefix : "REG-2024").trim();
     if (prefix.endsWith('-')) prefix = prefix.slice(0, -1);
     
     const lastSeq = applicants?.reduce((max, a) => Math.max(max, a.registrationSequence || 0), 0) || 0
@@ -343,7 +343,10 @@ export default function ApplicantsPage() {
     importData.forEach((data, idx) => {
       const seqRaw = data.registrationSequence || (lastSeq + idx + 1)
       const seq = Number(seqRaw)
-      const regNumber = `${prefix}-${seq.toString().padStart(2, '0')}`
+      
+      const paddedSeq = seq.toString().padStart(2, '0');
+      const regNumber = prefix ? `${prefix}-${paddedSeq}` : paddedSeq;
+
       const newRef = doc(collection(db, 'applicants'))
       
       const sanitizedData = Object.entries(data).reduce((acc, [key, value]) => {
@@ -482,10 +485,11 @@ export default function ApplicantsPage() {
     
     const seq = Number(values.registrationSequence) || 0;
     
-    let prefix = (systemConfig?.regPrefix || "REG-2024").trim();
+    let prefix = (systemConfig?.regPrefix !== undefined ? systemConfig.regPrefix : "REG-2024").trim();
     if (prefix.endsWith('-')) prefix = prefix.slice(0, -1);
     
-    const regNumber = `${prefix}-${seq.toString().padStart(2, '0')}`;
+    const paddedSeq = seq.toString().padStart(2, '0');
+    const regNumber = prefix ? `${prefix}-${paddedSeq}` : paddedSeq;
 
     const applicantData = {
       ...values,
