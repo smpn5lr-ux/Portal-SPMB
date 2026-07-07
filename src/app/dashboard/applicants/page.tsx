@@ -99,7 +99,7 @@ const formSchema = z.object({
 })
 
 const TEMPLATE_COLUMNS = [
-  { id: 'registrationSequence', label: 'No. Urut' },
+  { id: 'registrationNumber', label: 'No. Urut Pendaftaran (No Reg)' },
   { id: 'NISN', label: 'NISN' },
   { id: 'NIK', label: 'NIK' },
   { id: 'fullName', label: 'Nama Lengkap' },
@@ -340,7 +340,8 @@ export default function ApplicantsPage() {
     const lastSeq = applicants?.reduce((max, a) => Math.max(max, a.registrationSequence || 0), 0) || 0
     
     importData.forEach((data, idx) => {
-      const seq = data.registrationSequence || (lastSeq + idx + 1)
+      const seqRaw = data.registrationSequence || (lastSeq + idx + 1)
+      const seq = Number(seqRaw)
       const regNumber = `${prefix}${seq.toString().padStart(2, '0')}`
       const newRef = doc(collection(db, 'applicants'))
       
@@ -480,7 +481,6 @@ export default function ApplicantsPage() {
     
     const seq = Number(values.registrationSequence) || 0;
     const prefix = systemConfig?.regPrefix || "REG-2024-";
-    // Generate registration number based on sequence
     const regNumber = `${prefix}${seq.toString().padStart(2, '0')}`;
 
     const applicantData = {
@@ -805,9 +805,6 @@ export default function ApplicantsPage() {
                       <FormField control={form.control} name="weightKg" render={({ field }) => (
                         <FormItem><FormLabel>Berat Badan (KG) :</FormLabel><FormControl><Input type="number" placeholder="0" {...field} /></FormControl><FormMessage /></FormItem>
                       )} />
-                      <FormField control={form.control} name="weightKg" render={({ field }) => (
-                        <FormItem><FormLabel>Berat Badan (KG) :</FormLabel><FormControl><Input type="number" placeholder="0" {...field} /></FormControl><FormMessage /></FormItem>
-                      )} />
                       <FormField control={form.control} name="travelTimeMinutes" render={({ field }) => (
                         <FormItem><FormLabel>Waktu Tempuh (Menit) :</FormLabel><FormControl><Input type="number" placeholder="0" {...field} /></FormControl><FormMessage /></FormItem>
                       )} />
@@ -940,7 +937,7 @@ export default function ApplicantsPage() {
         <Table>
           <TableHeader className="bg-primary/5">
             <TableRow>
-              <TableHead className="font-bold text-primary">NISN</TableHead>
+              <TableHead className="font-bold text-primary">No. Urut (Reg)</TableHead>
               <TableHead className="font-bold text-primary">Nama Lengkap</TableHead>
               <TableHead className="font-bold text-primary">Asal Sekolah</TableHead>
               <TableHead className="font-bold text-primary">Jalur</TableHead>
@@ -955,7 +952,7 @@ export default function ApplicantsPage() {
               <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">Tidak ada pendaftar ditemukan.</TableCell></TableRow>
             ) : filteredApplicants.map((applicant) => (
               <TableRow key={applicant.id} className="hover:bg-muted/10 transition-colors">
-                <TableCell className="font-mono text-xs">{applicant.NISN || "-"}</TableCell>
+                <TableCell className="font-mono text-xs font-bold">{applicant.registrationNumber || applicant.registrationSequence}</TableCell>
                 <TableCell className="font-medium">{applicant.fullName}</TableCell>
                 <TableCell className="text-sm">{applicant.originSchool || "-"}</TableCell>
                 <TableCell><Badge variant="outline" className="text-[10px] font-bold uppercase">{applicant.applicationPath}</Badge></TableCell>

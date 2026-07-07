@@ -55,8 +55,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 const COLORS = ['#4361EE', '#4CC9F0', '#F72585', '#7209B7', '#3A0CA3']
 
 const EXPORT_COLUMNS = [
-  { id: 'registrationSequence', label: 'No. Urut' },
-  { id: 'registrationNumber', label: 'No. Registrasi' },
+  { id: 'registrationNumber', label: 'No. Urut Pendaftaran (No Reg)' },
   { id: 'NISN', label: 'NISN' },
   { id: 'NIK', label: 'NIK' },
   { id: 'fullName', label: 'Nama Lengkap' },
@@ -114,38 +113,14 @@ export default function ReportsPage() {
     return { total, avgScore, remainingQuota, acceptedCount, totalQuota }
   }, [applicants, systemSettings])
 
-  const schoolData = useMemo(() => {
-    if (!applicants) return []
-    const counts: Record<string, number> = {}
-    
-    applicants.filter(a => !a.isDeleted).forEach(a => {
-      const school = (a.originSchool || "TIDAK DIKETAHUI").trim().toUpperCase()
-      counts[school] = (counts[school] || 0) + 1
-    })
-
-    return Object.entries(counts)
-      .map(([name, count]) => ({ 
-        name: name.length > 20 ? name.substring(0, 17) + "..." : name, 
-        fullName: name,
-        count 
-      }))
-      .sort((a, b) => b.count - a.count)
-  }, [applicants])
-
-  const ageData = useMemo(() => {
-    if (!applicants || applicants.length === 0) return []
-    const ages: Record<string, number> = {}
-    const filtered = applicants.filter(a => !a.isDeleted)
-    filtered.forEach(a => {
-      const label = `${a.ageYears || 12} Thn`
-      ages[label] = (ages[label] || 0) + 1
-    })
-    const totalCount = filtered.length
-    return Object.entries(ages).map(([name, count]) => ({
-      name,
-      value: totalCount > 0 ? Math.round((count / totalCount) * 100) : 0
-    }))
-  }, [applicants])
+  const formatDateLabel = (dateStr: string | undefined) => {
+    if (!dateStr) return "-";
+    const parts = dateStr.split('-');
+    if (parts.length === 3 && parts[0].length === 4) {
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return dateStr;
+  }
 
   const getExportData = () => {
     if (!applicants) return []
@@ -155,14 +130,16 @@ export default function ReportsPage() {
         if (selectedColumns.includes(col.id)) {
           let value = (a as any)[col.id];
           
-          // Logic khusus untuk Nama Orang Tua agar tidak kosong
           if (col.id === 'parentName' && (!value || value === '-' || value === "")) {
             value = a.fatherName || a.motherName || a.guardianName || "-";
           }
           
-          // Logic khusus untuk No Telepon (jika parentPhone kosong, gunakan studentPhone)
           if (col.id === 'parentPhone' && (!value || value === '-' || value === "")) {
             value = a.studentPhone || "-";
+          }
+
+          if (col.id === 'birthDate') {
+            value = formatDateLabel(value);
           }
 
           row[col.label] = value || '-'
@@ -273,6 +250,39 @@ export default function ReportsPage() {
   const toggleColumn = (id: string) => {
     setSelectedColumns(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id])
   }
+
+  const schoolData = useMemo(() => {
+    if (!applicants) return []
+    const counts: Record<string, number> = {}
+    
+    applicants.filter(a => !a.isDeleted).forEach(a => {
+      const school = (a.originSchool || "TIDAK DIKETAHUI").trim().toUpperCase()
+      counts[school] = (counts[school] || 0) + 1
+    })
+
+    return Object.entries(counts)
+      .map(([name, count]) => ({ 
+        name: name.length > 20 ? name.substring(0, 17) + "..." : name, 
+        fullName: name,
+        count 
+      }))
+      .sort((a, b) => b.count - a.count)
+  }, [applicants])
+
+  const ageData = useMemo(() => {
+    if (!applicants || applicants.length === 0) return []
+    const ages: Record<string, number> = {}
+    const filtered = applicants.filter(a => !a.isDeleted)
+    filtered.forEach(a => {
+      const label = `${a.ageYears || 12} Thn`
+      ages[label] = (ages[label] || 0) + 1
+    })
+    const totalCount = filtered.length
+    return Object.entries(ages).map(([name, count]) => ({
+      name,
+      value: totalCount > 0 ? Math.round((count / totalCount) * 100) : 0
+    }))
+  }, [applicants])
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
