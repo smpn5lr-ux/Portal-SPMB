@@ -50,7 +50,6 @@ import * as XLSX from 'xlsx'
 
 const formSchema = z.object({
   registrationSequence: z.string().min(1, "No. Urut harus diisi"),
-  registrationNumber: z.string().min(1, "No. Registrasi harus diisi"),
   fullName: z.string().min(2, "Nama minimal 2 karakter"),
   gender: z.enum(['Laki-laki', 'Perempuan']),
   NISN: z.string().optional(),
@@ -101,7 +100,6 @@ const formSchema = z.object({
 
 const TEMPLATE_COLUMNS = [
   { id: 'registrationSequence', label: 'No. Urut' },
-  { id: 'registrationNumber', label: 'No. Registrasi' },
   { id: 'NISN', label: 'NISN' },
   { id: 'NIK', label: 'NIK' },
   { id: 'fullName', label: 'Nama Lengkap' },
@@ -146,7 +144,6 @@ export default function ApplicantsPage() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       registrationSequence: "",
-      registrationNumber: "",
       fullName: "", gender: "Laki-laki", NISN: "", NIK: "", familyCardNumber: "",
       birthPlace: "", birthDate: "", aktaLahirNumber: "", religion: "Katolik",
       address: "", rt: "", rw: "", kelurahan: "", kecamatan: "", propinsi: "Jawa Barat",
@@ -170,18 +167,6 @@ export default function ApplicantsPage() {
   }, [db])
 
   const { data: systemConfig } = useDoc<any>(settingsRef)
-
-  // Logic to auto-fill registration number when sequence changes for new records
-  useEffect(() => {
-    if (!editingApplicant && watchSeq && systemConfig) {
-      const prefix = systemConfig?.regPrefix || "REG-2024-";
-      // Only set if not already manually edited or if just starting
-      const currentReg = form.getValues("registrationNumber");
-      if (!currentReg || currentReg.startsWith(prefix) || currentReg === "") {
-        form.setValue("registrationNumber", `${prefix}${watchSeq.padStart(4, '0')}`);
-      }
-    }
-  }, [watchSeq, systemConfig, editingApplicant, form]);
 
   const applicantsQuery = useMemoFirebase(() => {
     if (!db) return null
@@ -356,7 +341,7 @@ export default function ApplicantsPage() {
     
     importData.forEach((data, idx) => {
       const seq = data.registrationSequence || (lastSeq + idx + 1)
-      const regNumber = `${prefix}${seq.toString().padStart(4, '0')}`
+      const regNumber = `${prefix}${seq.toString().padStart(2, '0')}`
       const newRef = doc(collection(db, 'applicants'))
       
       const sanitizedData = Object.entries(data).reduce((acc, [key, value]) => {
@@ -398,7 +383,6 @@ export default function ApplicantsPage() {
     form.reset({
       ...applicant,
       registrationSequence: applicant.registrationSequence?.toString() || "",
-      registrationNumber: applicant.registrationNumber || "",
       childOrder: applicant.childOrder?.toString() || "",
       numberOfSiblings: applicant.numberOfSiblings?.toString() || "",
       heightCm: applicant.heightCm?.toString() || "",
@@ -475,7 +459,6 @@ export default function ApplicantsPage() {
     setEditingApplicant(null)
     form.reset({
       registrationSequence: "",
-      registrationNumber: "",
       fullName: "", gender: "Laki-laki", NISN: "", NIK: "", familyCardNumber: "",
       birthPlace: "", birthDate: "", aktaLahirNumber: "", religion: "Katolik",
       address: "", rt: "", rw: "", kelurahan: "", kecamatan: "", propinsi: "Jawa Barat",
@@ -496,7 +479,9 @@ export default function ApplicantsPage() {
     setSubmitting(true)
     
     const seq = Number(values.registrationSequence) || 0;
-    const regNumber = values.registrationNumber;
+    const prefix = systemConfig?.regPrefix || "REG-2024-";
+    // Generate registration number based on sequence
+    const regNumber = `${prefix}${seq.toString().padStart(2, '0')}`;
 
     const applicantData = {
       ...values,
@@ -716,22 +701,13 @@ export default function ApplicantsPage() {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <FormField control={form.control} name="registrationSequence" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="flex items-center gap-2">No. Urut :</FormLabel>
+                        <FormItem className="md:col-span-2">
+                          <FormLabel className="flex items-center gap-2">No. Urut Pendaftaran : <Badge variant="secondary" className="font-mono text-[10px]">Manual</Badge></FormLabel>
                           <FormControl>
                             <div className="relative">
                               <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-primary" />
                               <Input type="number" placeholder="Contoh: 1, 2, 3..." {...field} className="pl-10 font-bold" />
                             </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )} />
-                      <FormField control={form.control} name="registrationNumber" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="flex items-center gap-2">No. Registrasi : <Badge variant="secondary" className="font-mono text-[10px]">Manual</Badge></FormLabel>
-                          <FormControl>
-                            <Input placeholder="Contoh: REG-2024-0001" {...field} className="font-bold text-accent" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -825,6 +801,9 @@ export default function ApplicantsPage() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <FormField control={form.control} name="heightCm" render={({ field }) => (
                         <FormItem><FormLabel>Tinggi Badan (CM) :</FormLabel><FormControl><Input type="number" placeholder="0" {...field} /></FormControl><FormMessage /></FormItem>
+                      )} />
+                      <FormField control={form.control} name="weightKg" render={({ field }) => (
+                        <FormItem><FormLabel>Berat Badan (KG) :</FormLabel><FormControl><Input type="number" placeholder="0" {...field} /></FormControl><FormMessage /></FormItem>
                       )} />
                       <FormField control={form.control} name="weightKg" render={({ field }) => (
                         <FormItem><FormLabel>Berat Badan (KG) :</FormLabel><FormControl><Input type="number" placeholder="0" {...field} /></FormControl><FormMessage /></FormItem>
