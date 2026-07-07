@@ -13,7 +13,7 @@ service cloud.firestore {
     }
     
     // Aturan spesifik untuk koleksi applicants
-    // Komentar pemicu redeploy: Memastikan sinkronisasi akses real-time untuk dashboard admin
+    // Komentar pemicu redeploy: Memastikan sinkronisasi normalisasi data sekolah (Uppercase)
     match /applicants/{applicantId} {
       allow read: if true;
       allow write: if isAuthenticated();

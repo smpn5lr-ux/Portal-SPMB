@@ -117,10 +117,13 @@ export default function ReportsPage() {
   const schoolData = useMemo(() => {
     if (!applicants) return []
     const counts: Record<string, number> = {}
+    
     applicants.filter(a => !a.isDeleted).forEach(a => {
-      const school = a.originSchool || "Tidak Diketahui"
+      // Normalisasi: Trim dan Ubah ke Kapital agar SDK POKA dan SDK poka digabung
+      const school = (a.originSchool || "TIDAK DIKETAHUI").trim().toUpperCase()
       counts[school] = (counts[school] || 0) + 1
     })
+
     return Object.entries(counts)
       .map(([name, count]) => ({ 
         name: name.length > 20 ? name.substring(0, 17) + "..." : name, 
