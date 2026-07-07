@@ -331,43 +331,42 @@ export default function ApplicantsPage() {
     toast({ title: "Berhasil", description: `Template ${format.toUpperCase()} telah diunduh.` })
   }
 
-  const executeBulkImport = async () => {
+  const executeBulkImport = () => {
     if (!db || importData.length === 0) return
     setIsImporting(true)
     const batch = writeBatch(db)
     const prefix = systemConfig?.regPrefix || "REG-2024-";
     
-    try {
-      const lastSeq = applicants?.reduce((max, a) => Math.max(max, a.registrationSequence || 0), 0) || 0
-      
-      importData.forEach((data, idx) => {
-        const seq = data.registrationSequence || (lastSeq + idx + 1)
-        const regNumber = `${prefix}${seq.toString().padStart(4, '0')}`
-        const newRef = doc(collection(db, 'applicants'))
-        batch.set(newRef, {
-          ...data,
-          registrationSequence: seq,
-          registrationNumber: regNumber,
-          verificationStatus: 'Belum Diverifikasi',
-          admissionStatus: 'pending',
-          createdAt: new Date().toISOString(),
-          isDeleted: false,
-          livingWith: data.livingWith || 'Bersama Orang Tua',
-          transportation: data.transportation || 'Jalan Kaki',
-          welfareType: data.welfareType || 'Tidak Ada',
-          religion: data.religion || 'Katolik'
-        })
+    const lastSeq = applicants?.reduce((max, a) => Math.max(max, a.registrationSequence || 0), 0) || 0
+    
+    importData.forEach((data, idx) => {
+      const seq = data.registrationSequence || (lastSeq + idx + 1)
+      const regNumber = `${prefix}${seq.toString().padStart(4, '0')}`
+      const newRef = doc(collection(db, 'applicants'))
+      batch.set(newRef, {
+        ...data,
+        registrationSequence: seq,
+        registrationNumber: regNumber,
+        verificationStatus: 'Belum Diverifikasi',
+        admissionStatus: 'pending',
+        createdAt: new Date().toISOString(),
+        isDeleted: false,
+        livingWith: data.livingWith || 'Bersama Orang Tua',
+        transportation: data.transportation || 'Jalan Kaki',
+        welfareType: data.welfareType || 'Tidak Ada',
+        religion: data.religion || 'Katolik'
       })
-      
-      await batch.commit()
+    })
+    
+    batch.commit().then(() => {
       toast({ title: "Impor Berhasil", description: `${importData.length} data pendaftar ditambahkan.` })
       setIsImportDialogOpen(false)
       setImportData([])
-    } catch (err) {
-      toast({ variant: "destructive", title: "Impor Gagal" })
-    } finally {
+    }).catch(async () => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'applicants', operation: 'write' }))
+    }).finally(() => {
       setIsImporting(false)
-    }
+    })
   }
 
   const handleEdit = (applicant: Applicant) => {
@@ -410,7 +409,7 @@ export default function ApplicantsPage() {
     setIsDeleteDialogOpen(true)
   }
 
-  const executeDelete = async () => {
+  const executeDelete = () => {
     if (!db || !applicantToDelete) return
     const docRef = doc(db, 'applicants', applicantToDelete.id)
     updateDoc(docRef, { isDeleted: true, deletedAt: new Date().toISOString() })
@@ -423,28 +422,28 @@ export default function ApplicantsPage() {
       })
   }
 
-  const executeDeleteAll = async () => {
+  const executeDeleteAll = () => {
     if (!db || !filteredApplicants.length) return
     setSubmitting(true)
     const batch = writeBatch(db)
     const now = new Date().toISOString()
 
-    try {
-      filteredApplicants.forEach((applicant) => {
-        const docRef = doc(db, 'applicants', applicant.id)
-        batch.update(docRef, { 
-          isDeleted: true, 
-          deletedAt: now 
-        })
+    filteredApplicants.forEach((applicant) => {
+      const docRef = doc(db, 'applicants', applicant.id)
+      batch.update(docRef, { 
+        isDeleted: true, 
+        deletedAt: now 
       })
-      await batch.commit()
+    })
+
+    batch.commit().then(() => {
       toast({ title: "Berhasil", description: `${filteredApplicants.length} data dipindahkan ke sampah.` })
       setIsDeleteAllDialogOpen(false)
-    } catch (err) {
-      toast({ variant: "destructive", title: "Gagal menghapus semua" })
-    } finally {
+    }).catch(async () => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'applicants', operation: 'write' }))
+    }).finally(() => {
       setSubmitting(false)
-    }
+    })
   }
 
   const handleAddNew = () => {
@@ -466,52 +465,60 @@ export default function ApplicantsPage() {
     setIsDialogOpen(true)
   }
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  function onSubmit(values: z.infer<typeof formSchema>) {
     if (!db || submitting) return
     setSubmitting(true)
-    try {
-      const seq = Number(values.registrationSequence) || 0;
-      const prefix = systemConfig?.regPrefix || "REG-2024-";
-      const regNumber = `${prefix}${seq.toString().padStart(4, '0')}`;
+    
+    const seq = Number(values.registrationSequence) || 0;
+    const prefix = systemConfig?.regPrefix || "REG-2024-";
+    const regNumber = `${prefix}${seq.toString().padStart(4, '0')}`;
 
-      const applicantData = {
-        ...values,
-        registrationSequence: seq,
-        registrationNumber: regNumber,
-        childOrder: Number(values.childOrder) || 0,
-        numberOfSiblings: Number(values.numberOfSiblings) || 0,
-        heightCm: Number(values.heightCm) || 0,
-        weightKg: Number(values.weightKg) || 0,
-        travelTimeMinutes: Number(values.travelTimeMinutes) || 0,
-        parentName: values.livingWith === 'Wali' ? (values.guardianName || values.fatherName || "") : (values.fatherName || ""),
-        parentPhone: values.studentPhone || "",
-      }
-
-      if (editingApplicant) {
-        const applicantRef = doc(db, 'applicants', editingApplicant.id)
-        updateDoc(applicantRef, { ...applicantData, updatedAt: new Date().toISOString() })
-        toast({ title: "Data Pendaftar Diperbarui" })
-      } else {
-        const newApplicant = {
-          ...applicantData,
-          verificationStatus: 'Belum Diverifikasi',
-          admissionStatus: 'pending',
-          createdAt: new Date().toISOString(),
-          isDeleted: false
-        }
-        await addDoc(collection(db, 'applicants'), newApplicant)
-        toast({ title: "Pendaftar Berhasil Ditambahkan" })
-      }
-      setIsDialogOpen(false)
-      form.reset()
-    } catch (error) {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({ 
-        path: 'applicants', 
-        operation: editingApplicant ? 'update' : 'create' 
-      }))
-    } finally {
-      setSubmitting(false)
+    const applicantData = {
+      ...values,
+      registrationSequence: seq,
+      registrationNumber: regNumber,
+      childOrder: Number(values.childOrder) || 0,
+      numberOfSiblings: Number(values.numberOfSiblings) || 0,
+      heightCm: Number(values.heightCm) || 0,
+      weightKg: Number(values.weightKg) || 0,
+      travelTimeMinutes: Number(values.travelTimeMinutes) || 0,
+      parentName: values.livingWith === 'Wali' ? (values.guardianName || values.fatherName || "") : (values.fatherName || ""),
+      parentPhone: values.studentPhone || "",
     }
+
+    if (editingApplicant) {
+      const applicantRef = doc(db, 'applicants', editingApplicant.id)
+      updateDoc(applicantRef, { ...applicantData, updatedAt: new Date().toISOString() })
+        .catch(async () => {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({ 
+            path: applicantRef.path, 
+            operation: 'update',
+            requestResourceData: applicantData
+          }))
+        })
+      toast({ title: "Data Pendaftar Diperbarui" })
+    } else {
+      const newApplicant = {
+        ...applicantData,
+        verificationStatus: 'Belum Diverifikasi',
+        admissionStatus: 'pending',
+        createdAt: new Date().toISOString(),
+        isDeleted: false
+      }
+      addDoc(collection(db, 'applicants'), newApplicant)
+        .catch(async () => {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({ 
+            path: 'applicants', 
+            operation: 'create',
+            requestResourceData: newApplicant
+          }))
+        })
+      toast({ title: "Pendaftar Berhasil Ditambahkan" })
+    }
+    
+    setIsDialogOpen(false)
+    form.reset()
+    setSubmitting(false)
   }
 
   return (

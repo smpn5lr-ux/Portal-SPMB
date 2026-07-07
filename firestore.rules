@@ -2,24 +2,29 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Fungsi pembantu untuk memverifikasi autentikasi pengguna
     function isAuthenticated() {
       return request.auth != null;
     }
 
+    // Aturan default: akses penuh jika terautentikasi
     match /{document=**} {
       allow read, write: if isAuthenticated();
     }
     
+    // Aturan spesifik untuk koleksi applicants
     match /applicants/{applicantId} {
       allow read: if true;
       allow write: if isAuthenticated();
     }
     
+    // Aturan spesifik untuk pengaturan sistem
     match /settings/{settingId} {
       allow read: if true;
       allow write: if isAuthenticated();
     }
 
+    // Aturan spesifik untuk data pegawai
     match /staff/{staffId} {
       allow read, write: if isAuthenticated();
     }
