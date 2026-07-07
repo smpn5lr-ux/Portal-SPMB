@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo } from "react"
@@ -102,7 +103,8 @@ export default function ReportsPage() {
     if (!applicants) return { total: 0, avgScore: 0, remainingQuota: 0, acceptedCount: 0, totalQuota }
     const total = applicants.filter(a => !a.isDeleted).length
     const acceptedCount = applicants.filter(a => !a.isDeleted && a.admissionStatus === 'accepted').length
-    const remainingQuota = Math.max(0, totalQuota - acceptedCount)
+    // Sisa Kuota = Total Kuota - Total Pendaftar yang ada (aktif)
+    const remainingQuota = Math.max(0, totalQuota - total)
     
     const prestasiApplicants = applicants.filter(a => !a.isDeleted && a.applicationPath === 'Prestasi' && a.academicScore)
     const avgScore = prestasiApplicants.length 
