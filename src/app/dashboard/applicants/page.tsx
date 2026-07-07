@@ -182,22 +182,6 @@ export default function ApplicantsPage() {
     )
   }, [applicants, searchTerm])
 
-  const parseIndonesianDate = (dateStr: string) => {
-    if (!dateStr) return "";
-    const months: Record<string, string> = {
-      'Januari': '01', 'Februari': '02', 'Maret': '03', 'April': '04', 'Mei': '05', 'Juni': '06',
-      'Juli': '07', 'Agustus': '08', 'September': '09', 'Oktober': '10', 'November': '11', 'Desember': '12'
-    };
-    const parts = dateStr.trim().split(' ');
-    if (parts.length === 3) {
-      const day = parts[0].padStart(2, '0');
-      const month = months[parts[1]] || '01';
-      const year = parts[2];
-      return `${year}-${month}-${day}`;
-    }
-    return dateStr;
-  };
-
   const handleScanForm = async (fileInput: HTMLInputElement) => {
     const file = fileInput.files?.[0]
     if (!file) return
@@ -241,23 +225,10 @@ export default function ApplicantsPage() {
           const data = XLSX.utils.sheet_to_json(sheet)
           
           const mappedData = data.map((row: any) => {
-            let birthPlace = "";
-            let birthDate = "";
-            const ttl = row['Tempat Tanggal Lahir'] || row['Tempat, Tanggal Lahir'] || row['Tanggal Lahir'] || "";
-            if (typeof ttl === 'string' && ttl.includes(',')) {
-              const parts = ttl.split(',');
-              birthPlace = parts[0].trim();
-              birthDate = parseIndonesianDate(parts[1]);
-            } else {
-              birthDate = ttl;
-            }
-
             return {
               fullName: row['NAMA'] || row['Nama Lengkap'] || row['Nama'] || "",
               NISN: row['NISN']?.toString() || "",
               gender: (row['Jenis Kelamin'] || row['JK'] || "").toString().toUpperCase().startsWith('P') ? 'Perempuan' : 'Laki-laki',
-              birthPlace,
-              birthDate,
               originSchool: row['SEKOLAH ASAL'] || row['Sekolah Asal'] || "",
               fatherName: row['NAMA ORANG TUA'] || row['Orang Tua'] || row['Nama Orang Tua'] || "",
               kelurahan: row['KELURAHAN'] || row['Kelurahan'] || row['Kelurahan/Desa'] || "",
@@ -276,8 +247,6 @@ export default function ApplicantsPage() {
           if (result && result.applicants) {
             setImportData(result.applicants)
           }
-        } else {
-          toast({ variant: "destructive", title: "Format Tidak Didukung", description: "Gunakan Excel atau PDF." })
         }
       } catch (err) {
         toast({ variant: "destructive", title: "Gagal Membaca File", description: "Format file tidak valid." })
@@ -327,28 +296,20 @@ export default function ApplicantsPage() {
       doc.save("Formulir_Pendaftaran_Manual.pdf")
     }
     setIsTemplateDialogOpen(false)
-    toast({ title: "Berhasil", description: `Template ${format.toUpperCase()} telah diunduh.` })
   }
 
   const executeBulkImport = () => {
     if (!db || importData.length === 0) return
     setIsImporting(true)
     const batch = writeBatch(db)
-    
-    let prefix = (systemConfig?.regPrefix !== undefined ? systemConfig.regPrefix : "REG-2024").trim();
-    if (prefix.endsWith('-')) prefix = prefix.slice(0, -1);
-    
-    const lastSeq = applicants?.reduce((max, a) => Math.max(max, a.registrationSequence || 0), 0) || 0
+    const prefix = (systemConfig?.regPrefix || "").trim();
     
     importData.forEach((data, idx) => {
-      const seqRaw = data.registrationSequence || (lastSeq + idx + 1)
-      const seq = Number(seqRaw)
-      
+      const seq = Number(data.registrationSequence || idx + 1);
       const paddedSeq = seq.toString().padStart(2, '0');
-      const regNumber = prefix ? `${prefix}-${paddedSeq}` : paddedSeq;
+      const regNumber = `${prefix}${paddedSeq}`;
 
       const newRef = doc(collection(db, 'applicants'))
-      
       const sanitizedData = Object.entries(data).reduce((acc, [key, value]) => {
         acc[key] = value === undefined ? "" : value;
         return acc;
@@ -393,27 +354,6 @@ export default function ApplicantsPage() {
       heightCm: applicant.heightCm?.toString() || "",
       weightKg: applicant.weightKg?.toString() || "",
       travelTimeMinutes: applicant.travelTimeMinutes?.toString() || "",
-      welfareType: applicant.welfareType || "Tidak Ada",
-      welfareCardNumber: applicant.welfareCardNumber || "",
-      welfareCardName: applicant.welfareCardName || "",
-      fatherName: applicant.fatherName || "",
-      fatherNIK: applicant.fatherNIK || "",
-      fatherBirthYear: applicant.fatherBirthYear || "",
-      fatherEducation: applicant.fatherEducation || "",
-      fatherJob: applicant.fatherJob || "",
-      fatherIncome: applicant.fatherIncome || "",
-      motherName: applicant.motherName || "" ,
-      motherNIK: applicant.motherNIK || "",
-      motherBirthYear: applicant.motherBirthYear || "",
-      motherEducation: applicant.motherEducation || "",
-      motherJob: applicant.motherJob || "",
-      motherIncome: applicant.motherIncome || "",
-      guardianName: applicant.guardianName || "",
-      guardianNIK: applicant.guardianNIK || "",
-      guardianBirthYear: applicant.guardianBirthYear || "",
-      guardianEducation: applicant.guardianEducation || "",
-      guardianJob: applicant.guardianJob || "",
-      guardianIncome: applicant.guardianIncome || "",
     } as any)
     setIsDialogOpen(true)
   }
@@ -444,10 +384,7 @@ export default function ApplicantsPage() {
 
     filteredApplicants.forEach((applicant) => {
       const docRef = doc(db, 'applicants', applicant.id)
-      batch.update(docRef, { 
-        isDeleted: true, 
-        deletedAt: now 
-      })
+      batch.update(docRef, { isDeleted: true, deletedAt: now })
     })
 
     batch.commit().then(() => {
@@ -462,8 +399,9 @@ export default function ApplicantsPage() {
 
   const handleAddNew = () => {
     setEditingApplicant(null)
+    const lastSeq = applicants?.reduce((max, a) => Math.max(max, a.registrationSequence || 0), 0) || 0
     form.reset({
-      registrationSequence: "",
+      registrationSequence: (lastSeq + 1).toString(),
       fullName: "", gender: "Laki-laki", NISN: "", NIK: "", familyCardNumber: "",
       birthPlace: "", birthDate: "", aktaLahirNumber: "", religion: "Katolik",
       address: "", rt: "", rw: "", kelurahan: "", kecamatan: "", propinsi: "Jawa Barat",
@@ -484,12 +422,9 @@ export default function ApplicantsPage() {
     setSubmitting(true)
     
     const seq = Number(values.registrationSequence) || 0;
-    
-    let prefix = (systemConfig?.regPrefix !== undefined ? systemConfig.regPrefix : "REG-2024").trim();
-    if (prefix.endsWith('-')) prefix = prefix.slice(0, -1);
-    
+    const prefix = (systemConfig?.regPrefix || "").trim();
     const paddedSeq = seq.toString().padStart(2, '0');
-    const regNumber = prefix ? `${prefix}-${paddedSeq}` : paddedSeq;
+    const regNumber = `${prefix}${paddedSeq}`;
 
     const applicantData = {
       ...values,
@@ -519,7 +454,6 @@ export default function ApplicantsPage() {
             requestResourceData: sanitizedData
           }))
         })
-      toast({ title: "Data Pendaftar Diperbarui" })
     } else {
       const newApplicant = {
         ...sanitizedData,
@@ -536,11 +470,9 @@ export default function ApplicantsPage() {
             requestResourceData: newApplicant
           }))
         })
-      toast({ title: "Pendaftar Berhasil Ditambahkan" })
     }
     
     setIsDialogOpen(false)
-    form.reset()
     setSubmitting(false)
   }
 
@@ -710,7 +642,7 @@ export default function ApplicantsPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <FormField control={form.control} name="registrationSequence" render={({ field }) => (
                         <FormItem className="md:col-span-2">
-                          <FormLabel className="flex items-center gap-2">No. Urut Pendaftaran : <Badge variant="secondary" className="font-mono text-[10px]">Manual</Badge></FormLabel>
+                          <FormLabel className="flex items-center gap-2">No. Urut Pendaftaran : <Badge variant="secondary" className="font-mono text-[10px]">Otomatis</Badge></FormLabel>
                           <FormControl>
                             <div className="relative">
                               <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-primary" />
@@ -718,6 +650,9 @@ export default function ApplicantsPage() {
                             </div>
                           </FormControl>
                           <FormMessage />
+                          <p className="text-[10px] text-muted-foreground italic mt-1">
+                            Hasil No Reg: <strong>{(systemConfig?.regPrefix || '')}{field.value.toString().padStart(2, '0')}</strong>
+                          </p>
                         </FormItem>
                       )} />
                       <FormField control={form.control} name="fullName" render={({ field }) => (

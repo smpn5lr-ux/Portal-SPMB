@@ -84,7 +84,7 @@ export default function SettingsPage() {
     quotaPerpindahan: 5,
     maxDistance: 3.5,
     minScore: 75,
-    regPrefix: "REG-2024-"
+    regPrefix: "REG-2026-"
   })
 
   const [localSchools, setLocalSchools] = useState<string[]>([])
@@ -383,9 +383,11 @@ export default function SettingsPage() {
                 <Input 
                   value={localConfig.regPrefix}
                   onChange={(e) => setLocalConfig({...localConfig, regPrefix: e.target.value})}
-                  placeholder="Contoh: REG-2024-" 
+                  placeholder="Contoh: REK atau REG-2026-" 
                 />
-                <p className="text-[10px] text-muted-foreground">Contoh hasil: {localConfig.regPrefix}0001, {localConfig.regPrefix}0002, dst.</p>
+                <p className="text-[10px] text-muted-foreground italic">
+                  Contoh Hasil: <strong>{localConfig.regPrefix || ''}01</strong>, <strong>{localConfig.regPrefix || ''}02</strong>, dst.
+                </p>
               </div>
             </CardContent>
           </Card>
