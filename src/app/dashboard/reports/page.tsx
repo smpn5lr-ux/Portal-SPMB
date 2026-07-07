@@ -50,6 +50,7 @@ import { collection, query, orderBy, doc } from "firebase/firestore"
 import { Applicant } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
 import * as XLSX from 'xlsx'
+import { Skeleton } from "@/components/ui/skeleton"
 
 const COLORS = ['#4361EE', '#4CC9F0', '#F72585', '#7209B7', '#3A0CA3']
 

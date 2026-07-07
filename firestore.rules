@@ -7,13 +7,13 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Aturan default: akses penuh jika terautentikasi
+    // Aturan default: akses penuh jika terautentikasi (Administrator)
     match /{document=**} {
       allow read, write: if isAuthenticated();
     }
     
     // Aturan spesifik untuk koleksi applicants
-    // Komentar pemicu redeploy: Memastikan akses tulis aman untuk dashboard admin
+    // Komentar pemicu redeploy: Memastikan sinkronisasi akses real-time untuk dashboard admin
     match /applicants/{applicantId} {
       allow read: if true;
       allow write: if isAuthenticated();
