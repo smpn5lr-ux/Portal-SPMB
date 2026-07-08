@@ -169,7 +169,7 @@ export default function ApplicantsPage() {
 
   const applicantsQuery = useMemoFirebase(() => {
     if (!db) return null
-    return query(collection(db, 'applicants'), orderBy('createdAt', 'desc'), limit(500))
+    return query(collection(db, 'applicants'), orderBy('createdAt', 'desc'), limit(2000))
   }, [db])
 
   const { data: applicants, loading } = useCollection<Applicant>(applicantsQuery)
@@ -234,7 +234,7 @@ export default function ApplicantsPage() {
               kelurahan: row['KELURAHAN'] || row['Kelurahan'] || row['Kelurahan/Desa'] || "",
               kecamatan: row['KECAMATAN'] || row['Kecamatan'] || "",
               propinsi: row['PROVINSI'] || row['Provinsi'] || row['Propinsi'] || "",
-              registrationSequence: Number(row['NO Daftar'] || row['No Daftar'] || row['No. Urut'] || 0),
+              registrationSequence: Number(row['NO Daftar'] || row['No Daftar'] || row['No. Urut'] || row['No. Urut Pendaftaran (No Reg)'] || 0),
               applicationPath: row['Jalur'] || row['Jalur Masuk'] || 'Zonasi',
             }
           })
@@ -302,7 +302,12 @@ export default function ApplicantsPage() {
     if (!db || importData.length === 0) return
     setIsImporting(true)
     const batch = writeBatch(db)
-    const prefix = (systemConfig?.regPrefix || "").trim();
+    
+    // Pastikan prefiks bersih dan memiliki dash yang konsisten
+    let prefix = (systemConfig?.regPrefix || "").trim();
+    if (prefix && !prefix.endsWith('-')) {
+      prefix = prefix + '-';
+    }
     
     importData.forEach((data, idx) => {
       const seq = Number(data.registrationSequence || idx + 1);
@@ -311,7 +316,7 @@ export default function ApplicantsPage() {
 
       const newRef = doc(collection(db, 'applicants'))
       const sanitizedData = Object.entries(data).reduce((acc, [key, value]) => {
-        acc[key] = value === undefined ? "" : value;
+        acc[key] = (value === undefined || value === null) ? "" : value;
         return acc;
       }, {} as any);
 
@@ -422,7 +427,10 @@ export default function ApplicantsPage() {
     setSubmitting(true)
     
     const seq = Number(values.registrationSequence) || 0;
-    const prefix = (systemConfig?.regPrefix || "").trim();
+    let prefix = (systemConfig?.regPrefix || "").trim();
+    if (prefix && !prefix.endsWith('-')) {
+      prefix = prefix + '-';
+    }
     const paddedSeq = seq.toString().padStart(2, '0');
     const regNumber = `${prefix}${paddedSeq}`;
 
@@ -440,7 +448,7 @@ export default function ApplicantsPage() {
     }
 
     const sanitizedData = Object.entries(applicantData).reduce((acc, [key, value]) => {
-      acc[key] = value === undefined ? "" : value;
+      acc[key] = (value === undefined || value === null) ? "" : value;
       return acc;
     }, {} as any);
 

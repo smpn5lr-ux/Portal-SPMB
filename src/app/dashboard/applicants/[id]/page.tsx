@@ -57,7 +57,19 @@ export default function ApplicantDetailPage() {
 
   const handleUpdateStatus = (status: string) => {
     if (!applicantRef) return
-    updateDoc(applicantRef, { verificationStatus: status })
+    const updateData: any = { 
+      verificationStatus: status,
+      updatedAt: new Date().toISOString()
+    }
+    
+    // Sinkronisasi status: Jika Lengkap, otomatis diterima (agar muncul di Rombel)
+    if (status === 'Lengkap') {
+      updateData.admissionStatus = 'accepted'
+    } else if (status === 'Ditolak') {
+      updateData.admissionStatus = 'rejected'
+    }
+
+    updateDoc(applicantRef, updateData)
       .then(() => {
         toast({ title: `Status berhasil diubah`, description: `Sekarang berstatus: ${status}` })
       })

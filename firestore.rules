@@ -13,7 +13,7 @@ service cloud.firestore {
     }
     
     // Aturan spesifik untuk koleksi applicants
-    // Komentar pemicu redeploy: Memperbaiki fleksibilitas penomoran registrasi agar benar-benar mengikuti input pengaturan
+    // Komentar pemicu redeploy: Menyinkronkan status verifikasi dan kelulusan pendaftar
     match /applicants/{applicantId} {
       allow read: if true;
       allow write: if isAuthenticated();

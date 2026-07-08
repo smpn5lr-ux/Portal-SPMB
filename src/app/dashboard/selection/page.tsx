@@ -50,7 +50,8 @@ export default function SelectionPage() {
   
   const applicantsQuery = useMemoFirebase(() => {
     if (!db) return null
-    return query(collection(db, 'applicants'), limit(100))
+    // Mengambil semua data untuk proses seleksi massal yang akurat
+    return query(collection(db, 'applicants'), limit(2000))
   }, [db])
 
   const { data: applicants, loading } = useCollection<Applicant>(applicantsQuery)
@@ -62,7 +63,7 @@ export default function SelectionPage() {
     const batch = writeBatch(db)
     
     try {
-      applicants.forEach((a, index) => {
+      applicants.filter(a => !a.isDeleted).forEach((a, index) => {
         let status: 'accepted' | 'waitlisted' | 'rejected' = 'rejected'
         
         if (a.verificationStatus !== 'Lengkap') {
@@ -78,7 +79,8 @@ export default function SelectionPage() {
         const docRef = doc(db, 'applicants', a.id)
         batch.update(docRef, { 
           admissionStatus: status,
-          rankingInPath: index + 1 
+          rankingInPath: index + 1,
+          updatedAt: new Date().toISOString()
         })
       })
 
@@ -101,10 +103,13 @@ export default function SelectionPage() {
 
   const sortedApplicants = useMemo(() => {
     if (!applicants) return []
-    return [...applicants].sort((a, b) => {
-      if (a.applicationPath === 'Prestasi') return (b.academicScore || 0) - (a.academicScore || 0)
-      return (a.distanceToSchoolKm || 0) - (b.distanceToSchoolKm || 0)
-    }).slice(0, 15)
+    return [...applicants]
+      .filter(a => !a.isDeleted)
+      .sort((a, b) => {
+        if (a.applicationPath === 'Prestasi') return (b.academicScore || 0) - (a.academicScore || 0)
+        return (a.distanceToSchoolKm || 0) - (b.distanceToSchoolKm || 0)
+      })
+      .slice(0, 100)
   }, [applicants])
 
   if (loading && !applicants) {
@@ -232,7 +237,7 @@ export default function SelectionPage() {
                 <CardHeader className="flex flex-row items-center justify-between">
                   <div>
                     <CardTitle className="font-headline text-lg">Pratinjau Hasil Seleksi Murid</CardTitle>
-                    <CardDescription>Peringkat terbaru dari database.</CardDescription>
+                    <CardDescription>Peringkat terbaru dari database (100 Teratas).</CardDescription>
                   </div>
                   <Button variant="outline" size="sm" className="gap-2">
                     <ArrowUpDown className="w-3 h-3" /> Urutkan

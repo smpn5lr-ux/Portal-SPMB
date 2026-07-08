@@ -29,18 +29,20 @@ import { collection, query, orderBy, doc, updateDoc, limit } from 'firebase/fire
 import { Applicant } from '@/lib/types'
 import { errorEmitter } from '@/firebase/error-emitter'
 import { FirestorePermissionError } from '@/firebase/errors'
+import { useToast } from '@/hooks/use-toast'
 
 export default function VerificationPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [activeTab, setActiveTab] = useState('pending')
   const db = useFirestore()
+  const { toast } = useToast()
 
   const applicantsQuery = useMemoFirebase(() => {
     if (!db) return null
     return query(
       collection(db, 'applicants'), 
       orderBy('createdAt', 'desc'),
-      limit(500)
+      limit(2000)
     )
   }, [db])
 
@@ -50,7 +52,7 @@ export default function VerificationPage() {
     if (!allApplicants) return []
     return allApplicants.filter(a => {
       if (a.isDeleted) return false
-      const matchesSearch = a.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || a.NISN.includes(searchTerm)
+      const matchesSearch = (a.fullName || "").toLowerCase().includes(searchTerm.toLowerCase()) || (a.NISN || "").includes(searchTerm)
       if (activeTab === 'pending') return matchesSearch && a.verificationStatus === 'Belum Diverifikasi'
       if (activeTab === 'revision') return matchesSearch && a.verificationStatus === 'Perlu Perbaikan'
       if (activeTab === 'completed') return matchesSearch && (a.verificationStatus === 'Lengkap' || a.verificationStatus === 'Ditolak')
@@ -61,12 +63,26 @@ export default function VerificationPage() {
   const handleQuickVerify = (id: string, status: string) => {
     if (!db) return
     const docRef = doc(db, 'applicants', id)
-    updateDoc(docRef, { verificationStatus: status })
+    
+    // Jika status disetel Lengkap, otomatis jadikan Diterima (Accepted)
+    const updateData: any = { 
+      verificationStatus: status,
+      updatedAt: new Date().toISOString()
+    }
+    
+    if (status === 'Lengkap') {
+      updateData.admissionStatus = 'accepted'
+    }
+
+    updateDoc(docRef, updateData)
+      .then(() => {
+        toast({ title: `Berhasil`, description: `Status diperbarui menjadi ${status}` })
+      })
       .catch(async () => {
         const permissionError = new FirestorePermissionError({
           path: docRef.path,
           operation: 'update',
-          requestResourceData: { verificationStatus: status }
+          requestResourceData: updateData
         })
         errorEmitter.emit('permission-error', permissionError)
       })
@@ -132,7 +148,7 @@ export default function VerificationPage() {
                     <TableRow key={applicant.id} className="hover:bg-muted/20 transition-colors">
                       <TableCell className="text-xs text-muted-foreground font-medium">{idx + 1}</TableCell>
                       <TableCell className="font-mono text-xs font-bold text-primary">
-                        {applicant.registrationNumber}
+                        {applicant.registrationNumber || applicant.registrationSequence}
                       </TableCell>
                       <TableCell>
                         <div className="font-medium">{applicant.fullName}</div>
@@ -145,9 +161,9 @@ export default function VerificationPage() {
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={`text-[10px] font-bold ${
-                          applicant.verificationStatus === 'Lengkap' ? 'bg-green-500/10 text-green-500' :
-                          applicant.verificationStatus === 'Perlu Perbaikan' ? 'bg-amber-500/10 text-amber-500' :
-                          applicant.verificationStatus === 'Ditolak' ? 'bg-destructive/10 text-destructive' :
+                          applicant.verificationStatus === 'Lengkap' ? 'bg-green-500/10 text-green-500 border-green-500/20' :
+                          applicant.verificationStatus === 'Perlu Perbaikan' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
+                          applicant.verificationStatus === 'Ditolak' ? 'bg-destructive/10 text-destructive border-destructive/20' :
                           'bg-slate-500/10 text-slate-400'
                         }`}>
                           {applicant.verificationStatus}
@@ -164,12 +180,14 @@ export default function VerificationPage() {
                             <>
                               <Button 
                                 onClick={() => handleQuickVerify(applicant.id, 'Lengkap')}
+                                title="Setujui & Terima"
                                 variant="outline" size="icon" className="h-8 w-8 text-green-500 border-green-500/20 hover:bg-green-500/5"
                               >
                                 <CheckCircle2 className="w-4 h-4" />
                               </Button>
                               <Button 
                                 onClick={() => handleQuickVerify(applicant.id, 'Ditolak')}
+                                title="Tolak Berkas"
                                 variant="outline" size="icon" className="h-8 w-8 text-destructive border-destructive/20 hover:bg-destructive/5"
                               >
                                 <XCircle className="w-4 h-4" />
