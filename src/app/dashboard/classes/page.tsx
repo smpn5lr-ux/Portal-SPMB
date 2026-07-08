@@ -22,7 +22,9 @@ import {
   ChevronDown,
   ClipboardList,
   AlertTriangle,
-  ShieldAlert
+  ShieldAlert,
+  DatabaseZap,
+  RefreshCw
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -92,6 +94,7 @@ const classFormSchema = z.object({
 
 export default function ClassesPage() {
   const [isShuffling, setIsShuffling] = useState(false)
+  const [isSyncing, setIsSyncing] = useState(false)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isViewOpen, setIsViewOpen] = useState(false)
   const [editingClass, setEditingClass] = useState<Classroom | null>(null)
@@ -159,6 +162,48 @@ export default function ClassesPage() {
   const handleView = (cls: Classroom) => {
     setSelectedClassForView(cls)
     setIsViewOpen(true)
+  }
+
+  const handleSyncStudents = async () => {
+    if (!applicants || !db || isSyncing) return
+    setIsSyncing(true)
+    
+    const batch = writeBatch(db)
+    let syncCount = 0
+    
+    // Ambil murid yang status verifikasinya Lengkap atau Perlu Perbaikan
+    const eligible = applicants.filter(a => 
+      !a.isDeleted && 
+      (a.verificationStatus === 'Lengkap' || a.verificationStatus === 'Perlu Perbaikan') &&
+      a.admissionStatus !== 'accepted'
+    )
+    
+    if (eligible.length === 0) {
+      toast({
+        title: "Sudah Sinkron",
+        description: "Tidak ada data murid baru yang perlu ditarik."
+      })
+      setIsSyncing(false)
+      return
+    }
+
+    try {
+      eligible.forEach(a => {
+        const docRef = doc(db, 'applicants', a.id)
+        batch.update(docRef, { admissionStatus: 'accepted' })
+        syncCount++
+      })
+      
+      await batch.commit()
+      toast({
+        title: "Sinkronisasi Berhasil",
+        description: `${syncCount} murid berhasil ditarik ke manajemen kelas.`
+      })
+    } catch (err) {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'applicants', operation: 'write' }))
+    } finally {
+      setIsSyncing(false)
+    }
   }
 
   const onClassSubmit = (values: z.infer<typeof classFormSchema>) => {
@@ -229,7 +274,7 @@ export default function ClassesPage() {
       toast({
         variant: "destructive",
         title: "Tidak ada data",
-        description: "Belum ada murid dengan status 'Diterima'. Jalankan seleksi terlebih dahulu.",
+        description: "Belum ada murid dengan status 'Diterima'. Klik 'Ambil Data Murid' terlebih dahulu.",
       })
       return
     }
@@ -419,6 +464,16 @@ export default function ClassesPage() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <Button 
+            onClick={handleSyncStudents} 
+            disabled={isSyncing} 
+            variant="outline" 
+            className="gap-2 border-accent/20 text-accent hover:bg-accent/5"
+          >
+            {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <DatabaseZap className="w-4 h-4" />}
+            Ambil Data Murid
+          </Button>
 
           <Button onClick={handleShuffle} disabled={isShuffling} variant="outline" className="gap-2">
             {isShuffling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shuffle className="w-4 h-4" />}
