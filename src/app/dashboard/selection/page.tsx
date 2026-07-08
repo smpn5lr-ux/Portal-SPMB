@@ -13,7 +13,8 @@ import {
   Truck,
   ArrowUpDown,
   History,
-  Loader2
+  Loader2,
+  Info
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -29,7 +30,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table"
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase'
+import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase'
 import { collection, query, doc, writeBatch, limit } from 'firebase/firestore'
 import { Applicant } from '@/lib/types'
 import { errorEmitter } from '@/firebase/error-emitter'
@@ -40,7 +41,6 @@ export default function SelectionPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [showRankings, setShowRankings] = useState(false)
   const [selectionParams, setSelectionParams] = useState({
-    maxDistance: 3.5,
     minScore: 78,
     priorityAge: true
   })
@@ -50,30 +50,45 @@ export default function SelectionPage() {
   
   const applicantsQuery = useMemoFirebase(() => {
     if (!db) return null
-    // Mengambil semua data untuk proses seleksi massal yang akurat
     return query(collection(db, 'applicants'), limit(2000))
   }, [db])
 
+  const schoolsRef = useMemoFirebase(() => {
+    if (!db) return null
+    return doc(db, 'settings', 'schools')
+  }, [db])
+
   const { data: applicants, loading } = useCollection<Applicant>(applicantsQuery)
+  const { data: schoolsData } = useDoc<any>(schoolsRef)
 
   const handleRunSelection = async () => {
     if (!applicants || !db || isProcessing) return
     
     setIsProcessing(true)
     const batch = writeBatch(db)
+    const zonasiSchools = (schoolsData?.list || []).map((s: string) => s.toLowerCase().trim())
     
     try {
       applicants.filter(a => !a.isDeleted).forEach((a, index) => {
         let status: 'accepted' | 'waitlisted' | 'rejected' = 'rejected'
         
+        // Aturan verifikasi berkas harus lengkap
         if (a.verificationStatus !== 'Lengkap') {
           status = 'rejected'
-        } else if (a.applicationPath === 'Zonasi' && (a.distanceToSchoolKm || 0) <= selectionParams.maxDistance) {
-          status = 'accepted'
-        } else if (a.applicationPath === 'Prestasi' && (a.academicScore || 0) >= selectionParams.minScore) {
-          status = 'accepted'
-        } else if (a.applicationPath === 'Afirmasi' || a.applicationPath === 'Perpindahan Orang Tua') {
-          status = 'accepted'
+        } else {
+          // Logika berdasarkan Jalur Pendaftaran
+          if (a.applicationPath === 'Zonasi') {
+            // Cek apakah sekolah asal ada di daftar zonasi
+            const applicantSchool = (a.originSchool || "").toLowerCase().trim()
+            const isInZone = zonasiSchools.includes(applicantSchool)
+            status = isInZone ? 'accepted' : 'rejected'
+          } else if (a.applicationPath === 'Prestasi') {
+            // Cek skor akademik
+            status = (a.academicScore || 0) >= selectionParams.minScore ? 'accepted' : 'waitlisted'
+          } else if (a.applicationPath === 'Afirmasi' || a.applicationPath === 'Perpindahan Orang Tua') {
+            // Jalur prioritas otomatis diterima jika berkas lengkap
+            status = 'accepted'
+          }
         }
 
         const docRef = doc(db, 'applicants', a.id)
@@ -106,8 +121,14 @@ export default function SelectionPage() {
     return [...applicants]
       .filter(a => !a.isDeleted)
       .sort((a, b) => {
-        if (a.applicationPath === 'Prestasi') return (b.academicScore || 0) - (a.academicScore || 0)
-        return (a.distanceToSchoolKm || 0) - (b.distanceToSchoolKm || 0)
+        // Urutan default: Diterima di atas
+        if (a.admissionStatus === 'accepted' && b.admissionStatus !== 'accepted') return -1
+        if (a.admissionStatus !== 'accepted' && b.admissionStatus === 'accepted') return 1
+        
+        if (a.applicationPath === 'Prestasi' && b.applicationPath === 'Prestasi') {
+          return (b.academicScore || 0) - (a.academicScore || 0)
+        }
+        return 0
       })
       .slice(0, 100)
   }, [applicants])
@@ -145,17 +166,20 @@ export default function SelectionPage() {
               <CardDescription>Sesuaikan ambang batas kelulusan.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Jarak Maksimum (Zonasi)</label>
-                  <span className="text-sm font-bold text-primary">{selectionParams.maxDistance} km</span>
+              <div className="bg-muted/30 p-4 rounded-lg border border-border/50 space-y-2">
+                <div className="flex items-center gap-2 text-primary">
+                  <MapPin className="w-4 h-4" />
+                  <span className="text-xs font-bold uppercase tracking-wider">Aturan Zonasi Aktif</span>
                 </div>
-                <Slider 
-                  value={[selectionParams.maxDistance]} 
-                  max={10} 
-                  step={0.1} 
-                  onValueChange={([v]) => setSelectionParams(p => ({...p, maxDistance: v}))}
-                />
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  Pendaftar jalur Zonasi otomatis lulus jika **Sekolah Asal** terdaftar dalam **Daftar Sekolah Zonasi** di Pengaturan.
+                </p>
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {schoolsData?.list?.slice(0, 3).map((s: string) => (
+                    <Badge key={s} variant="secondary" className="text-[9px]">{s}</Badge>
+                  ))}
+                  {(schoolsData?.list?.length || 0) > 3 && <Badge variant="secondary" className="text-[9px]">+{schoolsData.list.length - 3} lainnya</Badge>}
+                </div>
               </div>
 
               <div className="space-y-3">
@@ -251,7 +275,7 @@ export default function SelectionPage() {
                         <TableHead className="w-[80px] font-bold text-primary">Rank</TableHead>
                         <TableHead className="font-bold text-primary">Nama Calon Murid</TableHead>
                         <TableHead className="font-bold text-primary">Jalur</TableHead>
-                        <TableHead className="font-bold text-primary">Skor/Jarak</TableHead>
+                        <TableHead className="font-bold text-primary">Kriteria</TableHead>
                         <TableHead className="text-right font-bold text-primary">Status</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -268,8 +292,10 @@ export default function SelectionPage() {
                             <Badge variant="outline" className="text-[9px] font-bold">{a.applicationPath}</Badge>
                           </TableCell>
                           <TableCell>
-                            <span className="text-sm font-mono">
-                              {a.applicationPath === 'Zonasi' ? `${a.distanceToSchoolKm} km` : `${a.academicScore}`}
+                            <span className="text-[10px] font-mono">
+                              {a.applicationPath === 'Zonasi' ? (a.originSchool || "-") : 
+                               a.applicationPath === 'Prestasi' ? `Skor: ${a.academicScore}` : 
+                               'Prioritas'}
                             </span>
                           </TableCell>
                           <TableCell className="text-right">

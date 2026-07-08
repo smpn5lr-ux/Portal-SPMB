@@ -396,16 +396,16 @@ export default function SettingsPage() {
             <CardHeader>
               <div className="flex items-center gap-2">
                 <School className="w-5 h-5 text-accent" />
-                <CardTitle className="font-headline text-lg">Daftar Sekolah Asal (SD/MI)</CardTitle>
+                <CardTitle className="font-headline text-lg">Daftar Sekolah Zonasi (SD/MI)</CardTitle>
               </div>
-              <CardDescription>Kelola daftar sekolah yang akan muncul di pendaftaran.</CardDescription>
+              <CardDescription>Kelola daftar sekolah yang dianggap berada di dalam zonasi sekolah ini.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex gap-2">
                 <Input 
                   value={newSchool}
                   onChange={(e) => setNewSchool(e.target.value)}
-                  placeholder="Masukkan nama sekolah baru..."
+                  placeholder="Masukkan nama sekolah zonasi..."
                   className="flex-1"
                 />
                 <Button onClick={handleAddSchool} variant="outline" className="gap-2">
@@ -427,7 +427,7 @@ export default function SettingsPage() {
                   </div>
                 ))}
                 {localSchools.length === 0 && (
-                  <p className="col-span-full text-center py-8 text-muted-foreground text-sm italic">Belum ada sekolah yang ditambahkan.</p>
+                  <p className="col-span-full text-center py-8 text-muted-foreground text-sm italic">Belum ada sekolah zonasi yang ditambahkan.</p>
                 )}
               </div>
             </CardContent>
@@ -497,7 +497,7 @@ export default function SettingsPage() {
               <ShieldAlert className="w-5 h-5 text-destructive" /> Hapus Sekolah?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Apakah Anda yakin ingin menghapus <strong>{schoolToRemove}</strong> dari daftar sekolah asal?
+              Apakah Anda yakin ingin menghapus <strong>{schoolToRemove}</strong> dari daftar sekolah zonasi?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

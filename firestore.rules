@@ -13,7 +13,7 @@ service cloud.firestore {
     }
     
     // Aturan spesifik untuk koleksi applicants
-    // Komentar pemicu redeploy: Memperbarui logika sinkronisasi murid ke manajemen kelas
+    // Komentar pemicu redeploy: Memperbarui logika sinkronisasi murid ke manajemen kelas dan deteksi zonasi sekolah
     match /applicants/{applicantId} {
       allow read: if true;
       allow write: if isAuthenticated();
