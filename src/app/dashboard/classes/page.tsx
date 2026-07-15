@@ -364,6 +364,16 @@ export default function ClassesPage() {
 
     try {
       if (format === 'excel') {
+        const headerInfo = [
+          [dinasName.toUpperCase()],
+          [schoolName.toUpperCase()],
+          [],
+          [`DAFTAR MURID - KELAS ${cls.name}`],
+          [`Wali Kelas: ${cls.homeroomTeacher || '-'}`],
+          [summaryLabel],
+          []
+        ]
+
         const data = students.map((s, idx) => ({
           "No.": idx + 1,
           "Nama Lengkap": s.fullName,
@@ -371,7 +381,10 @@ export default function ClassesPage() {
           "Jenis Kelamin": s.gender,
           "Sekolah Asal": s.originSchool
         }))
-        const worksheet = XLSX.utils.json_to_sheet(data)
+
+        const worksheet = XLSX.utils.aoa_to_sheet(headerInfo)
+        XLSX.utils.sheet_add_json(worksheet, data, { origin: "A8", skipHeader: false })
+        
         const workbook = XLSX.utils.book_new()
         XLSX.utils.book_append_sheet(workbook, worksheet, `Kelas ${cls.name}`)
         XLSX.writeFile(workbook, `Daftar_Murid_Kelas_${cls.name}.xlsx`)
@@ -382,17 +395,14 @@ export default function ClassesPage() {
         
         const headerColor = [67, 97, 238] as [number, number, number]
         
-        // KOP SURAT (Identik dengan Gambar)
         doc.setFontSize(10).setFont("helvetica", "bold").setTextColor(headerColor[0], headerColor[1], headerColor[2])
         doc.text(dinasName.toUpperCase(), 105, 15, { align: "center" })
         doc.text(schoolName.toUpperCase(), 105, 21, { align: "center" })
         doc.setDrawColor(180, 180, 180).setLineWidth(0.5).line(14, 25, 196, 25)
 
-        // JUDUL DAFTAR MURID (Warna Biru)
         doc.setFontSize(14).setTextColor(headerColor[0], headerColor[1], headerColor[2]).setFont("helvetica", "bold")
         doc.text(`${format === 'attendance' ? 'DAFTAR HADIR' : 'DAFTAR MURID'} - ${cls.name}`, 14, 35)
         
-        // INFO RINGKASAN
         doc.setFontSize(10).setTextColor(120, 120, 120).setFont("helvetica", "normal")
         doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'}`, 14, 42)
         doc.text(summaryLabel, 14, 48)
@@ -433,8 +443,31 @@ export default function ClassesPage() {
             .filter(a => cls.students.includes(a.id))
             .sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""))
           
-          const data = students.map((s, idx) => ({ "No.": idx + 1, "Nama": s.fullName, "NISN": s.NISN, "JK": s.gender, "Asal": s.originSchool }))
-          XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(data), `Kelas ${cls.name}`)
+          const maleCount = students.filter(s => s.gender === 'Laki-laki').length
+          const femaleCount = students.filter(s => s.gender === 'Perempuan').length
+          const summaryLabel = `Total: ${students.length} (L: ${maleCount}, P: ${femaleCount})`
+
+          const headerInfo = [
+            [dinasName.toUpperCase()],
+            [schoolName.toUpperCase()],
+            [],
+            [`DAFTAR MURID - KELAS ${cls.name}`],
+            [`Wali Kelas: ${cls.homeroomTeacher || '-'}`],
+            [summaryLabel],
+            []
+          ]
+
+          const data = students.map((s, idx) => ({
+            "No.": idx + 1,
+            "Nama Lengkap": s.fullName,
+            "NISN": s.NISN,
+            "Jenis Kelamin": s.gender,
+            "Sekolah Asal": s.originSchool
+          }))
+
+          const worksheet = XLSX.utils.aoa_to_sheet(headerInfo)
+          XLSX.utils.sheet_add_json(worksheet, data, { origin: "A8", skipHeader: false })
+          XLSX.utils.book_append_sheet(workbook, worksheet, `Kelas ${cls.name}`)
         })
         XLSX.writeFile(workbook, `Rekap_Semua_Kelas.xlsx`)
       } else {
@@ -453,7 +486,6 @@ export default function ClassesPage() {
           const femaleCount = students.filter(s => s.gender === 'Perempuan').length
           const summaryLabel = `Total: ${students.length} (L: ${maleCount}, P: ${femaleCount})`
 
-          // KOP SURAT
           doc.setFontSize(10).setFont("helvetica", "bold").setTextColor(headerColor[0], headerColor[1], headerColor[2])
           doc.text(dinasName.toUpperCase(), 105, 15, { align: "center" })
           doc.text(schoolName.toUpperCase(), 105, 21, { align: "center" })
