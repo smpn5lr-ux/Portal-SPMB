@@ -129,8 +129,8 @@ export default function ClassesPage() {
   const { data: systemSettings } = useDoc<any>(settingsRef)
 
   const academicYear = systemSettings?.academicYear || "2024/2025"
-  const dinasName = systemSettings?.dinasName || "DINAS PENDIDIKAN"
-  const schoolName = systemSettings?.schoolName || "PORTAL SPMB"
+  const dinasName = systemSettings?.dinasName || "PEMERINTAH KABUPATEN MANGGARAI DINAS PENDIDIKAN"
+  const schoolName = systemSettings?.schoolName || "SMPN 5 LANGKE REMBONG"
   const npsn = systemSettings?.npsn || "-"
 
   const form = useForm<z.infer<typeof classFormSchema>>({
@@ -286,18 +286,14 @@ export default function ClassesPage() {
     setTimeout(async () => {
       try {
         const batch = writeBatch(db)
-        
-        // Urutkan kelas berdasarkan nama secara numerik agar distribusi konsisten
         const sortedClasses = [...classes].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
         const classBuckets: string[][] = sortedClasses.map(() => [])
         let currentClassIdx = 0;
 
         if (shuffleOptions.balanceGender) {
-          // Pisahkan kelompok
           let males = acceptedStudents.filter(s => s.gender === 'Laki-laki')
           let females = acceptedStudents.filter(s => s.gender === 'Perempuan')
 
-          // Acak atau urutkan masing-masing kelompok (opsional seimbangkan sekolah asal)
           if (shuffleOptions.balanceSchool) {
             males.sort((a, b) => (a.originSchool || "").localeCompare(b.originSchool || ""))
             females.sort((a, b) => (a.originSchool || "").localeCompare(b.originSchool || ""))
@@ -306,14 +302,11 @@ export default function ClassesPage() {
             females.sort(() => Math.random() - 0.5)
           }
 
-          // DISTRIBUSI BERKELANJUTAN (KUNCI KESEIMBANGAN TOTAL)
-          // Masukkan semua laki-laki dulu
           males.forEach((student) => {
             classBuckets[currentClassIdx].push(student.id)
             currentClassIdx = (currentClassIdx + 1) % sortedClasses.length
           })
           
-          // Masukkan perempuan MELANJUTKAN giliran index kelas terakhir agar total tetap seimbang (Selisih maks 1)
           females.forEach((student) => {
             classBuckets[currentClassIdx].push(student.id)
             currentClassIdx = (currentClassIdx + 1) % sortedClasses.length
@@ -332,12 +325,9 @@ export default function ClassesPage() {
           })
         }
 
-        // Simpan ke database dengan urutan abjad A-Z di setiap kelas
         sortedClasses.forEach((cls, idx) => {
           const classRef = doc(db, 'classes', cls.id)
           const studentIds = classBuckets[idx]
-          
-          // Ambil data lengkap untuk pengurutan nama
           const bucketStudents = acceptedStudents
             .filter(s => studentIds.includes(s.id))
             .sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""))
@@ -391,40 +381,40 @@ export default function ClassesPage() {
         const doc = new jsPDF()
         
         const headerColor = [67, 97, 238] as [number, number, number]
-        doc.setFontSize(12).setFont("helvetica", "bold").setTextColor(headerColor[0], headerColor[1], headerColor[2]).text(dinasName.toUpperCase(), 105, 12, { align: "center" })
-        doc.text(schoolName.toUpperCase(), 105, 18, { align: "center" })
-        doc.setFontSize(8).setFont("helvetica", "normal").setTextColor(100).text(`NPSN: ${npsn} | Tahun Ajaran ${academicYear}`, 105, 23, { align: "center" })
-        doc.line(14, 25, 196, 25)
+        
+        // KOP SURAT (Identik dengan Gambar)
+        doc.setFontSize(10).setFont("helvetica", "bold").setTextColor(headerColor[0], headerColor[1], headerColor[2])
+        doc.text(dinasName.toUpperCase(), 105, 15, { align: "center" })
+        doc.text(schoolName.toUpperCase(), 105, 21, { align: "center" })
+        doc.setDrawColor(180, 180, 180).setLineWidth(0.5).line(14, 25, 196, 25)
 
-        if (format === 'pdf') {
-          doc.setFontSize(14).setTextColor(headerColor[0], headerColor[1], headerColor[2]).setFont("helvetica", "bold").text(`Daftar Murid Kelas ${cls.name}`, 14, 32)
-          doc.setFontSize(10).setTextColor(100).setFont("helvetica", "normal").text(`Wali Kelas: ${cls.homeroomTeacher || '-'}`, 14, 38)
-          doc.setFontSize(10).setFont("helvetica", "bold").text(summaryLabel, 14, 43)
-          
-          autoTable(doc, {
-            head: [['No.', 'Nama Lengkap', 'NISN', 'JK', 'Sekolah Asal']],
-            body: students.map((s, idx) => [idx + 1, s.fullName, s.NISN, s.gender === 'Laki-laki' ? 'L' : 'P', s.originSchool]),
-            startY: 48,
-            headStyles: { fillColor: headerColor }
-          })
-        } else {
-          doc.setFontSize(14).setTextColor(headerColor[0], headerColor[1], headerColor[2]).setFont("helvetica", "bold").text(`DAFTAR HADIR MURID - KELAS ${cls.name}`, 14, 32)
-          doc.setFontSize(10).setTextColor(100).setFont("helvetica", "normal").text(`Wali Kelas: ${cls.homeroomTeacher || '-'}`, 14, 38)
-          doc.setFontSize(10).setFont("helvetica", "bold").text(summaryLabel, 14, 43)
-          
-          autoTable(doc, {
-            head: [['No.', 'Nama Lengkap', 'NISN', 'L/P', 'Tanda Tangan', '']],
-            body: students.map((s, idx) => [idx + 1, s.fullName, s.NISN, s.gender === 'Laki-laki' ? 'L' : 'P', idx % 2 === 0 ? `${idx + 1}. ...............` : '', idx % 2 !== 0 ? `${idx + 1}. ...............` : '']),
-            startY: 48,
-            headStyles: { fillColor: headerColor, halign: 'center' },
-            styles: { minCellHeight: 12, verticalAlign: 'middle' },
-            columnStyles: { 0: { cellWidth: 10 }, 3: { cellWidth: 12 }, 4: { cellWidth: 35 }, 5: { cellWidth: 35 } }
-          })
-        }
+        // JUDUL DAFTAR MURID (Warna Biru)
+        doc.setFontSize(14).setTextColor(headerColor[0], headerColor[1], headerColor[2]).setFont("helvetica", "bold")
+        doc.text(`${format === 'attendance' ? 'DAFTAR HADIR' : 'DAFTAR MURID'} - ${cls.name}`, 14, 35)
+        
+        // INFO RINGKASAN
+        doc.setFontSize(10).setTextColor(120, 120, 120).setFont("helvetica", "normal")
+        doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'}`, 14, 42)
+        doc.text(summaryLabel, 14, 48)
+        
+        autoTable(doc, {
+          head: format === 'attendance' ? 
+            [['No.', 'Nama Lengkap', 'NISN', 'JK', 'Tanda Tangan', '']] : 
+            [['No.', 'Nama Lengkap', 'NISN', 'JK', 'Sekolah Asal']],
+          body: students.map((s, idx) => format === 'attendance' ? 
+            [idx + 1, s.fullName, s.NISN, s.gender === 'Laki-laki' ? 'L' : 'P', idx % 2 === 0 ? `${idx + 1}. ...............` : '', idx % 2 !== 0 ? `${idx + 1}. ...............` : ''] : 
+            [idx + 1, s.fullName, s.NISN, s.gender === 'Laki-laki' ? 'L' : 'P', s.originSchool]
+          ),
+          startY: 54,
+          headStyles: { fillColor: headerColor, textColor: [255, 255, 255], fontStyle: 'bold' },
+          styles: { fontSize: 9, cellPadding: 3 },
+          columnStyles: format === 'attendance' ? { 4: { cellWidth: 35 }, 5: { cellWidth: 35 } } : {}
+        })
+        
         doc.save(`${format === 'attendance' ? 'Daftar_Hadir' : 'Daftar_Murid'}_${cls.name}.pdf`)
       }
     } catch (err) {
-      toast({ variant: "destructive", title: "Error" })
+      toast({ variant: "destructive", title: "Gagal Ekspor" })
     } finally {
       setIsExporting(false)
     }
@@ -443,7 +433,7 @@ export default function ClassesPage() {
             .filter(a => cls.students.includes(a.id))
             .sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""))
           
-          const data = students.map((s, idx) => ({ "No.": idx + 1, "Nama": s.fullName, "NISN": s.NISN, "JK": s.gender }))
+          const data = students.map((s, idx) => ({ "No.": idx + 1, "Nama": s.fullName, "NISN": s.NISN, "JK": s.gender, "Asal": s.originSchool }))
           XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(data), `Kelas ${cls.name}`)
         })
         XLSX.writeFile(workbook, `Rekap_Semua_Kelas.xlsx`)
@@ -463,23 +453,25 @@ export default function ClassesPage() {
           const femaleCount = students.filter(s => s.gender === 'Perempuan').length
           const summaryLabel = `Total: ${students.length} (L: ${maleCount}, P: ${femaleCount})`
 
-          doc.setFontSize(12).setFont("helvetica", "bold").setTextColor(headerColor[0], headerColor[1], headerColor[2]).text(dinasName.toUpperCase(), 105, 12, { align: "center" })
-          doc.text(schoolName.toUpperCase(), 105, 18, { align: "center" })
-          doc.line(14, 25, 196, 25)
+          // KOP SURAT
+          doc.setFontSize(10).setFont("helvetica", "bold").setTextColor(headerColor[0], headerColor[1], headerColor[2])
+          doc.text(dinasName.toUpperCase(), 105, 15, { align: "center" })
+          doc.text(schoolName.toUpperCase(), 105, 21, { align: "center" })
+          doc.setDrawColor(180, 180, 180).setLineWidth(0.5).line(14, 25, 196, 25)
           
-          doc.setFontSize(14).setTextColor(headerColor[0], headerColor[1], headerColor[2]).text(`${format === 'attendance' ? 'DAFTAR HADIR' : 'DAFTAR MURID'} - ${cls.name}`, 14, 32)
-          doc.setFontSize(10).setTextColor(100).setFont("helvetica", "normal").text(`Wali Kelas: ${cls.homeroomTeacher || '-'}`, 14, 38)
-          doc.setFontSize(10).setFont("helvetica", "bold").text(summaryLabel, 14, 43)
+          doc.setFontSize(14).setTextColor(headerColor[0], headerColor[1], headerColor[2]).text(`${format === 'attendance' ? 'DAFTAR HADIR' : 'DAFTAR MURID'} - ${cls.name}`, 14, 35)
+          doc.setFontSize(10).setTextColor(120, 120, 120).setFont("helvetica", "normal").text(`Wali Kelas: ${cls.homeroomTeacher || '-'}`, 14, 42)
+          doc.text(summaryLabel, 14, 48)
 
           autoTable(doc, {
-            head: format === 'attendance' ? [['No.', 'Nama', 'NISN', 'L/P', 'TTD', '']] : [['No.', 'Nama', 'NISN', 'JK', 'Sekolah Asal']],
+            head: format === 'attendance' ? [['No.', 'Nama', 'NISN', 'JK', 'TTD', '']] : [['No.', 'Nama', 'NISN', 'JK', 'Sekolah Asal']],
             body: students.map((s, sIdx) => format === 'attendance' ? 
               [sIdx + 1, s.fullName, s.NISN, s.gender === 'Laki-laki' ? 'L' : 'P', sIdx % 2 === 0 ? `${sIdx + 1}. ...` : '', sIdx % 2 !== 0 ? `${sIdx + 1}. ...` : ''] : 
               [sIdx + 1, s.fullName, s.NISN, s.gender === 'Laki-laki' ? 'L' : 'P', s.originSchool]
             ),
-            startY: 48,
+            startY: 54,
             headStyles: { fillColor: headerColor },
-            styles: { minCellHeight: format === 'attendance' ? 12 : 8 }
+            styles: { fontSize: 8, cellPadding: format === 'attendance' ? 4 : 2 }
           })
         })
         doc.save(`Rekap_Semua_Kelas.pdf`)
