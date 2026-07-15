@@ -5,14 +5,7 @@ import { useState, useEffect } from 'react'
 import { 
   Users, 
   Trash2, 
-  Printer, 
   Shuffle, 
-  CheckCircle2, 
-  Save,
-  RotateCcw,
-  LayoutGrid,
-  Settings2,
-  Loader2,
   Plus,
   Pencil,
   Eye,
@@ -24,7 +17,9 @@ import {
   AlertTriangle,
   ShieldAlert,
   DatabaseZap,
-  RefreshCw
+  Loader2,
+  CheckCircle2,
+  Settings2
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -74,13 +69,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { errorEmitter } from '@/firebase/error-emitter'
 import { FirestorePermissionError } from '@/firebase/errors'
 import { useToast } from '@/hooks/use-toast'
-import { Switch } from "@/components/ui/switch"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import * as XLSX from 'xlsx'
 import Link from 'next/link'
@@ -96,12 +92,19 @@ export default function ClassesPage() {
   const [isShuffling, setIsShuffling] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isShuffleDialogOpen, setIsShuffleDialogOpen] = useState(false)
   const [isViewOpen, setIsViewOpen] = useState(false)
   const [editingClass, setEditingClass] = useState<Classroom | null>(null)
   const [selectedClassForView, setSelectedClassForView] = useState<Classroom | null>(null)
   const [classToDelete, setClassToDelete] = useState<Classroom | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   
+  // Shuffle Options State
+  const [shuffleOptions, setShuffleOptions] = useState({
+    balanceGender: true,
+    balanceSchool: true
+  })
+
   const [submitting, setSubmitting] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const { toast } = useToast()
@@ -279,27 +282,52 @@ export default function ClassesPage() {
     }
 
     setIsShuffling(true)
+    setIsShuffleDialogOpen(false)
     
     setTimeout(async () => {
       try {
-        const shuffledStudents = [...acceptedStudents].sort(() => Math.random() - 0.5)
         const batch = writeBatch(db)
         
-        const perClass = Math.floor(shuffledStudents.length / classes.length)
-        let extra = shuffledStudents.length % classes.length
-        
-        let currentPos = 0
+        // Logical Distribution Algorithm
+        let studentPool = [...acceptedStudents]
+
+        // 1. Sort by school first if school balancing is enabled
+        if (shuffleOptions.balanceSchool) {
+          studentPool.sort((a, b) => (a.originSchool || "").localeCompare(b.originSchool || ""))
+        } else {
+          // Pure random if school balance is off
+          studentPool.sort(() => Math.random() - 0.5)
+        }
+
+        // 2. Prepare class buckets
+        const classBuckets: string[][] = classes.map(() => [])
+
+        if (shuffleOptions.balanceGender) {
+          // Distribute males and females separately
+          const males = studentPool.filter(s => s.gender === 'Laki-laki')
+          const females = studentPool.filter(s => s.gender === 'Perempuan')
+
+          // Distribute males
+          males.forEach((student, idx) => {
+            classBuckets[idx % classes.length].push(student.id)
+          })
+          // Distribute females (offsetting index if necessary, but modulo classes.length is usually fine)
+          females.forEach((student, idx) => {
+            classBuckets[idx % classes.length].push(student.id)
+          })
+        } else {
+          // Basic round-robin distribution
+          studentPool.forEach((student, idx) => {
+            classBuckets[idx % classes.length].push(student.id)
+          })
+        }
+
+        // 3. Commit to Firestore
         classes.forEach((cls, idx) => {
-          const count = perClass + (extra > 0 ? 1 : 0)
-          if (extra > 0) extra--
-          
-          const classStudentIds = shuffledStudents.slice(currentPos, currentPos + count).map(s => s.id)
-          currentPos += count
-          
           const classRef = doc(db, 'classes', cls.id)
           batch.update(classRef, {
-            currentEnrollment: classStudentIds.length,
-            students: classStudentIds
+            currentEnrollment: classBuckets[idx].length,
+            students: classBuckets[idx]
           })
         })
         
@@ -310,14 +338,13 @@ export default function ClassesPage() {
       } finally {
         setIsShuffling(false)
       }
-    }, 2000)
+    }, 1500)
   }
 
   const handleExportClass = async (cls: Classroom, format: 'excel' | 'pdf' | 'attendance') => {
     if (!applicants) return
     setIsExporting(true)
     
-    // Sort students alphabetically A-Z
     const students = applicants
       .filter(a => cls.students.includes(a.id))
       .sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""))
@@ -344,7 +371,6 @@ export default function ClassesPage() {
         const { default: autoTable } = await import('jspdf-autotable')
         const doc = new jsPDF()
         
-        // Header
         doc.setFontSize(12).setFont("helvetica", "bold").setTextColor(67, 97, 238).text(dinasName.toUpperCase(), 105, 12, { align: "center" })
         doc.text(schoolName.toUpperCase(), 105, 18, { align: "center" })
         doc.setFontSize(8).setFont("helvetica", "normal").setTextColor(100).text(`NPSN: ${npsn} | Tahun Ajaran ${academicYear}`, 105, 23, { align: "center" })
@@ -353,8 +379,7 @@ export default function ClassesPage() {
         if (format === 'pdf') {
           doc.setFontSize(14).setTextColor(67, 97, 238).setFont("helvetica", "bold").text(`Daftar Murid Kelas ${cls.name}`, 14, 32)
           doc.setFontSize(10).setTextColor(100).setFont("helvetica", "normal").text(`Wali Kelas: ${cls.homeroomTeacher || '-'}`, 14, 38)
-          // Header Bawah (Summary)
-          doc.setFont("helvetica", "bold").text(genderSummary, 14, 43)
+          doc.setFontSize(10).setFont("helvetica", "bold").text(genderSummary, 14, 43)
           
           autoTable(doc, {
             head: [['No.', 'Nama Lengkap', 'NISN', 'JK', 'Sekolah Asal']],
@@ -365,8 +390,7 @@ export default function ClassesPage() {
         } else {
           doc.setFontSize(14).setTextColor(67, 97, 238).setFont("helvetica", "bold").text(`DAFTAR HADIR MURID - KELAS ${cls.name}`, 14, 32)
           doc.setFontSize(10).setTextColor(100).setFont("helvetica", "normal").text(`Wali Kelas: ${cls.homeroomTeacher || '-'}`, 14, 38)
-          // Header Bawah (Summary)
-          doc.setFont("helvetica", "bold").text(genderSummary, 14, 43)
+          doc.setFontSize(10).setFont("helvetica", "bold").text(genderSummary, 14, 43)
           
           autoTable(doc, {
             head: [['No.', 'Nama Lengkap', 'NISN', 'L/P', 'Tanda Tangan', '']],
@@ -423,8 +447,7 @@ export default function ClassesPage() {
           
           doc.setFontSize(14).setTextColor(67, 97, 238).text(`${format === 'attendance' ? 'DAFTAR HADIR' : 'DAFTAR MURID'} - ${cls.name}`, 14, 32)
           doc.setFontSize(10).setTextColor(100).setFont("helvetica", "normal").text(`Wali Kelas: ${cls.homeroomTeacher || '-'}`, 14, 38)
-          // Header Bawah (Summary)
-          doc.setFont("helvetica", "bold").text(genderSummary, 14, 43)
+          doc.setFontSize(10).setFont("helvetica", "bold").text(genderSummary, 14, 43)
 
           autoTable(doc, {
             head: format === 'attendance' ? [['No.', 'Nama', 'NISN', 'L/P', 'TTD', '']] : [['No.', 'Nama', 'NISN', 'JK', 'Sekolah Asal']],
@@ -464,6 +487,13 @@ export default function ClassesPage() {
     return applicants
       .filter(a => studentIds.includes(a.id) && !a.isDeleted)
       .sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""))
+  }
+
+  const getSummary = (studentIds: string[]) => {
+    const students = getStudentsInClass(studentIds)
+    const male = students.filter(s => s.gender === 'Laki-laki').length
+    const female = students.filter(s => s.gender === 'Perempuan').length
+    return { total: students.length, male, female }
   }
 
   if (loadingClasses) return <div className="flex justify-center py-24"><Loader2 className="animate-spin text-primary" /></div>
@@ -506,10 +536,53 @@ export default function ClassesPage() {
             Ambil Data Murid
           </Button>
 
-          <Button onClick={handleShuffle} disabled={isShuffling} variant="outline" className="gap-2">
-            {isShuffling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shuffle className="w-4 h-4" />}
-            Acak Murid
-          </Button>
+          <Dialog open={isShuffleDialogOpen} onOpenChange={setIsShuffleDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="gap-2 border-primary/20 text-primary">
+                <Shuffle className="w-4 h-4" /> Acak Murid
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[400px]">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Shuffle className="w-5 h-5 text-primary" /> Atur Distribusi Acak
+                </DialogTitle>
+                <DialogDescription>Tentukan kriteria pembagian kelas otomatis.</DialogDescription>
+              </DialogHeader>
+              <div className="py-6 space-y-6">
+                <div className="flex items-center space-x-3 bg-muted/30 p-4 rounded-xl border border-border/50">
+                  <Checkbox 
+                    id="balanceGender" 
+                    checked={shuffleOptions.balanceGender}
+                    onCheckedChange={(checked) => setShuffleOptions(prev => ({ ...prev, balanceGender: !!checked }))}
+                  />
+                  <div className="grid gap-1.5 leading-none">
+                    <Label htmlFor="balanceGender" className="text-sm font-bold cursor-pointer">Seimbangkan Jenis Kelamin</Label>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-tight">Membagi rata Laki-laki & Perempuan di setiap kelas.</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-3 bg-muted/30 p-4 rounded-xl border border-border/50">
+                  <Checkbox 
+                    id="balanceSchool" 
+                    checked={shuffleOptions.balanceSchool}
+                    onCheckedChange={(checked) => setShuffleOptions(prev => ({ ...prev, balanceSchool: !!checked }))}
+                  />
+                  <div className="grid gap-1.5 leading-none">
+                    <Label htmlFor="balanceSchool" className="text-sm font-bold cursor-pointer">Seimbangkan Sekolah Asal</Label>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-tight">Menyebarkan murid dari sekolah yang sama ke kelas berbeda.</p>
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setIsShuffleDialogOpen(false)}>Batal</Button>
+                <Button onClick={handleShuffle} disabled={isShuffling} className="gap-2">
+                  {isShuffling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shuffle className="w-4 h-4" />}
+                  Mulai Acak & Distribusi
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           <Dialog open={isDialogOpen} onOpenChange={(o) => { setIsDialogOpen(o); if(!o) setEditingClass(null); }}>
             <DialogTrigger asChild>
@@ -547,46 +620,54 @@ export default function ClassesPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {classes?.map((cls) => (
-          <Card key={cls.id} className="border-border/50 hover:border-primary/30 transition-all group relative">
-            <Button 
-              variant="outline" 
-              size="icon" 
-              className="absolute top-2 right-2 text-destructive border-destructive/20 hover:bg-destructive/10"
-              onClick={() => handleDeleteClassConfirm(cls)}
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between pr-8">
-                <CardTitle className="font-headline text-2xl">Kelas {cls.name}</CardTitle>
-                <Badge variant="outline">G-{cls.gradeLevel}</Badge>
-              </div>
-              <CardDescription className="flex items-center gap-2 mt-1">
-                <Users className="w-3 h-3" /> {cls.currentEnrollment} / {cls.capacity} Murid
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-primary h-full transition-all" style={{ width: `${Math.min(100, (cls.currentEnrollment / cls.capacity) * 100)}%` }}></div>
+        {classes?.map((cls) => {
+          const summary = getSummary(cls.students)
+          return (
+            <Card key={cls.id} className="border-border/50 hover:border-primary/30 transition-all group relative">
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="absolute top-2 right-2 text-destructive border-destructive/20 hover:bg-destructive/10"
+                onClick={() => handleDeleteClassConfirm(cls)}
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between pr-8">
+                  <CardTitle className="font-headline text-2xl">Kelas {cls.name}</CardTitle>
+                  <Badge variant="outline">G-{cls.gradeLevel}</Badge>
                 </div>
-                <div className="text-sm bg-muted/30 p-2 rounded border border-border/50">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase block">Wali Kelas</span>
-                  <span className="font-medium truncate block">{cls.homeroomTeacher || "-"}</span>
+                <div className="flex flex-col gap-1 mt-2">
+                  <CardDescription className="flex items-center gap-2">
+                    <Users className="w-3 h-3" /> {cls.currentEnrollment} / {cls.capacity} Murid
+                  </CardDescription>
+                  <p className="text-[10px] font-bold text-primary/70 uppercase tracking-tighter">
+                    Total: {summary.total} (L: {summary.male}, P: {summary.female})
+                  </p>
                 </div>
-                <div className="flex gap-2">
-                  <Button onClick={() => handleView(cls)} variant="outline" size="sm" className="flex-1 text-xs gap-2 border-primary/20 text-primary">
-                    <Eye className="w-3 h-3" /> Daftar
-                  </Button>
-                  <Button onClick={() => setEditingClass(cls)} variant="outline" size="sm" className="flex-1 text-xs gap-2">
-                    <Pencil className="w-3 h-3" /> Edit
-                  </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
+                    <div className="bg-primary h-full transition-all" style={{ width: `${Math.min(100, (cls.currentEnrollment / cls.capacity) * 100)}%` }}></div>
+                  </div>
+                  <div className="text-sm bg-muted/30 p-2 rounded border border-border/50">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase block">Wali Kelas</span>
+                    <span className="font-medium truncate block">{cls.homeroomTeacher || "-"}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={() => handleView(cls)} variant="outline" size="sm" className="flex-1 text-xs gap-2 border-primary/20 text-primary">
+                      <Eye className="w-3 h-3" /> Daftar
+                    </Button>
+                    <Button onClick={() => setEditingClass(cls)} variant="outline" size="sm" className="flex-1 text-xs gap-2">
+                      <Pencil className="w-3 h-3" /> Edit
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          )
+        })}
         {classes?.length === 0 && (
           <div className="col-span-full py-20 text-center bg-muted/20 border-2 border-dashed rounded-xl">
             <AlertTriangle className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-20" />
@@ -602,6 +683,11 @@ export default function ClassesPage() {
               <div>
                 <DialogTitle className="font-headline text-2xl">Kelas {selectedClassForView?.name}</DialogTitle>
                 <DialogDescription>Wali Kelas: {selectedClassForView?.homeroomTeacher || '-'}</DialogDescription>
+                {selectedClassForView && (
+                  <p className="text-[10px] font-bold text-primary uppercase mt-1 tracking-tight">
+                    Total: {getSummary(selectedClassForView.students).total} (L: {getSummary(selectedClassForView.students).male}, P: {getSummary(selectedClassForView.students).female})
+                  </p>
+                )}
               </div>
               <div className="flex gap-2">
                 <DropdownMenu>
