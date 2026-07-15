@@ -171,7 +171,6 @@ export default function ClassesPage() {
     const batch = writeBatch(db)
     let syncCount = 0
     
-    // Ambil murid yang status verifikasinya Lengkap atau Perlu Perbaikan
     const eligible = applicants.filter(a => 
       !a.isDeleted && 
       (a.verificationStatus === 'Lengkap' || a.verificationStatus === 'Perlu Perbaikan') &&
@@ -317,8 +316,15 @@ export default function ClassesPage() {
   const handleExportClass = async (cls: Classroom, format: 'excel' | 'pdf' | 'attendance') => {
     if (!applicants) return
     setIsExporting(true)
-    const students = applicants.filter(a => cls.students.includes(a.id))
-    const genderSummary = `L: ${students.filter(s => s.gender === 'Laki-laki').length}, P: ${students.filter(s => s.gender === 'Perempuan').length}`
+    
+    // Sort students alphabetically A-Z
+    const students = applicants
+      .filter(a => cls.students.includes(a.id))
+      .sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""))
+    
+    const maleCount = students.filter(s => s.gender === 'Laki-laki').length
+    const femaleCount = students.filter(s => s.gender === 'Perempuan').length
+    const genderSummary = `Total: ${students.length} (L: ${maleCount}, P: ${femaleCount})`
 
     try {
       if (format === 'excel') {
@@ -338,6 +344,7 @@ export default function ClassesPage() {
         const { default: autoTable } = await import('jspdf-autotable')
         const doc = new jsPDF()
         
+        // Header
         doc.setFontSize(12).setFont("helvetica", "bold").setTextColor(67, 97, 238).text(dinasName.toUpperCase(), 105, 12, { align: "center" })
         doc.text(schoolName.toUpperCase(), 105, 18, { align: "center" })
         doc.setFontSize(8).setFont("helvetica", "normal").setTextColor(100).text(`NPSN: ${npsn} | Tahun Ajaran ${academicYear}`, 105, 23, { align: "center" })
@@ -345,20 +352,26 @@ export default function ClassesPage() {
 
         if (format === 'pdf') {
           doc.setFontSize(14).setTextColor(67, 97, 238).setFont("helvetica", "bold").text(`Daftar Murid Kelas ${cls.name}`, 14, 32)
-          doc.setFontSize(10).setTextColor(100).setFont("helvetica", "normal").text(`Wali Kelas: ${cls.homeroomTeacher || '-'} | Total: ${students.length} (${genderSummary})`, 14, 38)
+          doc.setFontSize(10).setTextColor(100).setFont("helvetica", "normal").text(`Wali Kelas: ${cls.homeroomTeacher || '-'}`, 14, 38)
+          // Header Bawah (Summary)
+          doc.setFont("helvetica", "bold").text(genderSummary, 14, 43)
+          
           autoTable(doc, {
             head: [['No.', 'Nama Lengkap', 'NISN', 'JK', 'Sekolah Asal']],
             body: students.map((s, idx) => [idx + 1, s.fullName, s.NISN, s.gender === 'Laki-laki' ? 'L' : 'P', s.originSchool]),
-            startY: 44,
+            startY: 48,
             headStyles: { fillColor: [67, 97, 238] }
           })
         } else {
           doc.setFontSize(14).setTextColor(67, 97, 238).setFont("helvetica", "bold").text(`DAFTAR HADIR MURID - KELAS ${cls.name}`, 14, 32)
-          doc.setFontSize(10).setTextColor(100).setFont("helvetica", "normal").text(`Wali Kelas: ${cls.homeroomTeacher || '-'} | Total: ${students.length} (${genderSummary})`, 14, 38)
+          doc.setFontSize(10).setTextColor(100).setFont("helvetica", "normal").text(`Wali Kelas: ${cls.homeroomTeacher || '-'}`, 14, 38)
+          // Header Bawah (Summary)
+          doc.setFont("helvetica", "bold").text(genderSummary, 14, 43)
+          
           autoTable(doc, {
             head: [['No.', 'Nama Lengkap', 'NISN', 'L/P', 'Tanda Tangan', '']],
             body: students.map((s, idx) => [idx + 1, s.fullName, s.NISN, s.gender === 'Laki-laki' ? 'L' : 'P', idx % 2 === 0 ? `${idx + 1}. ...............` : '', idx % 2 !== 0 ? `${idx + 1}. ...............` : '']),
-            startY: 44,
+            startY: 48,
             headStyles: { fillColor: [67, 97, 238], halign: 'center' },
             styles: { minCellHeight: 12, verticalAlign: 'middle' },
             columnStyles: { 0: { cellWidth: 10 }, 3: { cellWidth: 12 }, 4: { cellWidth: 35 }, 5: { cellWidth: 35 } }
@@ -380,7 +393,10 @@ export default function ClassesPage() {
       if (format === 'excel') {
         const workbook = XLSX.utils.book_new()
         classes.forEach(cls => {
-          const students = applicants.filter(a => cls.students.includes(a.id))
+          const students = applicants
+            .filter(a => cls.students.includes(a.id))
+            .sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""))
+          
           const data = students.map((s, idx) => ({ "No.": idx + 1, "Nama": s.fullName, "NISN": s.NISN, "JK": s.gender }))
           XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(data), `Kelas ${cls.name}`)
         })
@@ -389,21 +405,34 @@ export default function ClassesPage() {
         const { default: jsPDF } = await import('jspdf')
         const { default: autoTable } = await import('jspdf-autotable')
         const doc = new jsPDF()
+        
         classes.forEach((cls, idx) => {
           if (idx > 0) doc.addPage()
-          const students = applicants.filter(a => cls.students.includes(a.id))
+          
+          const students = applicants
+            .filter(a => cls.students.includes(a.id))
+            .sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""))
+          
+          const maleCount = students.filter(s => s.gender === 'Laki-laki').length
+          const femaleCount = students.filter(s => s.gender === 'Perempuan').length
+          const genderSummary = `Total: ${students.length} (L: ${maleCount}, P: ${femaleCount})`
+
           doc.setFontSize(12).setFont("helvetica", "bold").setTextColor(67, 97, 238).text(dinasName.toUpperCase(), 105, 12, { align: "center" })
           doc.text(schoolName.toUpperCase(), 105, 18, { align: "center" })
           doc.line(14, 25, 196, 25)
           
           doc.setFontSize(14).setTextColor(67, 97, 238).text(`${format === 'attendance' ? 'DAFTAR HADIR' : 'DAFTAR MURID'} - ${cls.name}`, 14, 32)
+          doc.setFontSize(10).setTextColor(100).setFont("helvetica", "normal").text(`Wali Kelas: ${cls.homeroomTeacher || '-'}`, 14, 38)
+          // Header Bawah (Summary)
+          doc.setFont("helvetica", "bold").text(genderSummary, 14, 43)
+
           autoTable(doc, {
             head: format === 'attendance' ? [['No.', 'Nama', 'NISN', 'L/P', 'TTD', '']] : [['No.', 'Nama', 'NISN', 'JK', 'Sekolah Asal']],
             body: students.map((s, sIdx) => format === 'attendance' ? 
               [sIdx + 1, s.fullName, s.NISN, s.gender === 'Laki-laki' ? 'L' : 'P', sIdx % 2 === 0 ? `${sIdx + 1}. ...` : '', sIdx % 2 !== 0 ? `${sIdx + 1}. ...` : ''] : 
               [sIdx + 1, s.fullName, s.NISN, s.gender === 'Laki-laki' ? 'L' : 'P', s.originSchool]
             ),
-            startY: 40,
+            startY: 48,
             headStyles: { fillColor: [67, 97, 238] },
             styles: { minCellHeight: format === 'attendance' ? 12 : 8 }
           })
@@ -432,7 +461,9 @@ export default function ClassesPage() {
 
   const getStudentsInClass = (studentIds: string[]) => {
     if (!applicants) return []
-    return applicants.filter(a => studentIds.includes(a.id) && !a.isDeleted)
+    return applicants
+      .filter(a => studentIds.includes(a.id) && !a.isDeleted)
+      .sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""))
   }
 
   if (loadingClasses) return <div className="flex justify-center py-24"><Loader2 className="animate-spin text-primary" /></div>
