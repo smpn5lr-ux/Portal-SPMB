@@ -287,38 +287,40 @@ export default function ClassesPage() {
     setTimeout(async () => {
       try {
         const batch = writeBatch(db)
-        
-        // Logical Distribution Algorithm
         let studentPool = [...acceptedStudents]
 
         // 1. Sort by school first if school balancing is enabled
         if (shuffleOptions.balanceSchool) {
           studentPool.sort((a, b) => (a.originSchool || "").localeCompare(b.originSchool || ""))
         } else {
-          // Pure random if school balance is off
           studentPool.sort(() => Math.random() - 0.5)
         }
 
         // 2. Prepare class buckets
         const classBuckets: string[][] = classes.map(() => [])
+        let currentClassIdx = 0;
 
         if (shuffleOptions.balanceGender) {
-          // Distribute males and females separately
+          // Distribute males and females separately but in a continuous round-robin
           const males = studentPool.filter(s => s.gender === 'Laki-laki')
           const females = studentPool.filter(s => s.gender === 'Perempuan')
 
           // Distribute males
-          males.forEach((student, idx) => {
-            classBuckets[idx % classes.length].push(student.id)
+          males.forEach((student) => {
+            classBuckets[currentClassIdx].push(student.id)
+            currentClassIdx = (currentClassIdx + 1) % classes.length
           })
-          // Distribute females (offsetting index if necessary, but modulo classes.length is usually fine)
-          females.forEach((student, idx) => {
-            classBuckets[idx % classes.length].push(student.id)
+          
+          // Distribute females (continuing currentClassIdx ensures the total count remains balanced)
+          females.forEach((student) => {
+            classBuckets[currentClassIdx].push(student.id)
+            currentClassIdx = (currentClassIdx + 1) % classes.length
           })
         } else {
-          // Basic round-robin distribution
-          studentPool.forEach((student, idx) => {
-            classBuckets[idx % classes.length].push(student.id)
+          // Basic round-robin distribution for all students
+          studentPool.forEach((student) => {
+            classBuckets[currentClassIdx].push(student.id)
+            currentClassIdx = (currentClassIdx + 1) % classes.length
           })
         }
 
@@ -351,7 +353,7 @@ export default function ClassesPage() {
     
     const maleCount = students.filter(s => s.gender === 'Laki-laki').length
     const femaleCount = students.filter(s => s.gender === 'Perempuan').length
-    const genderSummary = `Total: ${students.length} (L: ${maleCount}, P: ${femaleCount})`
+    const summaryLabel = `Total: ${students.length} (L: ${maleCount}, P: ${femaleCount})`
 
     try {
       if (format === 'excel') {
@@ -379,7 +381,7 @@ export default function ClassesPage() {
         if (format === 'pdf') {
           doc.setFontSize(14).setTextColor(67, 97, 238).setFont("helvetica", "bold").text(`Daftar Murid Kelas ${cls.name}`, 14, 32)
           doc.setFontSize(10).setTextColor(100).setFont("helvetica", "normal").text(`Wali Kelas: ${cls.homeroomTeacher || '-'}`, 14, 38)
-          doc.setFontSize(10).setFont("helvetica", "bold").text(genderSummary, 14, 43)
+          doc.setFontSize(10).setFont("helvetica", "bold").text(summaryLabel, 14, 43)
           
           autoTable(doc, {
             head: [['No.', 'Nama Lengkap', 'NISN', 'JK', 'Sekolah Asal']],
@@ -390,7 +392,7 @@ export default function ClassesPage() {
         } else {
           doc.setFontSize(14).setTextColor(67, 97, 238).setFont("helvetica", "bold").text(`DAFTAR HADIR MURID - KELAS ${cls.name}`, 14, 32)
           doc.setFontSize(10).setTextColor(100).setFont("helvetica", "normal").text(`Wali Kelas: ${cls.homeroomTeacher || '-'}`, 14, 38)
-          doc.setFontSize(10).setFont("helvetica", "bold").text(genderSummary, 14, 43)
+          doc.setFontSize(10).setFont("helvetica", "bold").text(summaryLabel, 14, 43)
           
           autoTable(doc, {
             head: [['No.', 'Nama Lengkap', 'NISN', 'L/P', 'Tanda Tangan', '']],
@@ -439,7 +441,7 @@ export default function ClassesPage() {
           
           const maleCount = students.filter(s => s.gender === 'Laki-laki').length
           const femaleCount = students.filter(s => s.gender === 'Perempuan').length
-          const genderSummary = `Total: ${students.length} (L: ${maleCount}, P: ${femaleCount})`
+          const summaryLabel = `Total: ${students.length} (L: ${maleCount}, P: ${femaleCount})`
 
           doc.setFontSize(12).setFont("helvetica", "bold").setTextColor(67, 97, 238).text(dinasName.toUpperCase(), 105, 12, { align: "center" })
           doc.text(schoolName.toUpperCase(), 105, 18, { align: "center" })
@@ -447,7 +449,7 @@ export default function ClassesPage() {
           
           doc.setFontSize(14).setTextColor(67, 97, 238).text(`${format === 'attendance' ? 'DAFTAR HADIR' : 'DAFTAR MURID'} - ${cls.name}`, 14, 32)
           doc.setFontSize(10).setTextColor(100).setFont("helvetica", "normal").text(`Wali Kelas: ${cls.homeroomTeacher || '-'}`, 14, 38)
-          doc.setFontSize(10).setFont("helvetica", "bold").text(genderSummary, 14, 43)
+          doc.setFontSize(10).setFont("helvetica", "bold").text(summaryLabel, 14, 43)
 
           autoTable(doc, {
             head: format === 'attendance' ? [['No.', 'Nama', 'NISN', 'L/P', 'TTD', '']] : [['No.', 'Nama', 'NISN', 'JK', 'Sekolah Asal']],
