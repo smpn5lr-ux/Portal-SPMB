@@ -338,9 +338,9 @@ export default function ClassesPage() {
         const { default: autoTable } = await import('jspdf-autotable')
         const doc = new jsPDF()
         
-        doc.setFontSize(10).setFont("helvetica", "bold").text(dinasName.toUpperCase(), 105, 12, { align: "center" })
-        doc.setFontSize(16).text(schoolName.toUpperCase(), 105, 18, { align: "center" })
-        doc.setFontSize(8).setFont("helvetica", "normal").text(`NPSN: ${npsn} | Tahun Ajaran ${academicYear}`, 105, 23, { align: "center" })
+        doc.setFontSize(12).setFont("helvetica", "bold").setTextColor(67, 97, 238).text(dinasName.toUpperCase(), 105, 12, { align: "center" })
+        doc.text(schoolName.toUpperCase(), 105, 18, { align: "center" })
+        doc.setFontSize(8).setFont("helvetica", "normal").setTextColor(100).text(`NPSN: ${npsn} | Tahun Ajaran ${academicYear}`, 105, 23, { align: "center" })
         doc.line(14, 25, 196, 25)
 
         if (format === 'pdf') {
@@ -392,8 +392,8 @@ export default function ClassesPage() {
         classes.forEach((cls, idx) => {
           if (idx > 0) doc.addPage()
           const students = applicants.filter(a => cls.students.includes(a.id))
-          doc.setFontSize(10).setFont("helvetica", "bold").text(dinasName.toUpperCase(), 105, 12, { align: "center" })
-          doc.setFontSize(16).text(schoolName.toUpperCase(), 105, 18, { align: "center" })
+          doc.setFontSize(12).setFont("helvetica", "bold").setTextColor(67, 97, 238).text(dinasName.toUpperCase(), 105, 12, { align: "center" })
+          doc.text(schoolName.toUpperCase(), 105, 18, { align: "center" })
           doc.line(14, 25, 196, 25)
           
           doc.setFontSize(14).setTextColor(67, 97, 238).text(`${format === 'attendance' ? 'DAFTAR HADIR' : 'DAFTAR MURID'} - ${cls.name}`, 14, 32)

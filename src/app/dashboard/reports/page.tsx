@@ -203,12 +203,12 @@ export default function ReportsPage() {
       
       doc.setFontSize(12)
       doc.setFont("helvetica", "bold")
-      doc.setTextColor(0, 0, 0)
+      doc.setTextColor(67, 97, 238)
       doc.text(dinasName.toUpperCase(), 148, 12, { align: "center" })
-      doc.setFontSize(20)
       doc.text(schoolName.toUpperCase(), 148, 19, { align: "center" })
       doc.setFontSize(10)
       doc.setFont("helvetica", "normal")
+      doc.setTextColor(100)
       doc.text(`NPSN: ${npsn} | Tahun Ajaran ${academicYear}`, 148, 25, { align: "center" })
       doc.line(14, 28, 283, 28)
 
