@@ -99,7 +99,6 @@ export default function ClassesPage() {
   const [classToDelete, setClassToDelete] = useState<Classroom | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   
-  // Shuffle Options State
   const [shuffleOptions, setShuffleOptions] = useState({
     balanceGender: true,
     balanceSchool: true
@@ -288,13 +287,13 @@ export default function ClassesPage() {
       try {
         const batch = writeBatch(db)
         
-        // Pastikan kelas terurut untuk distribusi yang konsisten
-        const sortedClasses = [...classes].sort((a, b) => a.name.localeCompare(b.name))
+        // Urutkan kelas berdasarkan nama secara numerik agar distribusi konsisten
+        const sortedClasses = [...classes].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
         const classBuckets: string[][] = sortedClasses.map(() => [])
         let currentClassIdx = 0;
 
         if (shuffleOptions.balanceGender) {
-          // Kelompokkan Laki-laki dan Perempuan
+          // Pisahkan kelompok
           let males = acceptedStudents.filter(s => s.gender === 'Laki-laki')
           let females = acceptedStudents.filter(s => s.gender === 'Perempuan')
 
@@ -307,18 +306,19 @@ export default function ClassesPage() {
             females.sort(() => Math.random() - 0.5)
           }
 
-          // DISTRIBUSI KONTINU (Penting: currentClassIdx tidak direset agar total seimbang)
+          // DISTRIBUSI BERKELANJUTAN (KUNCI KESEIMBANGAN)
+          // Masukkan semua laki-laki dulu
           males.forEach((student) => {
             classBuckets[currentClassIdx].push(student.id)
             currentClassIdx = (currentClassIdx + 1) % sortedClasses.length
           })
           
+          // Masukkan perempuan melanjutkan giliran index kelas terakhir agar total tetap seimbang
           females.forEach((student) => {
             classBuckets[currentClassIdx].push(student.id)
             currentClassIdx = (currentClassIdx + 1) % sortedClasses.length
           })
         } else {
-          // Distribusi standar tanpa mempedulikan gender
           let pool = [...acceptedStudents]
           if (shuffleOptions.balanceSchool) {
             pool.sort((a, b) => (a.originSchool || "").localeCompare(b.originSchool || ""))
@@ -332,7 +332,7 @@ export default function ClassesPage() {
           })
         }
 
-        // Commit ke Firestore
+        // Simpan ke database
         sortedClasses.forEach((cls, idx) => {
           const classRef = doc(db, 'classes', cls.id)
           batch.update(classRef, {
@@ -342,13 +342,13 @@ export default function ClassesPage() {
         })
         
         await batch.commit()
-        toast({ title: "Distribusi Berhasil", description: "Murid telah diacak ke dalam rombel secara adil dan seimbang." })
+        toast({ title: "Distribusi Berhasil", description: "Jumlah murid di setiap kelas kini seimbang secara maksimal." })
       } catch (err) {
         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'classes', operation: 'write' }))
       } finally {
         setIsShuffling(false)
       }
-    }, 1500)
+    }, 1200)
   }
 
   const handleExportClass = async (cls: Classroom, format: 'excel' | 'pdf' | 'attendance') => {
@@ -708,7 +708,7 @@ export default function ClassesPage() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => selectedClassForView && handleExportClass(selectedClassForView, 'attendance')} className="gap-2">
-                      <ClipboardList className="w-4 h-4" /> Daftar Hadir (.pdf)
+                      <ClipboardList className="w-4 h-4 text-primary" /> Daftar Hadir (.pdf)
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => selectedClassForView && handleExportClass(selectedClassForView, 'excel')} className="gap-2">
                       <FileSpreadsheet className="w-4 h-4 text-green-500" /> Excel (.xlsx)
