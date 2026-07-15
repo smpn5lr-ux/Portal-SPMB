@@ -287,45 +287,53 @@ export default function ClassesPage() {
     setTimeout(async () => {
       try {
         const batch = writeBatch(db)
-        let studentPool = [...acceptedStudents]
-
-        // 1. Sort by school first if school balancing is enabled
-        if (shuffleOptions.balanceSchool) {
-          studentPool.sort((a, b) => (a.originSchool || "").localeCompare(b.originSchool || ""))
-        } else {
-          studentPool.sort(() => Math.random() - 0.5)
-        }
-
-        // 2. Prepare class buckets
-        const classBuckets: string[][] = classes.map(() => [])
+        
+        // Pastikan kelas terurut untuk distribusi yang konsisten
+        const sortedClasses = [...classes].sort((a, b) => a.name.localeCompare(b.name))
+        const classBuckets: string[][] = sortedClasses.map(() => [])
         let currentClassIdx = 0;
 
         if (shuffleOptions.balanceGender) {
-          // Distribute males and females separately but in a continuous round-robin
-          const males = studentPool.filter(s => s.gender === 'Laki-laki')
-          const females = studentPool.filter(s => s.gender === 'Perempuan')
+          // Kelompokkan Laki-laki dan Perempuan
+          let males = acceptedStudents.filter(s => s.gender === 'Laki-laki')
+          let females = acceptedStudents.filter(s => s.gender === 'Perempuan')
 
-          // Distribute males
+          // Acak masing-masing kelompok (opsional seimbangkan sekolah asal)
+          if (shuffleOptions.balanceSchool) {
+            males.sort((a, b) => (a.originSchool || "").localeCompare(b.originSchool || ""))
+            females.sort((a, b) => (a.originSchool || "").localeCompare(b.originSchool || ""))
+          } else {
+            males.sort(() => Math.random() - 0.5)
+            females.sort(() => Math.random() - 0.5)
+          }
+
+          // DISTRIBUSI KONTINU (Penting: currentClassIdx tidak direset agar total seimbang)
           males.forEach((student) => {
             classBuckets[currentClassIdx].push(student.id)
-            currentClassIdx = (currentClassIdx + 1) % classes.length
+            currentClassIdx = (currentClassIdx + 1) % sortedClasses.length
           })
           
-          // Distribute females (continuing currentClassIdx ensures the total count remains balanced)
           females.forEach((student) => {
             classBuckets[currentClassIdx].push(student.id)
-            currentClassIdx = (currentClassIdx + 1) % classes.length
+            currentClassIdx = (currentClassIdx + 1) % sortedClasses.length
           })
         } else {
-          // Basic round-robin distribution for all students
-          studentPool.forEach((student) => {
+          // Distribusi standar tanpa mempedulikan gender
+          let pool = [...acceptedStudents]
+          if (shuffleOptions.balanceSchool) {
+            pool.sort((a, b) => (a.originSchool || "").localeCompare(b.originSchool || ""))
+          } else {
+            pool.sort(() => Math.random() - 0.5)
+          }
+
+          pool.forEach((student) => {
             classBuckets[currentClassIdx].push(student.id)
-            currentClassIdx = (currentClassIdx + 1) % classes.length
+            currentClassIdx = (currentClassIdx + 1) % sortedClasses.length
           })
         }
 
-        // 3. Commit to Firestore
-        classes.forEach((cls, idx) => {
+        // Commit ke Firestore
+        sortedClasses.forEach((cls, idx) => {
           const classRef = doc(db, 'classes', cls.id)
           batch.update(classRef, {
             currentEnrollment: classBuckets[idx].length,
@@ -334,7 +342,7 @@ export default function ClassesPage() {
         })
         
         await batch.commit()
-        toast({ title: "Distribusi Berhasil", description: "Murid telah diacak ke dalam rombel secara merata." })
+        toast({ title: "Distribusi Berhasil", description: "Murid telah diacak ke dalam rombel secara adil dan seimbang." })
       } catch (err) {
         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'classes', operation: 'write' }))
       } finally {
@@ -547,9 +555,9 @@ export default function ClassesPage() {
             <DialogContent className="sm:max-w-[400px]">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  <Shuffle className="w-5 h-5 text-primary" /> Atur Distribusi Acak
+                  <Shuffle className="w-5 h-5 text-primary" /> Atur Distribusi Seimbang
                 </DialogTitle>
-                <DialogDescription>Tentukan kriteria pembagian kelas otomatis.</DialogDescription>
+                <DialogDescription>Pastikan pembagian kelas adil dan seimbang.</DialogDescription>
               </DialogHeader>
               <div className="py-6 space-y-6">
                 <div className="flex items-center space-x-3 bg-muted/30 p-4 rounded-xl border border-border/50">
@@ -580,7 +588,7 @@ export default function ClassesPage() {
                 <Button variant="ghost" onClick={() => setIsShuffleDialogOpen(false)}>Batal</Button>
                 <Button onClick={handleShuffle} disabled={isShuffling} className="gap-2">
                   {isShuffling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shuffle className="w-4 h-4" />}
-                  Mulai Acak & Distribusi
+                  Mulai Distribusi
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -644,7 +652,7 @@ export default function ClassesPage() {
                     <Users className="w-3 h-3" /> {cls.currentEnrollment} / {cls.capacity} Murid
                   </CardDescription>
                   <p className="text-[10px] font-bold text-primary/70 uppercase tracking-tighter">
-                    Total: {summary.total} (L: {summary.male}, P: {summary.female})
+                    TOTAL: {summary.total} (L: {summary.male}, P: {summary.female})
                   </p>
                 </div>
               </CardHeader>
@@ -687,7 +695,7 @@ export default function ClassesPage() {
                 <DialogDescription>Wali Kelas: {selectedClassForView?.homeroomTeacher || '-'}</DialogDescription>
                 {selectedClassForView && (
                   <p className="text-[10px] font-bold text-primary uppercase mt-1 tracking-tight">
-                    Total: {getSummary(selectedClassForView.students).total} (L: {getSummary(selectedClassForView.students).male}, P: {getSummary(selectedClassForView.students).female})
+                    TOTAL: {getSummary(selectedClassForView.students).total} (L: {getSummary(selectedClassForView.students).male}, P: {getSummary(selectedClassForView.students).female})
                   </p>
                 )}
               </div>
