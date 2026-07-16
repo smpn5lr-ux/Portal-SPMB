@@ -19,7 +19,9 @@ import {
   DatabaseZap,
   Loader2,
   CheckCircle2,
-  Settings2
+  Settings2,
+  ArrowsLeftRight,
+  UserMinus
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -68,6 +70,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
@@ -94,11 +103,17 @@ export default function ClassesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isShuffleDialogOpen, setIsShuffleDialogOpen] = useState(false)
   const [isViewOpen, setIsViewOpen] = useState(false)
+  const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false)
   const [editingClass, setEditingClass] = useState<Classroom | null>(null)
   const [selectedClassForView, setSelectedClassForView] = useState<Classroom | null>(null)
   const [classToDelete, setClassToDelete] = useState<Classroom | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   
+  // State untuk pindah murid manual
+  const [studentToMove, setStudentToMove] = useState<Applicant | null>(null)
+  const [targetClassId, setTargetClassId] = useState<string>("")
+  const [movingStudent, setMovingStudent] = useState(false)
+
   const [shuffleOptions, setShuffleOptions] = useState({
     balanceGender: true,
     balanceSchool: true
@@ -128,10 +143,8 @@ export default function ClassesPage() {
   const { data: applicants } = useCollection<Applicant>(applicantsQuery)
   const { data: systemSettings } = useDoc<any>(settingsRef)
 
-  const academicYear = systemSettings?.academicYear || "2024/2025"
-  const dinasName = systemSettings?.dinasName || "PEMERINTAH KABUPATEN MANGGARAI DINAS PENDIDIKAN"
-  const schoolName = systemSettings?.schoolName || "SMPN 5 LANGKE REMBONG"
-  const npsn = systemSettings?.npsn || "-"
+  const dinasName = systemSettings?.dinasName || "DINAS PENDIDIKAN"
+  const schoolName = systemSettings?.schoolName || "PORTAL SPMB"
 
   const form = useForm<z.infer<typeof classFormSchema>>({
     resolver: zodResolver(classFormSchema),
@@ -288,11 +301,12 @@ export default function ClassesPage() {
         const batch = writeBatch(db)
         const sortedClasses = [...classes].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
         const classBuckets: string[][] = sortedClasses.map(() => [])
-        let currentClassIdx = 0;
-
+        
+        let pool = [...acceptedStudents]
+        
         if (shuffleOptions.balanceGender) {
-          let males = acceptedStudents.filter(s => s.gender === 'Laki-laki')
-          let females = acceptedStudents.filter(s => s.gender === 'Perempuan')
+          let males = pool.filter(s => s.gender === 'Laki-laki')
+          let females = pool.filter(s => s.gender === 'Perempuan')
 
           if (shuffleOptions.balanceSchool) {
             males.sort((a, b) => (a.originSchool || "").localeCompare(b.originSchool || ""))
@@ -302,6 +316,7 @@ export default function ClassesPage() {
             females.sort(() => Math.random() - 0.5)
           }
 
+          let currentClassIdx = 0
           males.forEach((student) => {
             classBuckets[currentClassIdx].push(student.id)
             currentClassIdx = (currentClassIdx + 1) % sortedClasses.length
@@ -312,13 +327,13 @@ export default function ClassesPage() {
             currentClassIdx = (currentClassIdx + 1) % sortedClasses.length
           })
         } else {
-          let pool = [...acceptedStudents]
           if (shuffleOptions.balanceSchool) {
             pool.sort((a, b) => (a.originSchool || "").localeCompare(b.originSchool || ""))
           } else {
             pool.sort(() => Math.random() - 0.5)
           }
 
+          let currentClassIdx = 0
           pool.forEach((student) => {
             classBuckets[currentClassIdx].push(student.id)
             currentClassIdx = (currentClassIdx + 1) % sortedClasses.length
@@ -327,27 +342,98 @@ export default function ClassesPage() {
 
         sortedClasses.forEach((cls, idx) => {
           const classRef = doc(db, 'classes', cls.id)
-          const studentIds = classBuckets[idx]
-          const bucketStudents = acceptedStudents
-            .filter(s => studentIds.includes(s.id))
-            .sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""))
-          
-          const sortedIds = bucketStudents.map(s => s.id)
-
           batch.update(classRef, {
-            currentEnrollment: sortedIds.length,
-            students: sortedIds
+            currentEnrollment: classBuckets[idx].length,
+            students: classBuckets[idx]
           })
         })
         
         await batch.commit()
-        toast({ title: "Distribusi Berhasil", description: "Jumlah murid di setiap kelas kini seimbang secara maksimal." })
+        toast({ title: "Distribusi Berhasil", description: "Murid telah dibagikan secara merata." })
       } catch (err) {
         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'classes', operation: 'write' }))
       } finally {
         setIsShuffling(false)
       }
     }, 1200)
+  }
+
+  const handleMoveStudentTrigger = (student: Applicant) => {
+    setStudentToMove(student)
+    setIsMoveDialogOpen(true)
+  }
+
+  const executeMoveStudent = async () => {
+    if (!db || !studentToMove || !selectedClassForView || !targetClassId || !classes) return
+    setMovingStudent(true)
+
+    const targetClass = classes.find(c => c.id === targetClassId)
+    if (!targetClass) return
+
+    if (targetClass.students.length >= targetClass.capacity) {
+      toast({ variant: "destructive", title: "Gagal", description: "Kelas tujuan sudah penuh." })
+      setMovingStudent(false)
+      return
+    }
+
+    const batch = writeBatch(db)
+    
+    // Update Kelas Asal
+    const sourceRef = doc(db, 'classes', selectedClassForView.id)
+    const newSourceStudents = selectedClassForView.students.filter(id => id !== studentToMove.id)
+    batch.update(sourceRef, {
+      students: newSourceStudents,
+      currentEnrollment: newSourceStudents.length
+    })
+
+    // Update Kelas Tujuan
+    const targetRef = doc(db, 'classes', targetClassId)
+    const newTargetStudents = [...targetClass.students, studentToMove.id]
+    batch.update(targetRef, {
+      students: newTargetStudents,
+      currentEnrollment: newTargetStudents.length
+    })
+
+    try {
+      await batch.commit()
+      toast({ title: "Berhasil Dipindahkan", description: `${studentToMove.fullName} dipindahkan ke Kelas ${targetClass.name}.` })
+      
+      // Update local view state
+      setSelectedClassForView({
+        ...selectedClassForView,
+        students: newSourceStudents,
+        currentEnrollment: newSourceStudents.length
+      })
+      
+      setIsMoveDialogOpen(false)
+      setStudentToMove(null)
+      setTargetClassId("")
+    } catch (err) {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'classes', operation: 'write' }))
+    } finally {
+      setMovingStudent(false)
+    }
+  }
+
+  const handleRemoveFromClass = async (student: Applicant) => {
+    if (!db || !selectedClassForView) return
+    
+    const sourceRef = doc(db, 'classes', selectedClassForView.id)
+    const newStudents = selectedClassForView.students.filter(id => id !== student.id)
+    
+    updateDoc(sourceRef, {
+      students: newStudents,
+      currentEnrollment: newStudents.length
+    }).then(() => {
+      toast({ title: "Dikeluarkan dari Rombel", description: `${student.fullName} telah dikeluarkan dari kelas.` })
+      setSelectedClassForView({
+        ...selectedClassForView,
+        students: newStudents,
+        currentEnrollment: newStudents.length
+      })
+    }).catch(async () => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: sourceRef.path, operation: 'update' }))
+    })
   }
 
   const handleExportClass = async (cls: Classroom, format: 'excel' | 'pdf' | 'attendance') => {
@@ -430,92 +516,6 @@ export default function ClassesPage() {
     }
   }
 
-  const handleExportAll = async (format: 'excel' | 'pdf' | 'attendance') => {
-    if (!classes || !applicants) return
-    setIsExporting(true)
-    const headerColor = [67, 97, 238] as [number, number, number]
-
-    try {
-      if (format === 'excel') {
-        const workbook = XLSX.utils.book_new()
-        classes.forEach(cls => {
-          const students = applicants
-            .filter(a => cls.students.includes(a.id))
-            .sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""))
-          
-          const maleCount = students.filter(s => s.gender === 'Laki-laki').length
-          const femaleCount = students.filter(s => s.gender === 'Perempuan').length
-          const summaryLabel = `Total: ${students.length} (L: ${maleCount}, P: ${femaleCount})`
-
-          const headerInfo = [
-            [dinasName.toUpperCase()],
-            [schoolName.toUpperCase()],
-            [],
-            [`DAFTAR MURID - KELAS ${cls.name}`],
-            [`Wali Kelas: ${cls.homeroomTeacher || '-'}`],
-            [summaryLabel],
-            []
-          ]
-
-          const data = students.map((s, idx) => ({
-            "No.": idx + 1,
-            "Nama Lengkap": s.fullName,
-            "NISN": s.NISN,
-            "Jenis Kelamin": s.gender,
-            "Sekolah Asal": s.originSchool
-          }))
-
-          const worksheet = XLSX.utils.aoa_to_sheet(headerInfo)
-          XLSX.utils.sheet_add_json(worksheet, data, { origin: "A8", skipHeader: false })
-          XLSX.utils.book_append_sheet(workbook, worksheet, `Kelas ${cls.name}`)
-        })
-        XLSX.writeFile(workbook, `Rekap_Semua_Kelas.xlsx`)
-      } else {
-        const { default: jsPDF } = await import('jspdf')
-        const { default: autoTable } = await import('jspdf-autotable')
-        const doc = new jsPDF()
-        
-        classes.forEach((cls, idx) => {
-          if (idx > 0) doc.addPage()
-          
-          const students = applicants
-            .filter(a => cls.students.includes(a.id))
-            .sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""))
-          
-          const maleCount = students.filter(s => s.gender === 'Laki-laki').length
-          const femaleCount = students.filter(s => s.gender === 'Perempuan').length
-          const summaryLabel = `Total: ${students.length} (L: ${maleCount}, P: ${femaleCount})`
-
-          doc.setFontSize(10).setFont("helvetica", "bold").setTextColor(headerColor[0], headerColor[1], headerColor[2])
-          doc.text(dinasName.toUpperCase(), 105, 15, { align: "center" })
-          doc.text(schoolName.toUpperCase(), 105, 21, { align: "center" })
-          doc.setDrawColor(180, 180, 180).setLineWidth(0.5).line(14, 25, 196, 25)
-          
-          doc.setFontSize(14).setTextColor(headerColor[0], headerColor[1], headerColor[2]).text(`${format === 'attendance' ? 'DAFTAR HADIR' : 'DAFTAR MURID'} - ${cls.name}`, 14, 35)
-          doc.setFontSize(10).setTextColor(120, 120, 120).setFont("helvetica", "normal").text(`Wali Kelas: ${cls.homeroomTeacher || '-'}`, 14, 42)
-          doc.text(summaryLabel, 14, 48)
-
-          autoTable(doc, {
-            head: format === 'attendance' ? [['No.', 'Nama', 'NISN', 'JK', 'TTD', '']] : [['No.', 'Nama', 'NISN', 'JK', 'Sekolah Asal']],
-            body: students.map((s, sIdx) => format === 'attendance' ? 
-              [sIdx + 1, s.fullName, s.NISN, s.gender === 'Laki-laki' ? 'L' : 'P', sIdx % 2 === 0 ? `${sIdx + 1}. ...` : '', sIdx % 2 !== 0 ? `${sIdx + 1}. ...` : ''] : 
-              [sIdx + 1, s.fullName, s.NISN, s.gender === 'Laki-laki' ? 'L' : 'P', s.originSchool]
-            ),
-            startY: 54,
-            headStyles: { fillColor: headerColor },
-            styles: { fontSize: 8, cellPadding: format === 'attendance' ? 4 : 2 }
-          })
-        })
-        doc.save(`Rekap_Semua_Kelas.pdf`)
-      }
-      toast({ title: "Ekspor Berhasil" })
-    } catch (err) {
-      toast({ variant: "destructive", title: "Error" })
-    } finally {
-      setIsExporting(false)
-    }
-  }
-
   const handleDeleteClassConfirm = (cls: Classroom) => {
     setClassToDelete(cls)
     setIsDeleteDialogOpen(true)
@@ -549,29 +549,9 @@ export default function ClassesPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline font-bold">Manajemen Kelas</h1>
-          <p className="text-muted-foreground mt-1">Kelola rombongan belajar dan distribusi murid otomatis.</p>
+          <p className="text-muted-foreground mt-1">Kelola rombongan belajar dan distribusi murid manual/otomatis.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2 border-primary/20 text-primary">
-                <FileDown className="w-4 h-4" /> Laporan Massal
-                <ChevronDown className="w-3 h-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleExportAll('attendance')} className="cursor-pointer gap-2">
-                <ClipboardList className="w-4 h-4 text-primary" /> Daftar Hadir Semua (.pdf)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExportAll('excel')} className="cursor-pointer gap-2">
-                <FileSpreadsheet className="w-4 h-4 text-green-500" /> Excel Rekap Semua (.xlsx)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExportAll('pdf')} className="cursor-pointer gap-2">
-                <FilePdf className="w-4 h-4 text-destructive" /> PDF Rekap Semua (.pdf)
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
           <Button 
             onClick={handleSyncStudents} 
             disabled={isSyncing} 
@@ -714,12 +694,6 @@ export default function ClassesPage() {
             </Card>
           )
         })}
-        {classes?.length === 0 && (
-          <div className="col-span-full py-20 text-center bg-muted/20 border-2 border-dashed rounded-xl">
-            <AlertTriangle className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-20" />
-            <p className="text-muted-foreground">Belum ada rombongan belajar. Tambahkan kelas baru.</p>
-          </div>
-        )}
       </div>
 
       <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
@@ -735,7 +709,7 @@ export default function ClassesPage() {
                   </p>
                 )}
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 mr-6">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" className="gap-2">
@@ -783,11 +757,31 @@ export default function ClassesPage() {
                       <TableCell className="text-xs">{s.gender === 'Laki-laki' ? 'L' : 'P'}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{s.originSchool}</TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" asChild className="h-8 w-8 hover:text-primary">
-                          <Link href={`/dashboard/applicants/${s.id}`}>
-                            <Eye className="w-4 h-4" />
-                          </Link>
-                        </Button>
+                        <div className="flex justify-end gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-primary" 
+                            title="Pindah Kelas Manual"
+                            onClick={() => handleMoveStudentTrigger(s)}
+                          >
+                            <ArrowsLeftRight className="w-4 h-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-destructive" 
+                            title="Keluarkan dari Rombel"
+                            onClick={() => handleRemoveFromClass(s)}
+                          >
+                            <UserMinus className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" asChild className="h-8 w-8 hover:text-primary">
+                            <Link href={`/dashboard/applicants/${s.id}`}>
+                              <Eye className="w-4 h-4" />
+                            </Link>
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -800,6 +794,44 @@ export default function ClassesPage() {
           </div>
           <DialogFooter className="p-4 border-t bg-muted/10">
             <Button variant="outline" onClick={() => setIsViewOpen(false)}>Tutup</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Pindah Kelas Manual */}
+      <Dialog open={isMoveDialogOpen} onOpenChange={setIsMoveDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowsLeftRight className="w-5 h-5 text-primary" /> Pindah Kelas Manual
+            </DialogTitle>
+            <DialogDescription>
+              Pindahkan <strong>{studentToMove?.fullName}</strong> dari Kelas {selectedClassForView?.name} ke rombel lain.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label>Pilih Kelas Tujuan</Label>
+              <Select value={targetClassId} onValueChange={setTargetClassId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih Rombel Tujuan" />
+                </SelectTrigger>
+                <SelectContent>
+                  {classes?.filter(c => c.id !== selectedClassForView?.id).map((cls) => (
+                    <SelectItem key={cls.id} value={cls.id} disabled={cls.currentEnrollment >= cls.capacity}>
+                      Kelas {cls.name} ({cls.currentEnrollment}/{cls.capacity} Murid)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsMoveDialogOpen(false)}>Batal</Button>
+            <Button onClick={executeMoveStudent} disabled={movingStudent || !targetClassId}>
+              {movingStudent ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Pindahkan Murid
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
