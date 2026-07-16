@@ -20,7 +20,7 @@ import {
   Loader2,
   CheckCircle2,
   Settings2,
-  ArrowsLeftRight,
+  ArrowLeftRight,
   UserMinus
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -316,13 +316,10 @@ export default function ClassesPage() {
             females.sort(() => Math.random() - 0.5)
           }
 
+          // Gabungkan dalam satu antrian Round-Robin berkelanjutan
+          const combinedPool = [...males, ...females]
           let currentClassIdx = 0
-          males.forEach((student) => {
-            classBuckets[currentClassIdx].push(student.id)
-            currentClassIdx = (currentClassIdx + 1) % sortedClasses.length
-          })
-          
-          females.forEach((student) => {
+          combinedPool.forEach((student) => {
             classBuckets[currentClassIdx].push(student.id)
             currentClassIdx = (currentClassIdx + 1) % sortedClasses.length
           })
@@ -481,17 +478,17 @@ export default function ClassesPage() {
         
         const headerColor = [67, 97, 238] as [number, number, number]
         
-        doc.setFontSize(10).setFont("helvetica", "bold").setTextColor(headerColor[0], headerColor[1], headerColor[2])
+        doc.setFontSize(12).setFont("helvetica", "bold").setTextColor(headerColor[0], headerColor[1], headerColor[2])
         doc.text(dinasName.toUpperCase(), 105, 15, { align: "center" })
-        doc.text(schoolName.toUpperCase(), 105, 21, { align: "center" })
-        doc.setDrawColor(180, 180, 180).setLineWidth(0.5).line(14, 25, 196, 25)
+        doc.text(schoolName.toUpperCase(), 105, 22, { align: "center" })
+        doc.setDrawColor(headerColor[0], headerColor[1], headerColor[2]).setLineWidth(0.5).line(14, 26, 196, 26)
 
         doc.setFontSize(14).setTextColor(headerColor[0], headerColor[1], headerColor[2]).setFont("helvetica", "bold")
-        doc.text(`${format === 'attendance' ? 'DAFTAR HADIR' : 'DAFTAR MURID'} - ${cls.name}`, 14, 35)
+        doc.text(`${format === 'attendance' ? 'DAFTAR HADIR' : 'DAFTAR MURID'} - ${cls.name}`, 14, 38)
         
-        doc.setFontSize(10).setTextColor(120, 120, 120).setFont("helvetica", "normal")
-        doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'}`, 14, 42)
-        doc.text(summaryLabel, 14, 48)
+        doc.setFontSize(10).setTextColor(100, 100, 100).setFont("helvetica", "normal")
+        doc.text(`Wali Kelas: ${cls.homeroomTeacher || '-'}`, 14, 45)
+        doc.text(summaryLabel, 14, 51)
         
         autoTable(doc, {
           head: format === 'attendance' ? 
@@ -501,7 +498,7 @@ export default function ClassesPage() {
             [idx + 1, s.fullName, s.NISN, s.gender === 'Laki-laki' ? 'L' : 'P', idx % 2 === 0 ? `${idx + 1}. ...............` : '', idx % 2 !== 0 ? `${idx + 1}. ...............` : ''] : 
             [idx + 1, s.fullName, s.NISN, s.gender === 'Laki-laki' ? 'L' : 'P', s.originSchool]
           ),
-          startY: 54,
+          startY: 58,
           headStyles: { fillColor: headerColor, textColor: [255, 255, 255], fontStyle: 'bold' },
           styles: { fontSize: 9, cellPadding: 3 },
           columnStyles: format === 'attendance' ? { 4: { cellWidth: 35 }, 5: { cellWidth: 35 } } : {}
@@ -740,7 +737,7 @@ export default function ClassesPage() {
                     <TableHead>Nama Lengkap</TableHead>
                     <TableHead>NISN</TableHead>
                     <TableHead>JK</TableHead>
-                    <TableHead>Asal Sekolah</TableHead>
+                    <TableHead>Sekolah Asal</TableHead>
                     <TableHead className="text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -765,7 +762,7 @@ export default function ClassesPage() {
                             title="Pindah Kelas Manual"
                             onClick={() => handleMoveStudentTrigger(s)}
                           >
-                            <ArrowsLeftRight className="w-4 h-4" />
+                            <ArrowLeftRight className="w-4 h-4" />
                           </Button>
                           <Button 
                             variant="ghost" 
@@ -803,7 +800,7 @@ export default function ClassesPage() {
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <ArrowsLeftRight className="w-5 h-5 text-primary" /> Pindah Kelas Manual
+              <ArrowLeftRight className="w-5 h-5 text-primary" /> Pindah Kelas Manual
             </DialogTitle>
             <DialogDescription>
               Pindahkan <strong>{studentToMove?.fullName}</strong> dari Kelas {selectedClassForView?.name} ke rombel lain.
