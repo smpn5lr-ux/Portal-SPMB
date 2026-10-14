@@ -143,7 +143,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   if (!user) return null
 
-  // Force renaming: Bersihkan teks SPMB jika ada di database
+  // FORCE SIS TERPADU BRANDING
   const rawAppName = config?.appName || "SIS TERPADU"
   const appName = rawAppName.toUpperCase().includes("SPMB") ? "SIS TERPADU" : rawAppName
   
@@ -215,7 +215,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
             {isSPMBEnabled && (
               <div>
-                <p className="px-3 mb-2 text-[10px] font-bold text-primary uppercase tracking-widest">Fitur Pendaftaran</p>
+                <p className="px-3 mb-2 text-[10px] font-bold text-primary uppercase tracking-widest">Modul Pendaftaran</p>
                 <SidebarMenu>
                   {spmbNav.map((item) => (
                     <SidebarMenuItem key={item.name}>

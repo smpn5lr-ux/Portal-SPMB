@@ -64,6 +64,7 @@ export default function TeachingJournalPage() {
   
   const activeSemester = parseInt(searchParams.get('semester') || "1")
 
+  // Refs stabilized with auth context
   const assignmentRef = useMemoFirebase(() => {
     if (!db || !assignmentId || userLoading || !user) return null
     return doc(db, 'teacherAssignments', assignmentId as string)
@@ -91,8 +92,8 @@ export default function TeachingJournalPage() {
       .sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""))
   }, [allAcceptedStudents, classroom])
 
+  // CRITICAL: Ensure query only runs when fully authenticated
   const journalQuery = useMemoFirebase(() => {
-    // KRITIKAL: Cegah kueri berjalan jika user belum siap (Mencegah Permission Error)
     if (!db || !assignmentId || userLoading || !user) return null
     return query(
       collection(db, 'journals'), 

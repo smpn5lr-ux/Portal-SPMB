@@ -2,39 +2,63 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Sinkronisasi Izin Terpusat - Update Terakhir: 2024-05-21 23:59 (CRITICAL FIX)
-    // Memastikan akses penuh untuk staf/guru yang terautentikasi.
+    // SINKRONISASI KEAMANAN TERPUSAT - SIS TERPADU (Update: 2024-05-22 01:00)
     
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // 1. Aturan Koleksi Jurnal (Penting untuk Guru)
+    // 1. Aturan Koleksi Jurnal & Absensi (Kritikal: Memisahkan root list dan document read)
+    match /journals {
+      allow read, write: if isAuthenticated();
+    }
     match /journals/{document=**} {
       allow read, write: if isAuthenticated();
     }
 
     // 2. Aturan Koleksi Penilaian & Nilai
+    match /assessments {
+      allow read, write: if isAuthenticated();
+    }
     match /assessments/{document=**} {
       allow read, write: if isAuthenticated();
     }
 
     // 3. Aturan Koleksi Manajemen Akademik
+    match /classes {
+      allow read, write: if isAuthenticated();
+    }
     match /classes/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /staff {
       allow read, write: if isAuthenticated();
     }
     match /staff/{document=**} {
       allow read, write: if isAuthenticated();
     }
+
+    match /subjects {
+      allow read, write: if isAuthenticated();
+    }
     match /subjects/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /teacherAssignments {
       allow read, write: if isAuthenticated();
     }
     match /teacherAssignments/{document=**} {
       allow read, write: if isAuthenticated();
     }
     
-    // 4. Aturan Spesifik Pendaftar (Read publik untuk status, Write harus login)
+    // 4. Aturan Spesifik Pendaftar (Read publik untuk cek status, Write harus login)
     match /applicants/{applicantId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+    match /applicants {
       allow read: if true;
       allow write: if isAuthenticated();
     }
