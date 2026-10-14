@@ -122,9 +122,9 @@ export default function RosterManagementPage() {
   const { data: rosterEntries, loading: loadingR } = useCollection<RosterEntry>(rosterQuery)
   const { data: assignments } = useCollection<TeacherAssignment>(assignmentsQuery)
   const { data: staff } = useCollection<Staff>(staffQuery)
-  const { data: classes } = useCollection<Classroom>(classesQuery)
+  const { data: classes, loading: loadingC } = useCollection<Classroom>(classesQuery)
   const { data: subjects } = useCollection<Subject>(subjectsQuery)
-  const { data: rosterConfig, loading: loadingC } = useDoc<any>(configRef)
+  const { data: rosterConfig, loading: loadingConfigDoc } = useDoc<any>(configRef)
   const { data: systemSettings } = useDoc<any>(systemSettingsRef)
 
   const teachers = staff?.filter(s => s.role === 'Guru') || []
@@ -201,26 +201,34 @@ export default function RosterManagementPage() {
       if (mode === 'consolidated') {
         const doc = new jsPDF('l', 'mm', 'a4')
         
-        // HALAMAN 1: MATRIKS TERPADU
         doc.setFontSize(14).setFont("helvetica", "bold").setTextColor(brandBlue[0], brandBlue[1], brandBlue[2])
         doc.text(`MATRIKS ROSTER JADWAL PELAJARAN TERPADU`, 148.5, 15, { align: "center" })
-        doc.setFontSize(10).setTextColor(100).setFont("helvetica", "normal")
-        doc.text(`${dinasName} | ${schoolName}`, 148.5, 22, { align: "center" })
-        doc.setDrawColor(brandBlue[0], brandBlue[1], brandBlue[2]).setLineWidth(0.5).line(14, 26, 283, 26)
+        doc.setFontSize(9).setTextColor(100).setFont("helvetica", "normal")
+        doc.text(`${dinasName} | ${schoolName}`, 148.5, 21, { align: "center" })
+        doc.setDrawColor(brandBlue[0], brandBlue[1], brandBlue[2]).setLineWidth(0.3).line(14, 25, 283, 25)
 
         const sortedClasses = [...classes].sort((a,b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
-        const headers = [['HARI / JAM', ...sortedClasses.map(c => `KLAS ${c.name}`)]]
+        const headers = [['HARI', 'JAM', 'WAKTU', ...sortedClasses.map(c => c.name)]]
         
         const body: any[] = []
         DAYS.forEach(day => {
           for (let p = 1; p <= MAX_PERIODS; p++) {
-            const row = [`${day}\n${p} (${getTimeForPeriod(p)})`]
+            const row: any[] = []
+            
+            // Kolom HARI dengan rowSpan
+            if (p === 1) {
+              row.push({ content: day.toUpperCase(), rowSpan: MAX_PERIODS, styles: { halign: 'center', valign: 'middle', fontStyle: 'bold', fillColor: [240, 240, 240] } })
+            }
+            
+            row.push(p)
+            row.push(getTimeForPeriod(p))
+
             sortedClasses.forEach(cls => {
               const entry = rosterEntries.find(e => e.day === day && e.period === p && e.classId === cls.id)
               if (!entry) {
                 row.push("-")
               } else if (entry.isActivity) {
-                row.push(entry.activityName || "KEGIATAN")
+                row.push(entry.activityName || "KEG")
               } else {
                 const key = `${entry.teacherId}_${entry.subjectId}`
                 const codeData = assignmentCodes.get(key)
@@ -234,13 +242,17 @@ export default function RosterManagementPage() {
         autoTable(doc, {
           head: headers,
           body: body,
-          startY: 35,
+          startY: 30,
           theme: 'grid',
-          headStyles: { fillColor: brandBlue, textColor: [255, 255, 255], halign: 'center', fontSize: 7 },
-          styles: { fontSize: 6.5, cellPadding: 1.5, halign: 'center', valign: 'middle' },
-          columnStyles: { 0: { cellWidth: 25, fontStyle: 'bold', fillColor: [245, 247, 255] } },
+          headStyles: { fillColor: brandBlue, textColor: [255, 255, 255], halign: 'center', fontSize: 7, cellPadding: 1.5 },
+          styles: { fontSize: 6, cellPadding: 1, halign: 'center', valign: 'middle' },
+          columnStyles: { 
+            0: { cellWidth: 15 }, 
+            1: { cellWidth: 8, fontStyle: 'bold' },
+            2: { cellWidth: 20 }
+          },
           didParseCell: (data) => {
-            if (data.section === 'body' && data.column.index > 0) {
+            if (data.section === 'body' && data.column.index > 2) {
               const val = data.cell.text[0]
               if (val && val !== "-" && !isNaN(Number(val))) {
                 const codeNum = parseInt(val)
@@ -248,9 +260,10 @@ export default function RosterManagementPage() {
                 if (match) {
                   data.cell.styles.fillColor = match.color as [number, number, number]
                   data.cell.styles.fontStyle = 'bold'
+                  data.cell.styles.fontSize = 7
                 }
               } else if (val && val !== "-" && isNaN(Number(val))) {
-                data.cell.styles.fillColor = [230, 240, 255]
+                data.cell.styles.fillColor = [235, 245, 255]
                 data.cell.styles.fontSize = 5
               }
             }
@@ -286,7 +299,7 @@ export default function RosterManagementPage() {
           }
         })
 
-        doc.save(`Roster_Terpadu_Matriks.pdf`)
+        doc.save(`Roster_Matriks_Terpadu.pdf`)
       } else {
         // MODE PER KELAS
         const doc = new jsPDF('l', 'mm', 'a4')
@@ -498,7 +511,7 @@ export default function RosterManagementPage() {
     return rosterEntries?.find(e => e.day === day && e.period === period && e.classId === classId)
   }
 
-  if (loadingR || loadingC) return <div className="flex justify-center py-24"><Loader2 className="animate-spin text-primary" /></div>
+  if (loadingR || loadingC || loadingConfigDoc) return <div className="flex justify-center py-24"><Loader2 className="animate-spin text-primary" /></div>
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
