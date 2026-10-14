@@ -13,10 +13,11 @@ import {
   Clock, 
   Users, 
   BookOpen,
-  History,
   CheckCircle2,
-  XCircle,
-  Timer
+  Timer,
+  Trash,
+  Coffee,
+  Sparkles
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -47,14 +48,16 @@ import {
   TableRow 
 } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase'
-import { collection, query, doc, setDoc, addDoc, deleteDoc, writeBatch } from 'firebase/firestore'
-import { RosterEntry, Staff, Classroom, Subject, TeacherAssignment } from '@/lib/types'
+import { collection, query, doc, setDoc, addDoc, deleteDoc } from 'firebase/firestore'
+import { RosterEntry, Staff, Classroom, Subject } from '@/lib/types'
 import { useToast } from '@/hooks/use-toast'
 import { addMinutes, format, parse } from 'date-fns'
 
 const DAYS = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"]
-const MAX_PERIODS = 10
+const MAX_PERIODS = 12
 
 export default function RosterManagementPage() {
   const db = useFirestore()
@@ -62,6 +65,7 @@ export default function RosterManagementPage() {
   const [activeTab, setActiveTab] = useState("builder")
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   
   // State for new entry
   const [newEntry, setNewEntry] = useState<Partial<RosterEntry>>({
@@ -69,7 +73,9 @@ export default function RosterManagementPage() {
     period: 1,
     teacherId: "",
     classId: "",
-    subjectId: ""
+    subjectId: "",
+    isActivity: false,
+    activityName: ""
   })
 
   // Queries
@@ -114,29 +120,70 @@ export default function RosterManagementPage() {
     setIsSaving(true)
     const formData = new FormData(e.currentTarget)
     const newConfig = {
+      ...config,
       entryTime: formData.get('entryTime'),
       jpDuration: parseInt(formData.get('jpDuration') as string),
-      breakTimes: config.breakTimes // Keep breaks for now
     }
     await setDoc(configRef, newConfig, { merge: true })
-    toast({ title: "Pengaturan Waktu Disimpan" })
+    toast({ title: "Konfigurasi Disimpan" })
     setIsSaving(false)
   }
 
-  const [isSaving, setIsSaving] = useState(false)
+  const handleAddBreak = async () => {
+    if (!configRef) return
+    const updatedBreaks = [...config.breakTimes, { periodAfter: 1, duration: 15 }]
+      .sort((a, b) => a.periodAfter - b.periodAfter)
+    await setDoc(configRef, { ...config, breakTimes: updatedBreaks }, { merge: true })
+    toast({ title: "Istirahat Ditambahkan" })
+  }
+
+  const handleUpdateBreak = async (index: number, field: string, value: any) => {
+    if (!configRef) return
+    const updatedBreaks = [...config.breakTimes]
+    updatedBreaks[index] = { ...updatedBreaks[index], [field]: parseInt(value) }
+    await setDoc(configRef, { ...config, breakTimes: updatedBreaks }, { merge: true })
+  }
+
+  const handleRemoveBreak = async (index: number) => {
+    if (!configRef) return
+    const updatedBreaks = config.breakTimes.filter((_: any, i: number) => i !== index)
+    await setDoc(configRef, { ...config, breakTimes: updatedBreaks }, { merge: true })
+    toast({ title: "Istirahat Dihapus" })
+  }
 
   const handleAddEntry = async () => {
-    if (!db || !newEntry.day || !newEntry.period || !newEntry.teacherId || !newEntry.classId || !newEntry.subjectId) {
-      toast({ variant: "destructive", title: "Data Belum Lengkap" })
+    if (!db || !newEntry.day || !newEntry.period || !newEntry.classId) {
+      toast({ variant: "destructive", title: "Pilih Hari, Jam, dan Kelas" })
       return
     }
 
-    // ANTI-TABRAK LOGIC
-    const teacherConflict = rosterEntries?.find(e => 
-      e.day === newEntry.day && 
-      e.period === newEntry.period && 
-      e.teacherId === newEntry.teacherId
-    )
+    if (!newEntry.isActivity && (!newEntry.teacherId || !newEntry.subjectId)) {
+      toast({ variant: "destructive", title: "Pilih Guru dan Mata Pelajaran" })
+      return
+    }
+
+    if (newEntry.isActivity && !newEntry.activityName) {
+      toast({ variant: "destructive", title: "Tuliskan Nama Kegiatan" })
+      return
+    }
+
+    // ANTI-TABRAK LOGIC (Only for non-activities or if teacher is involved)
+    if (!newEntry.isActivity) {
+      const teacherConflict = rosterEntries?.find(e => 
+        e.day === newEntry.day && 
+        e.period === newEntry.period && 
+        e.teacherId === newEntry.teacherId
+      )
+
+      if (teacherConflict) {
+        toast({ 
+          variant: "destructive", 
+          title: "Bentrokan Jadwal Guru", 
+          description: `Guru ${teacherConflict.teacherName} sudah mengajar di kelas ${teacherConflict.className} pada jam ini.` 
+        })
+        return
+      }
+    }
 
     const classConflict = rosterEntries?.find(e => 
       e.day === newEntry.day && 
@@ -144,20 +191,11 @@ export default function RosterManagementPage() {
       e.classId === newEntry.classId
     )
 
-    if (teacherConflict) {
-      toast({ 
-        variant: "destructive", 
-        title: "Bentrokan Jadwal Guru", 
-        description: `Guru ${teacherConflict.teacherName} sudah mengajar di kelas ${teacherConflict.className} pada jam ini.` 
-      })
-      return
-    }
-
     if (classConflict) {
       toast({ 
         variant: "destructive", 
         title: "Bentrokan Ruang Kelas", 
-        description: `Kelas ${classConflict.className} sedang digunakan untuk Mapel ${classConflict.subjectName}.` 
+        description: `Kelas ${classConflict.className} sudah memiliki jadwal (${classConflict.isActivity ? classConflict.activityName : classConflict.subjectName}).` 
       })
       return
     }
@@ -170,12 +208,12 @@ export default function RosterManagementPage() {
     try {
       await addDoc(collection(db, 'rosterEntries'), {
         ...newEntry,
-        teacherName: t?.fullName,
+        teacherName: newEntry.isActivity ? null : t?.fullName,
         className: c?.name,
-        subjectName: s?.name,
+        subjectName: newEntry.isActivity ? null : s?.name,
         createdAt: new Date().toISOString()
       })
-      toast({ title: "Jadwal Ditambahkan" })
+      toast({ title: "Jadwal Berhasil Ditambahkan" })
       setIsAddOpen(false)
     } catch (e) {
       toast({ variant: "destructive", title: "Gagal menyimpan" })
@@ -201,7 +239,7 @@ export default function RosterManagementPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline font-bold">Manajemen Roster</h1>
-          <p className="text-muted-foreground mt-1">Desain jadwal mengajar harian dan cegah bentrokan jam pelajaran.</p>
+          <p className="text-muted-foreground mt-1">Desain jadwal harian, waktu istirahat, dan kegiatan sekolah terpadu.</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => setIsAddOpen(true)} className="gap-2 shadow-lg shadow-primary/20">
@@ -213,11 +251,11 @@ export default function RosterManagementPage() {
       <Tabs defaultValue="builder" onValueChange={setActiveTab}>
         <TabsList className="bg-muted/50 border border-border/50">
           <TabsTrigger value="builder" className="gap-2"><CalendarClock className="w-4 h-4" /> Jadwal Mingguan</TabsTrigger>
-          <TabsTrigger value="settings" className="gap-2"><Settings2 className="w-4 h-4" /> Pengaturan Waktu</TabsTrigger>
+          <TabsTrigger value="settings" className="gap-2"><Settings2 className="w-4 h-4" /> Konfigurasi Waktu</TabsTrigger>
         </TabsList>
 
         <TabsContent value="builder" className="space-y-6 mt-6">
-          {classes?.map(cls => (
+          {classes?.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })).map(cls => (
             <Card key={cls.id} className="border-border/50 overflow-hidden">
               <CardHeader className="bg-muted/10 border-b py-3 px-6">
                 <div className="flex items-center justify-between">
@@ -254,10 +292,13 @@ export default function RosterManagementPage() {
                             return (
                               <TableCell key={day} className="p-2 border-r last:border-r-0 h-24 relative group">
                                 {entry ? (
-                                  <div className="h-full bg-primary/5 border border-primary/20 rounded-md p-2 flex flex-col justify-between hover:bg-primary/10 transition-colors">
+                                  <div className={`h-full border rounded-md p-2 flex flex-col justify-between transition-colors ${entry.isActivity ? 'bg-accent/10 border-accent/30' : 'bg-primary/5 border-primary/20 hover:bg-primary/10'}`}>
                                     <div>
-                                      <div className="font-bold text-[10px] text-primary truncate uppercase">{entry.subjectName}</div>
-                                      <div className="text-[10px] text-muted-foreground mt-1 truncate">{entry.teacherName}</div>
+                                      <div className={`font-bold text-[10px] truncate uppercase ${entry.isActivity ? 'text-accent' : 'text-primary'}`}>
+                                        {entry.isActivity ? entry.activityName : entry.subjectName}
+                                      </div>
+                                      {!entry.isActivity && <div className="text-[10px] text-muted-foreground mt-1 truncate">{entry.teacherName}</div>}
+                                      {entry.isActivity && <div className="text-[9px] text-accent/70 mt-1 uppercase flex items-center gap-1"><Sparkles className="w-2 h-2" /> Kegiatan</div>}
                                     </div>
                                     <Button 
                                       variant="ghost" 
@@ -271,7 +312,7 @@ export default function RosterManagementPage() {
                                 ) : (
                                   <div className="h-full flex items-center justify-center opacity-20 group-hover:opacity-100 transition-opacity">
                                      <Badge variant="outline" className="text-[10px] cursor-pointer" onClick={() => {
-                                       setNewEntry({ ...newEntry, day, period, classId: cls.id })
+                                       setNewEntry({ ...newEntry, day, period, classId: cls.id, isActivity: false })
                                        setIsAddOpen(true)
                                      }}>Kosong</Badge>
                                   </div>
@@ -289,53 +330,84 @@ export default function RosterManagementPage() {
           ))}
         </TabsContent>
 
-        <TabsContent value="settings" className="mt-6">
-          <Card className="max-w-2xl">
-            <CardHeader>
-              <CardTitle>Jam Operasional Sekolah</CardTitle>
-              <CardDescription>Atur jam masuk dan durasi setiap Jam Pelajaran (JP).</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSaveConfig} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-primary" /> Jam Masuk (Jam ke-1)
-                    </label>
-                    <Input name="entryTime" type="time" defaultValue={config.entryTime} />
+        <TabsContent value="settings" className="mt-6 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="border-border/50">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2"><Clock className="w-5 h-5 text-primary" /> Jam Operasional Sekolah</CardTitle>
+                <CardDescription>Atur jam masuk dan durasi setiap Jam Pelajaran (JP).</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSaveConfig} className="space-y-6">
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold">Jam Masuk (Jam ke-1)</label>
+                      <Input name="entryTime" type="time" defaultValue={config.entryTime} />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-bold">Durasi per JP (Menit)</label>
+                      <Input name="jpDuration" type="number" defaultValue={config.jpDuration} />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold flex items-center gap-2">
-                      <Timer className="w-4 h-4 text-primary" /> Durasi per JP (Menit)
-                    </label>
-                    <Input name="jpDuration" type="number" defaultValue={config.jpDuration} />
-                  </div>
+                  <Button type="submit" disabled={isSaving} className="w-full gap-2">
+                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    Simpan Perubahan Utama
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/50">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg flex items-center gap-2"><Coffee className="w-5 h-5 text-accent" /> Waktu Istirahat</CardTitle>
+                  <Button onClick={handleAddBreak} variant="outline" size="sm" className="gap-2 h-8">
+                    <Plus className="w-3 h-3" /> Tambah Jeda
+                  </Button>
                 </div>
-                
-                <Separator />
-                
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                     <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Logika Istirahat Otomatis</h3>
-                     <Badge variant="secondary">Fitur Sistem</Badge>
-                  </div>
-                  <div className="bg-muted/30 p-4 rounded-xl space-y-3">
+                <CardDescription>Atur jam istirahat sekolah di antara jam pelajaran.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {config.breakTimes.length === 0 ? (
+                  <p className="text-center py-6 text-xs text-muted-foreground italic">Belum ada waktu istirahat diatur.</p>
+                ) : (
+                  <div className="space-y-3">
                     {config.breakTimes.map((b: any, i: number) => (
-                      <div key={i} className="flex items-center gap-4 text-sm">
-                         <CheckCircle2 className="w-4 h-4 text-green-500" />
-                         <span>Istirahat setelah <strong>Jam ke-{b.periodAfter}</strong> selama <strong>{b.duration} menit</strong>.</span>
+                      <div key={i} className="flex items-center gap-4 bg-muted/20 p-3 rounded-lg border border-border/50">
+                         <div className="flex-1 space-y-1">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Setelah Jam Ke</Label>
+                            <Select value={b.periodAfter.toString()} onValueChange={(v) => handleUpdateBreak(i, 'periodAfter', v)}>
+                              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {Array.from({length: MAX_PERIODS}).map((_, idx) => (
+                                  <SelectItem key={idx+1} value={(idx+1).toString()}>Jam ke-{idx+1}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                         </div>
+                         <div className="flex-1 space-y-1">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Durasi (Menit)</Label>
+                            <Input 
+                              type="number" 
+                              className="h-8" 
+                              value={b.duration} 
+                              onChange={(e) => handleUpdateBreak(i, 'duration', e.target.value)} 
+                            />
+                         </div>
+                         <Button onClick={() => handleRemoveBreak(i)} variant="ghost" size="icon" className="text-destructive mt-4">
+                           <Trash className="w-4 h-4" />
+                         </Button>
                       </div>
                     ))}
                   </div>
+                )}
+                <div className="bg-amber-500/5 p-3 rounded-lg border border-amber-500/10 flex gap-2">
+                   <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                   <p className="text-[10px] text-amber-600 leading-relaxed italic">Waktu istirahat akan otomatis memundurkan jam mulai pada jam pelajaran berikutnya.</p>
                 </div>
-
-                <Button type="submit" disabled={isSaving} className="gap-2">
-                  {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  Simpan Pengaturan
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
 
@@ -343,20 +415,31 @@ export default function RosterManagementPage() {
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
         <DialogContent className="sm:max-w-[450px]">
           <DialogHeader>
-            <DialogTitle>Plotting Jadwal Pelajaran</DialogTitle>
-            <DialogDescription>Masukkan mata pelajaran ke dalam slot waktu yang dipilih.</DialogDescription>
+            <DialogTitle>Plotting Jadwal</DialogTitle>
+            <DialogDescription>Masukkan mata pelajaran atau kegiatan sekolah ke dalam slot waktu.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-6 py-4">
+            <div className="flex items-center justify-between p-4 bg-accent/5 border border-accent/20 rounded-xl">
+               <div className="space-y-0.5">
+                  <Label className="font-bold flex items-center gap-2"><Sparkles className="w-4 h-4 text-accent" /> Mode Kegiatan</Label>
+                  <p className="text-[10px] text-muted-foreground">Aktifkan untuk agenda seperti Upacara, Senam, atau Sholat.</p>
+               </div>
+               <Switch 
+                 checked={newEntry.isActivity} 
+                 onCheckedChange={(v) => setNewEntry({...newEntry, isActivity: v})} 
+               />
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase">Hari</label>
+                  <label className="text-xs font-bold uppercase text-muted-foreground">Hari</label>
                   <Select value={newEntry.day} onValueChange={v => setNewEntry({...newEntry, day: v})}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>{DAYS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
                   </Select>
                </div>
                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase">Jam Ke-</label>
+                  <label className="text-xs font-bold uppercase text-muted-foreground">Jam Ke-</label>
                   <Select value={newEntry.period?.toString()} onValueChange={v => setNewEntry({...newEntry, period: parseInt(v)})}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>{Array.from({length: MAX_PERIODS}).map((_, i) => <SelectItem key={i+1} value={(i+1).toString()}>Jam ke-{i+1}</SelectItem>)}</SelectContent>
@@ -365,36 +448,50 @@ export default function RosterManagementPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-bold uppercase">Ruang Kelas</label>
+              <label className="text-xs font-bold uppercase text-muted-foreground">Ruang Kelas / Rombel</label>
               <Select value={newEntry.classId} onValueChange={v => setNewEntry({...newEntry, classId: v})}>
                 <SelectTrigger><SelectValue placeholder="Pilih Rombel" /></SelectTrigger>
                 <SelectContent>{classes?.map(c => <SelectItem key={c.id} value={c.id}>Kelas {c.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase">Mata Pelajaran</label>
-              <Select value={newEntry.subjectId} onValueChange={v => setNewEntry({...newEntry, subjectId: v})}>
-                <SelectTrigger><SelectValue placeholder="Pilih Mapel" /></SelectTrigger>
-                <SelectContent>{subjects?.map(s => <SelectItem key={s.id} value={s.id}>{s.name} (G-{s.grade})</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
+            {newEntry.isActivity ? (
+               <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
+                  <label className="text-xs font-bold uppercase text-accent">Nama Kegiatan Sekolah</label>
+                  <Input 
+                    placeholder="Contoh: Upacara Bendera, Sholat Duhur..." 
+                    value={newEntry.activityName} 
+                    onChange={e => setNewEntry({...newEntry, activityName: e.target.value})} 
+                  />
+               </div>
+            ) : (
+               <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase text-primary">Mata Pelajaran</label>
+                    <Select value={newEntry.subjectId} onValueChange={v => setNewEntry({...newEntry, subjectId: v})}>
+                      <SelectTrigger><SelectValue placeholder="Pilih Mapel" /></SelectTrigger>
+                      <SelectContent>{subjects?.map(s => <SelectItem key={s.id} value={s.id}>{s.name} (G-{s.grade})</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase text-primary">Guru Pengajar</label>
+                    <Select value={newEntry.teacherId} onValueChange={v => setNewEntry({...newEntry, teacherId: v})}>
+                      <SelectTrigger><SelectValue placeholder="Pilih Guru" /></SelectTrigger>
+                      <SelectContent>{teachers?.map(t => <SelectItem key={t.id} value={t.id}>{t.fullName}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+               </div>
+            )}
 
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase">Guru Pengajar</label>
-              <Select value={newEntry.teacherId} onValueChange={v => setNewEntry({...newEntry, teacherId: v})}>
-                <SelectTrigger><SelectValue placeholder="Pilih Guru" /></SelectTrigger>
-                <SelectContent>{teachers?.map(t => <SelectItem key={t.id} value={t.id}>{t.fullName}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-
-            <div className="bg-amber-500/10 p-3 rounded-lg border border-amber-500/20 flex gap-3">
-               <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-               <p className="text-[10px] text-amber-600 leading-relaxed italic">Sistem akan otomatis mendeteksi bentrokan jadwal guru dan ruang kelas setelah Anda mengklik simpan.</p>
-            </div>
+            {!newEntry.isActivity && (
+              <div className="bg-amber-500/10 p-3 rounded-lg border border-amber-500/20 flex gap-3">
+                 <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                 <p className="text-[10px] text-amber-600 leading-relaxed italic">Sistem akan otomatis mendeteksi bentrokan jadwal guru dan ruang kelas.</p>
+              </div>
+            )}
           </div>
           <DialogFooter>
-            <Button onClick={handleAddEntry} disabled={submitting} className="w-full">
+            <Button onClick={handleAddEntry} disabled={submitting} className="w-full h-11">
               {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
               Plotting Sekarang
             </Button>

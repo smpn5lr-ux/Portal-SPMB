@@ -149,10 +149,12 @@ export interface RosterEntry {
   period: number; // Jam ke-1, 2, dll
   classId: string;
   className: string;
-  teacherId: string;
-  teacherName: string;
-  subjectId: string;
-  subjectName: string;
+  teacherId?: string;
+  teacherName?: string;
+  subjectId?: string;
+  subjectName?: string;
+  isActivity?: boolean;
+  activityName?: string;
 }
 
 export interface RosterConfig {
