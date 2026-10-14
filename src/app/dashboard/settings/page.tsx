@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useRef } from "react"
@@ -95,9 +94,12 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (config) {
+      // Force filter nama lama jika datang dari database
+      const filteredAppName = config.appName === "PORTAL SPMB" ? "SIS TERPADU" : (config.appName || "SIS TERPADU");
       setLocalConfig({
         ...localConfig,
         ...config,
+        appName: filteredAppName
       })
     }
   }, [config])
@@ -257,12 +259,12 @@ export default function SettingsPage() {
                 <Power className="w-5 h-5 text-primary" />
                 <CardTitle className="font-headline text-lg">Mode Aplikasi</CardTitle>
               </div>
-              <CardDescription>Aktifkan atau nonaktifkan fitur penerimaan murid baru (SPMB).</CardDescription>
+              <CardDescription>Aktifkan atau nonaktifkan fitur pendaftaran murid baru.</CardDescription>
             </CardHeader>
             <CardContent>
                <div className="flex items-center justify-between p-4 bg-card border rounded-xl">
                   <div className="space-y-0.5">
-                    <Label className="text-base font-bold">Fitur SPMB (Pendaftaran Murid Baru)</Label>
+                    <Label className="text-base font-bold">Fitur Pendaftaran (PPDB)</Label>
                     <p className="text-xs text-muted-foreground">Jika nonaktif, menu pendaftaran, verifikasi, dan seleksi akan disembunyikan.</p>
                   </div>
                   <Switch 
@@ -412,7 +414,7 @@ export default function SettingsPage() {
                     <Input 
                       value={localConfig.regPrefix}
                       onChange={(e) => setLocalConfig({...localConfig, regPrefix: e.target.value})}
-                      placeholder="Contoh: REK atau REG-2026-" 
+                      placeholder="Contoh: REG-2026-" 
                     />
                     <p className="text-[10px] text-muted-foreground italic">
                       Contoh Hasil: <strong>{localConfig.regPrefix || ''}01</strong>, <strong>{localConfig.regPrefix || ''}02</strong>, dst.

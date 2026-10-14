@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -144,7 +143,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   if (!user) return null
 
-  const appName = config?.appName || "SIS TERPADU"
+  // Logika Filter: Jika nama di DB masih "PORTAL SPMB", paksa tampilkan "SIS TERPADU"
+  const appName = (config?.appName && config.appName !== "PORTAL SPMB") ? config.appName : "SIS TERPADU"
   const appLogoUrl = config?.appLogoUrl || "/icon-logo.webp"
   const isSPMBEnabled = config?.enableSPMB !== false; // Default true if not set
 
@@ -214,7 +214,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
             {isSPMBEnabled && (
               <div>
-                <p className="px-3 mb-2 text-[10px] font-bold text-primary uppercase tracking-widest">Portal SPMB (PPDB)</p>
+                <p className="px-3 mb-2 text-[10px] font-bold text-primary uppercase tracking-widest">Portal Pendaftaran (PPDB)</p>
                 <SidebarMenu>
                   {spmbNav.map((item) => (
                     <SidebarMenuItem key={item.name}>
