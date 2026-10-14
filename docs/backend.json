@@ -120,6 +120,21 @@
         "subjectName": { "type": "string" }
       }
     },
+    "Journal": {
+      "title": "Journal",
+      "description": "Teaching journals and attendance for each meeting.",
+      "type": "object",
+      "properties": {
+        "assignmentId": { "type": "string" },
+        "meetingNumber": { "type": "number" },
+        "date": { "type": "string" },
+        "material": { "type": "string" },
+        "absentStudents": { "type": "array", "items": { "type": "string" } },
+        "hasTask": { "type": "boolean" },
+        "taskType": { "type": "string" },
+        "semester": { "type": "number" }
+      }
+    },
     "Assessment": {
       "title": "Assessment",
       "description": "Student grades for a specific subject and class per semester.",
@@ -129,7 +144,10 @@
         "assignmentId": { "type": "string" },
         "semester": { "type": "number", "enum": [1, 2] },
         "attendance": { "type": "number" },
-        "homework": { "type": "number" },
+        "task1": { "type": "number" },
+        "task2": { "type": "number" },
+        "task3": { "type": "number" },
+        "groupTask": { "type": "number" },
         "midExam": { "type": "number" },
         "finalExam": { "type": "number" },
         "finalScore": { "type": "number" },
@@ -160,6 +178,10 @@
     "/teacherAssignments/{assignmentId}": {
       "schema": "TeacherAssignment",
       "description": "Collection of assignments linking teachers to subjects and classes."
+    },
+    "/journals/{journalId}": {
+      "schema": "Journal",
+      "description": "Teaching journals and attendance logs."
     },
     "/assessments/{assessmentId}": {
       "schema": "Assessment",

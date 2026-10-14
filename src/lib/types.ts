@@ -107,13 +107,30 @@ export interface TeacherAssignment {
   subjectName: string;
 }
 
+export interface Journal {
+  id: string;
+  assignmentId: string;
+  meetingNumber: number;
+  date: string;
+  material: string;
+  absentStudents: string[]; // array of student IDs
+  hasTask: boolean;
+  taskType: 'task1' | 'task2' | 'task3' | 'groupTask' | null;
+  taskScores?: Record<string, number>; // studentId -> score
+  semester: number;
+  createdAt: string;
+}
+
 export interface Assessment {
   id: string;
   studentId: string;
   assignmentId: string;
   semester: number;
   attendance: number;
-  homework: number;
+  task1: number;
+  task2: number;
+  task3: number;
+  groupTask: number;
   midExam: number;
   finalExam: number;
   finalScore: number;

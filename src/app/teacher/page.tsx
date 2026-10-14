@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useMemo } from 'react'
@@ -9,7 +10,8 @@ import {
   ClipboardCheck,
   Loader2,
   Backpack,
-  CalendarDays
+  CalendarDays,
+  FileText
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -54,7 +56,7 @@ export default function TeacherDashboard() {
         <div>
           <h1 className="text-3xl font-headline font-bold">Mata Pelajaran Anda</h1>
           <p className="text-muted-foreground mt-1">
-            Mengelola nilai untuk <span className="text-primary font-bold">Semester {selectedSemester}</span>
+            Mengelola nilai & jurnal untuk <span className="text-primary font-bold">Semester {selectedSemester}</span>
           </p>
         </div>
         <div className="flex gap-2">
@@ -71,33 +73,36 @@ export default function TeacherDashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {assignments?.map((a) => (
-          <Link key={a.id} href={`/teacher/grading/${a.id}?semester=${selectedSemester}`} className="block group">
-            <Card className="border-border/50 group-hover:border-primary/40 transition-all shadow-sm hover:shadow-md h-full bg-card/40 backdrop-blur-sm">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <Badge className="bg-primary/20 text-primary border-none text-[10px] font-bold">KELAS {a.className}</Badge>
-                  <div className="bg-muted p-2 rounded-lg group-hover:bg-primary/10 transition-colors">
-                    <Star className="w-4 h-4 text-muted-foreground group-hover:text-primary fill-current" />
-                  </div>
+          <Card key={a.id} className="border-border/50 transition-all shadow-sm hover:shadow-md h-full bg-card/40 backdrop-blur-sm relative group">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <Badge className="bg-primary/20 text-primary border-none text-[10px] font-bold">KELAS {a.className}</Badge>
+                <div className="bg-muted p-2 rounded-lg">
+                  <Star className="w-4 h-4 text-muted-foreground fill-current" />
                 </div>
-                <CardTitle className="text-xl font-headline mt-4 group-hover:text-primary transition-colors">{a.subjectName}</CardTitle>
-                <CardDescription className="text-xs uppercase tracking-widest font-bold text-muted-foreground/60">Tingkat Menengah Pertama</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="p-3 rounded-lg border bg-muted/20 text-center">
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Periode Aktif</p>
-                    <p className="text-sm font-bold text-foreground">Semester {selectedSemester}</p>
-                  </div>
-                  <div className="flex items-center gap-2 text-primary font-bold text-sm pt-2">
-                    <ClipboardCheck className="w-4 h-4" />
-                    Input Nilai Murid
-                    <ChevronRight className="w-4 h-4 ml-auto group-hover:translate-x-1 transition-transform" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
+              </div>
+              <CardTitle className="text-xl font-headline mt-4">{a.subjectName}</CardTitle>
+              <CardDescription className="text-xs uppercase tracking-widest font-bold text-muted-foreground/60">Tingkat Menengah Pertama</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <Button asChild variant="outline" size="sm" className="gap-2 h-10 border-primary/20 hover:bg-primary/5">
+                  <Link href={`/teacher/grading/${a.id}?semester=${selectedSemester}`}>
+                    <ClipboardCheck className="w-4 h-4 text-primary" /> Buku Nilai
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" size="sm" className="gap-2 h-10 border-accent/20 hover:bg-accent/5">
+                  <Link href={`/teacher/journal/${a.id}?semester=${selectedSemester}`}>
+                    <FileText className="w-4 h-4 text-accent" /> Jurnal
+                  </Link>
+                </Button>
+              </div>
+              <div className="p-2 rounded-lg bg-muted/20 text-center">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Aktivitas Terakhir</p>
+                <p className="text-[11px] font-medium text-foreground">Semester {selectedSemester}</p>
+              </div>
+            </CardContent>
+          </Card>
         ))}
         {assignments?.length === 0 && (
           <div className="col-span-full py-20 text-center border-2 border-dashed rounded-2xl bg-muted/20">

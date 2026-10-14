@@ -8,7 +8,6 @@ service cloud.firestore {
     }
 
     // Aturan default: akses penuh jika terautentikasi (Administrator/Staf/Guru)
-    // Komentar pemicu redeploy: Memperbarui izin eksplisit untuk kueri list pada koleksi penilaian dan akademik
     match /{document=**} {
       allow read, write: if isAuthenticated();
     }
@@ -25,8 +24,12 @@ service cloud.firestore {
       allow write: if isAuthenticated();
     }
 
-    // Aturan eksplisit untuk koleksi penilaian dan penugasan guna mencegah error 'list'
+    // Aturan eksplisit untuk koleksi penilaian dan akademik guna mencegah error 'list'
     match /assessments/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /journals/{docId} {
       allow read, write: if isAuthenticated();
     }
 

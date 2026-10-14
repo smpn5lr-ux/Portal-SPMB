@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo, useEffect } from 'react'
@@ -11,7 +12,8 @@ import {
   Users,
   Info,
   Search,
-  Calendar
+  Calendar,
+  BookOpen
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -28,8 +30,9 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { useUser, useFirestore, useMemoFirebase, useCollection, useDoc } from "@/firebase"
 import { collection, query, where, doc, writeBatch } from "firebase/firestore"
-import { TeacherAssignment, Applicant, Classroom, Assessment } from "@/lib/types"
+import { TeacherAssignment, Applicant, Classroom, Assessment, Journal } from "@/lib/types"
 import { useToast } from '@/hooks/use-toast'
+import Link from 'next/link'
 
 export default function GradingPage() {
   const { assignmentId } = useParams()
@@ -41,29 +44,23 @@ export default function GradingPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   
-  // Ambil Pengaturan Sistem
   const settingsRef = useMemoFirebase(() => db ? doc(db, 'settings', 'system') : null, [db])
   const { data: config } = useDoc<any>(settingsRef)
 
-  // Gunakan semester dari URL atau default sistem
   const activeSemester = parseInt(searchParams.get('semester') || config?.activeSemester?.toString() || "1")
 
-  // Ambil Data Assignment
   const assignmentRef = useMemoFirebase(() => db ? doc(db, 'teacherAssignments', assignmentId as string) : null, [db, assignmentId])
   const { data: assignment, loading: loadingA } = useDoc<TeacherAssignment>(assignmentRef)
 
-  // Ambil Data Kelas
   const classRef = useMemoFirebase(() => db && assignment ? doc(db, 'classes', assignment.classId) : null, [db, assignment])
   const { data: classroom, loading: loadingC } = useDoc<Classroom>(classRef)
 
-  // Ambil Semua Murid yang diterima
   const studentsQuery = useMemoFirebase(() => {
     if (!db || !user) return null 
     return query(collection(db, 'applicants'), where('admissionStatus', '==', 'accepted'))
   }, [db, user])
   const { data: allAcceptedStudents, loading: loadingS } = useCollection<Applicant>(studentsQuery)
 
-  // Filter murid yang hanya ada di kelas ini
   const students = useMemo(() => {
     if (!allAcceptedStudents || !classroom?.students) return []
     return allAcceptedStudents
@@ -72,7 +69,6 @@ export default function GradingPage() {
       .sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""))
   }, [allAcceptedStudents, classroom, searchTerm])
 
-  // Ambil Nilai yang Sudah Ada (Berdasarkan Semester yang dipilih)
   const assessmentsQuery = useMemoFirebase(() => {
     if (!db || !user || !assignmentId || !activeSemester) return null
     return query(
@@ -83,7 +79,6 @@ export default function GradingPage() {
   }, [db, user, assignmentId, activeSemester])
   const { data: existingAssessments } = useCollection<Assessment>(assessmentsQuery)
 
-  // Local State untuk Form Nilai
   const [grades, setGrades] = useState<Record<string, Partial<Assessment>>>({})
 
   useEffect(() => {
@@ -104,11 +99,21 @@ export default function GradingPage() {
       const current = prev[studentId] || { studentId, assignmentId: assignmentId as string, semester: activeSemester }
       const updated = { ...current, [field]: numValue }
       
+      // Kalkulasi Bobot Nilai Akhir Baru
+      // Kehadiran 10%
+      // Rata-rata Tugas (1,2,3, Kelompok) 40%
+      // UTS 20%
+      // UAS 30%
       const att = (updated.attendance || 0) * 0.1
-      const hw = (updated.homework || 0) * 0.2
-      const mid = (updated.midExam || 0) * 0.3
-      const fin = (updated.finalExam || 0) * 0.4
-      updated.finalScore = Math.round(att + hw + mid + fin)
+      const t1 = updated.task1 || 0
+      const t2 = updated.task2 || 0
+      const t3 = updated.task3 || 0
+      const tg = updated.groupTask || 0
+      const avgTasks = ((t1 + t2 + t3 + tg) / 4) * 0.4
+      const mid = (updated.midExam || 0) * 0.2
+      const fin = (updated.finalExam || 0) * 0.3
+      
+      updated.finalScore = Math.round(att + avgTasks + mid + fin)
       
       return { ...prev, [studentId]: updated }
     })
@@ -133,9 +138,9 @@ export default function GradingPage() {
       })
       
       await batch.commit()
-      toast({ title: "Nilai Berhasil Simpan", description: `Data nilai Semester ${activeSemester} telah diperbarui.` })
+      toast({ title: "Buku Nilai Disimpan", description: `Nilai semester ${activeSemester} berhasil diperbarui.` })
     } catch (e) {
-      toast({ variant: "destructive", title: "Gagal menyimpan nilai" })
+      toast({ variant: "destructive", title: "Gagal menyimpan" })
     } finally {
       setIsSaving(false)
     }
@@ -144,7 +149,7 @@ export default function GradingPage() {
   if (loadingA || loadingC || loadingS) return (
     <div className="flex flex-col items-center justify-center py-24 gap-4">
       <Loader2 className="animate-spin text-primary w-8 h-8" />
-      <p className="text-sm text-muted-foreground animate-pulse">Menyiapkan buku nilai Semester {activeSemester}...</p>
+      <p className="text-sm text-muted-foreground animate-pulse">Memuat buku nilai...</p>
     </div>
   )
 
@@ -155,45 +160,47 @@ export default function GradingPage() {
           <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full border"><ArrowLeft className="w-4 h-4" /></Button>
           <div>
             <div className="flex items-center gap-2">
-               <h1 className="text-2xl font-bold">{assignment?.subjectName || "Mata Pelajaran"}</h1>
-               <Badge variant="secondary" className="gap-1 bg-accent/20 text-accent border-accent/20">
-                 <Calendar className="w-3 h-3" /> SEMESTER {activeSemester}
-               </Badge>
+               <h1 className="text-2xl font-bold">{assignment?.subjectName}</h1>
+               <Badge variant="secondary">SEMESTER {activeSemester}</Badge>
             </div>
-            <p className="text-muted-foreground text-sm font-bold uppercase tracking-widest text-primary flex items-center gap-2">
-              Kelas {classroom?.name || "-"} <span className="text-xs text-muted-foreground/50">|</span> <Users className="w-3 h-3" /> {students.length} Siswa
-            </p>
+            <p className="text-muted-foreground text-sm font-bold text-primary">Kelas {assignment?.className}</p>
           </div>
         </div>
         <div className="flex gap-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input 
-              placeholder="Cari nama siswa..." 
+              placeholder="Cari murid..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 w-64 bg-muted/20"
+              className="pl-9 w-48 bg-muted/20"
             />
           </div>
+          <Button asChild variant="outline" className="gap-2 border-accent/30 text-accent">
+            <Link href={`/teacher/journal/${assignmentId}?semester=${activeSemester}`}><BookOpen className="w-4 h-4" /> Jurnal & Absensi</Link>
+          </Button>
           <Button onClick={saveAllGrades} disabled={isSaving} className="gap-2 shadow-lg shadow-primary/20">
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Simpan Nilai Semester {activeSemester}
+            Simpan Nilai
           </Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-3">
-          <Card className="border-border/50 shadow-md overflow-hidden bg-card/30">
+          <Card className="border-border/50 shadow-md overflow-x-auto bg-card/30">
             <Table>
               <TableHeader className="bg-muted/50">
                 <TableRow>
-                  <TableHead className="w-[250px] font-bold text-foreground">Nama Murid</TableHead>
-                  <TableHead className="w-[100px] text-center font-bold text-foreground">Kehadiran</TableHead>
-                  <TableHead className="w-[100px] text-center font-bold text-foreground">Tugas</TableHead>
-                  <TableHead className="w-[100px] text-center font-bold text-foreground">UTS</TableHead>
-                  <TableHead className="w-[100px] text-center font-bold text-foreground">UAS</TableHead>
-                  <TableHead className="w-[120px] text-center font-bold text-primary">NILAI AKHIR</TableHead>
+                  <TableHead className="min-w-[180px] font-bold text-foreground">Murid</TableHead>
+                  <TableHead className="w-16 text-center text-[10px] uppercase font-bold text-muted-foreground">Absensi</TableHead>
+                  <TableHead className="w-16 text-center text-[10px] uppercase font-bold text-primary">Tgs 1</TableHead>
+                  <TableHead className="w-16 text-center text-[10px] uppercase font-bold text-primary">Tgs 2</TableHead>
+                  <TableHead className="w-16 text-center text-[10px] uppercase font-bold text-primary">Tgs 3</TableHead>
+                  <TableHead className="w-16 text-center text-[10px] uppercase font-bold text-accent">Kelmpk</TableHead>
+                  <TableHead className="w-16 text-center text-[10px] uppercase font-bold text-foreground">UTS</TableHead>
+                  <TableHead className="w-16 text-center text-[10px] uppercase font-bold text-foreground">UAS</TableHead>
+                  <TableHead className="w-24 text-center font-bold text-primary">TOTAL</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -202,19 +209,22 @@ export default function GradingPage() {
                   const isBelowKKM = (sGrade.finalScore || 0) < 75 && (sGrade.finalScore !== undefined)
                   
                   return (
-                    <TableRow key={s.id} className="hover:bg-muted/30 transition-colors">
+                    <TableRow key={s.id} className="hover:bg-muted/30">
                       <TableCell>
-                        <div className="font-medium text-sm">{s.fullName}</div>
-                        <div className="text-[10px] text-muted-foreground font-mono">{s.NISN}</div>
+                        <div className="font-medium text-xs truncate max-w-[150px]">{s.fullName}</div>
+                        <div className="text-[9px] text-muted-foreground font-mono">{s.NISN}</div>
                       </TableCell>
-                      <TableCell><Input type="number" value={sGrade.attendance || ""} onChange={(e) => handleGradeChange(s.id, 'attendance', e.target.value)} className="text-center font-bold bg-background" placeholder="0" /></TableCell>
-                      <TableCell><Input type="number" value={sGrade.homework || ""} onChange={(e) => handleGradeChange(s.id, 'homework', e.target.value)} className="text-center font-bold bg-background" placeholder="0" /></TableCell>
-                      <TableCell><Input type="number" value={sGrade.midExam || ""} onChange={(e) => handleGradeChange(s.id, 'midExam', e.target.value)} className="text-center font-bold bg-background" placeholder="0" /></TableCell>
-                      <TableCell><Input type="number" value={sGrade.finalExam || ""} onChange={(e) => handleGradeChange(s.id, 'finalExam', e.target.value)} className="text-center font-bold bg-background" placeholder="0" /></TableCell>
+                      <TableCell><Input type="number" value={sGrade.attendance || ""} readOnly className="h-8 text-center text-[10px] bg-muted/50 cursor-not-allowed" /></TableCell>
+                      <TableCell><Input type="number" value={sGrade.task1 || ""} onChange={e => handleGradeChange(s.id, 'task1', e.target.value)} className="h-8 text-center text-[10px] bg-background" /></TableCell>
+                      <TableCell><Input type="number" value={sGrade.task2 || ""} onChange={e => handleGradeChange(s.id, 'task2', e.target.value)} className="h-8 text-center text-[10px] bg-background" /></TableCell>
+                      <TableCell><Input type="number" value={sGrade.task3 || ""} onChange={e => handleGradeChange(s.id, 'task3', e.target.value)} className="h-8 text-center text-[10px] bg-background" /></TableCell>
+                      <TableCell><Input type="number" value={sGrade.groupTask || ""} onChange={e => handleGradeChange(s.id, 'groupTask', e.target.value)} className="h-8 text-center text-[10px] bg-background" /></TableCell>
+                      <TableCell><Input type="number" value={sGrade.midExam || ""} onChange={e => handleGradeChange(s.id, 'midExam', e.target.value)} className="h-8 text-center text-[10px] bg-background" /></TableCell>
+                      <TableCell><Input type="number" value={sGrade.finalExam || ""} onChange={e => handleGradeChange(s.id, 'finalExam', e.target.value)} className="h-8 text-center text-[10px] bg-background" /></TableCell>
                       <TableCell className="text-center">
                         <Badge 
                           variant={!isBelowKKM ? 'default' : 'destructive'} 
-                          className={`w-16 justify-center py-2 text-sm font-bold shadow-sm ${!isBelowKKM && sGrade.finalScore ? 'bg-green-500 hover:bg-green-600' : ''}`}
+                          className={`w-14 justify-center py-1 text-xs font-bold ${!isBelowKKM && sGrade.finalScore ? 'bg-green-500' : ''}`}
                         >
                           {sGrade.finalScore || 0}
                         </Badge>
@@ -222,13 +232,6 @@ export default function GradingPage() {
                     </TableRow>
                   )
                 })}
-                {students.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-20 text-muted-foreground italic">
-                      Tidak ada data siswa ditemukan di kelas ini.
-                    </TableCell>
-                  </TableRow>
-                )}
               </TableBody>
             </Table>
           </Card>
@@ -237,46 +240,34 @@ export default function GradingPage() {
         <div className="space-y-6">
           <Card className="bg-primary/5 border-primary/20">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-bold flex items-center gap-2 text-primary">
-                <Info className="w-4 h-4" /> Info Semester {activeSemester}
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <Info className="w-4 h-4" /> Bobot Nilai
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 text-[11px] leading-relaxed">
-              <p className="text-muted-foreground">Nilai di halaman ini hanya berlaku untuk periode <strong>Semester {activeSemester}</strong>.</p>
-              <Separator className="bg-primary/10" />
-              <div className="flex justify-between"><span>Kehadiran</span><span className="font-bold">10%</span></div>
-              <div className="flex justify-between"><span>Tugas/Harian</span><span className="font-bold">20%</span></div>
-              <div className="flex justify-between"><span>UTS</span><span className="font-bold">30%</span></div>
-              <div className="flex justify-between"><span>UAS</span><span className="font-bold">40%</span></div>
-              <div className="pt-2">
-                <Badge variant="outline" className="text-green-500 border-green-500/20 bg-green-500/5 w-full justify-center py-1.5 font-bold uppercase tracking-wider">KKM: 75</Badge>
-              </div>
+            <CardContent className="space-y-2 text-[10px] leading-relaxed">
+              <div className="flex justify-between"><span>Kehadiran (Jurnal)</span><span className="font-bold">10%</span></div>
+              <div className="flex justify-between"><span>Rata-rata Tugas</span><span className="font-bold">40%</span></div>
+              <div className="flex justify-between"><span>UTS</span><span className="font-bold">20%</span></div>
+              <div className="flex justify-between"><span>UAS</span><span className="font-bold">30%</span></div>
+              <Separator className="my-2" />
+              <p className="text-muted-foreground italic">"Nilai Absensi & Tugas dapat otomatis terisi jika Anda mencatatnya melalui menu Jurnal Mengajar."</p>
             </CardContent>
           </Card>
           
           <Card className="border-border/50 bg-card/30">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-bold">Statistik Semester {activeSemester}</CardTitle>
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <Users className="w-4 h-4 text-accent" /> Ringkasan Kelas
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Users className="w-4 h-4" /> <span>Total Murid</span>
-                </div>
-                <span className="font-bold">{students.length}</span>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Tuntas (KKM 75)</span>
+                <span className="font-bold text-green-500">{Object.values(grades).filter(g => (g.finalScore || 0) >= 75).length}</span>
               </div>
-              <Separator />
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2 text-green-500">
-                  <CheckCircle2 className="w-4 h-4" /> <span>Tuntas (&ge;75)</span>
-                </div>
-                <span className="font-bold">{Object.values(grades).filter(g => (g.finalScore || 0) >= 75 && students.some(s => s.id === g.studentId)).length}</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2 text-destructive">
-                  <AlertCircle className="w-4 h-4" /> <span>Remedial (&lt;75)</span>
-                </div>
-                <span className="font-bold">{Object.values(grades).filter(g => (g.finalScore || 0) < 75 && g.finalScore !== undefined && students.some(s => s.id === g.studentId)).length}</span>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Remedial</span>
+                <span className="font-bold text-destructive">{Object.values(grades).filter(g => (g.finalScore || 0) < 75 && g.finalScore !== undefined).length}</span>
               </div>
             </CardContent>
           </Card>
