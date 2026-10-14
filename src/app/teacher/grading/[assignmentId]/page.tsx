@@ -192,7 +192,7 @@ export default function GradingPage() {
       })
 
       autoTable(doc, {
-        head: [['No', 'Nama Murid', 'NISN', 'Absen', 'Tgs 1', 'Tgs 2', 'Tgs 3', 'Klmok', 'UTS', 'UAS', 'Total']],
+        head: [['No', 'Nama Murid', 'NISN', 'Absen', 'Tgs 1', 'Tgs 2', 'Tgs 3', 'Kelmpk', 'UTS', 'UAS', 'Total']],
         body: tableData,
         startY: 58,
         theme: 'striped',
