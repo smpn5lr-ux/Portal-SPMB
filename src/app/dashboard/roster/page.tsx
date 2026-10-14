@@ -62,7 +62,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase'
@@ -164,24 +164,37 @@ export default function RosterManagementPage() {
     })
   }, [assignments, rosterEntries])
 
-  const rosterKoding = useMemo(() => {
-    if (!assignments) return { teacherCodes: new Map(), subjectColors: new Map() };
-    const teacherCodes = new Map<string, number>();
-    const subjectColors = new Map<string, number[]>();
+  // Logic for unified codes and colors
+  const teacherCoding = useMemo(() => {
+    if (!assignments) return { teacherMap: new Map(), subjectColors: new Map() };
+    
+    const teacherMap = new Map();
+    const subjectColors = new Map();
+    
+    // Sort teachers to ensure stable numbering
     const uniqueTeachers = Array.from(new Set(assignments.map(a => a.teacherId)))
       .map(id => assignments.find(a => a.teacherId === id)!)
       .sort((a, b) => a.teacherName.localeCompare(b.teacherName));
-    uniqueTeachers.forEach((t, idx) => teacherCodes.set(t.teacherId, idx + 1));
+      
+    uniqueTeachers.forEach((t, idx) => {
+      teacherMap.set(t.teacherId, idx + 1);
+    });
+
+    // Map subjects to colors based on the palette
     const sortedAssignments = [...assignments].sort((a, b) => {
-      const nameComp = a.teacherName.localeCompare(b.teacherName);
-      if (nameComp !== 0) return nameComp;
+      const tComp = a.teacherName.localeCompare(b.teacherName);
+      if (tComp !== 0) return tComp;
       return a.subjectName.localeCompare(b.subjectName);
     });
+
     sortedAssignments.forEach((asg, idx) => {
       const key = `${asg.teacherId}_${asg.subjectId}`;
-      if (!subjectColors.has(key)) subjectColors.set(key, PALETTE[idx % PALETTE.length]);
+      if (!subjectColors.has(key)) {
+        subjectColors.set(key, PALETTE[idx % PALETTE.length]);
+      }
     });
-    return { teacherCodes, subjectColors };
+
+    return { teacherMap, subjectColors };
   }, [assignments]);
 
   const handleSyncGlobalBlocks = async () => {
@@ -235,7 +248,6 @@ export default function RosterManagementPage() {
     let filledCount = 0
     const localRoster = [...rosterEntries]
 
-    // Priority: Fill blocks first
     const unfinished = workloadStats
       .filter(w => !w.isMet)
       .sort(() => Math.random() - 0.5)
@@ -249,7 +261,6 @@ export default function RosterManagementPage() {
       for (const day of DAYS) {
         for (let p = 1; p <= MAX_PERIODS; p++) {
           if (remaining <= 0) break
-          // Don't overwrite global blocks
           if (config.break1Active && p === config.break1Period) continue
           if (config.break2Active && p === config.break2Period) continue
 
@@ -327,6 +338,146 @@ export default function RosterManagementPage() {
     return rosterEntries?.find(e => e.day === day && e.period === period && e.classId === classId)
   }
 
+  const handleDownloadUnified = async () => {
+    if (!rosterEntries || !classes || !assignments) return;
+    setIsExporting(true);
+    try {
+      const { default: jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+      const doc = new jsPDF('l', 'mm', 'a4');
+      const { teacherMap, subjectColors } = teacherCoding;
+
+      const schoolName = systemSettings?.schoolName || "SIS TERPADU";
+      const dinasName = systemSettings?.dinasName || "DINAS PENDIDIKAN";
+
+      // PAGE 1: Unified Matrix
+      doc.setFontSize(10).setFont("helvetica", "bold").setTextColor(67, 97, 238);
+      doc.text(dinasName.toUpperCase(), 148.5, 12, { align: "center" });
+      doc.text(`MATRIKS JADWAL PELAJARAN TERPADU - ${schoolName.toUpperCase()}`, 148.5, 18, { align: "center" });
+      
+      const sortedClasses = [...classes].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+      const tableHead = [['HARI', 'JAM', 'WAKTU', ...sortedClasses.map(c => c.name)]];
+      
+      const tableBody: any[] = [];
+      DAYS.forEach(day => {
+        for (let p = 1; p <= MAX_PERIODS; p++) {
+          const row = [day, p, getTimeForPeriod(p)];
+          sortedClasses.forEach(cls => {
+            const entry = getEntry(day, p, cls.id);
+            if (entry) {
+              if (entry.isActivity) {
+                row.push("REHAT");
+              } else {
+                const code = teacherMap.get(entry.teacherId);
+                row.push(code || "?");
+              }
+            } else {
+              row.push("");
+            }
+          });
+          tableBody.push(row);
+        }
+      });
+
+      autoTable(doc, {
+        head: tableHead,
+        body: tableBody,
+        startY: 25,
+        theme: 'grid',
+        styles: { fontSize: 6, cellPadding: 1, halign: 'center', valign: 'middle' },
+        headStyles: { fillColor: [67, 97, 238], textColor: [255, 255, 255], fontSize: 7 },
+        columnStyles: {
+          0: { cellWidth: 15, fillColor: [240, 240, 240] },
+          1: { cellWidth: 8 },
+          2: { cellWidth: 15 }
+        },
+        didParseCell: (data) => {
+          if (data.section === 'body' && data.column.index > 2) {
+            const day = data.row.cells[0].text[0];
+            const period = parseInt(data.row.cells[1].text[0]);
+            const cls = sortedClasses[data.column.index - 3];
+            const entry = getEntry(day, period, cls.id);
+            
+            if (entry) {
+              if (entry.isActivity) {
+                data.cell.styles.fillColor = [220, 220, 220];
+              } else {
+                const color = subjectColors.get(`${entry.teacherId}_${entry.subjectId}`);
+                if (color) data.cell.styles.fillColor = color;
+                data.cell.styles.fontStyle = 'bold';
+              }
+            }
+          }
+        },
+      });
+
+      // PAGE 2: Legend with Cross Visual
+      doc.addPage();
+      doc.setFontSize(14).setFont("helvetica", "bold").text("LEGENDA GURU & MATA PELAJARAN", 14, 20);
+      
+      const uniqueTeachers = Array.from(new Set(assignments.map(a => a.teacherId)))
+        .map(id => {
+          const tAsgs = assignments.filter(a => a.teacherId === id);
+          const distinctSubjects = Array.from(new Set(tAsgs.map(a => a.subjectName)));
+          return {
+            id,
+            name: tAsgs[0].teacherName,
+            subjects: distinctSubjects,
+            subjectIds: Array.from(new Set(tAsgs.map(a => a.subjectId))),
+            code: teacherMap.get(id)
+          };
+        })
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      autoTable(doc, {
+        head: [['KODE', 'NAMA GURU', 'MATA PELAJARAN']],
+        body: uniqueTeachers.map(t => [t.code, t.name, t.subjects.join(", ")]),
+        startY: 30,
+        theme: 'grid',
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: [67, 97, 238] },
+        columnStyles: { 0: { cellWidth: 20, halign: 'center' }, 1: { cellWidth: 80 } },
+        didDrawCell: (data) => {
+          if (data.section === 'body' && data.column.index === 0) {
+            const t = uniqueTeachers[data.row.index];
+            const x = data.cell.x + 2;
+            const y = data.cell.y + 2;
+            const size = data.cell.width - 4;
+            
+            if (t.subjectIds.length >= 2) {
+              const color1 = subjectColors.get(`${t.id}_${t.subjectIds[0]}`);
+              const color2 = subjectColors.get(`${t.id}_${t.subjectIds[1]}`);
+              
+              if (color1) {
+                doc.setFillColor(color1[0], color1[1], color1[2]);
+                doc.triangle(x, y, x + size, y, x, y + size, 'F');
+              }
+              if (color2) {
+                doc.setFillColor(color2[0], color2[1], color2[2]);
+                doc.triangle(x + size, y, x + size, y + size, x, y + size, 'F');
+              }
+              doc.setDrawColor(0).rect(x, y, size, size);
+              doc.setTextColor(0).setFontSize(8).text(t.code.toString(), x + size/2, y + size/2 + 2, { align: 'center' });
+            } else {
+              const color = subjectColors.get(`${t.id}_${t.subjectIds[0]}`);
+              if (color) doc.setFillColor(color[0], color[1], color[2]);
+              doc.rect(x, y, size, size, 'F');
+              doc.setDrawColor(0).rect(x, y, size, size);
+              doc.setTextColor(0).setFontSize(8).text(t.code.toString(), x + size/2, y + size/2 + 2, { align: 'center' });
+            }
+          }
+        }
+      });
+
+      doc.save(`Roster_Matriks_Terpadu_${schoolName}.pdf`);
+    } catch (e) {
+      console.error(e);
+      toast({ variant: "destructive", title: "Gagal unduh" });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   if (loadingR || loadingConfigDoc) return <div className="flex justify-center py-24"><Loader2 className="animate-spin text-primary" /></div>
 
   return (
@@ -345,6 +496,17 @@ export default function RosterManagementPage() {
             {isAutoGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
             Generate Otomatis
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2 border-primary/30">
+                <Download className="w-4 h-4" /> Unduh Roster <ChevronDown className="w-3 h-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={handleDownloadUnified}>Format Matriks Terpadu (2 Hal)</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => toast({ title: "Segera Hadir" })}>Format Per Kelas (PDF)</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button onClick={() => setIsAddOpen(true)} className="gap-2 shadow-lg shadow-primary/20"><Plus className="w-4 h-4" /> Plot Jadwal</Button>
         </div>
       </div>
