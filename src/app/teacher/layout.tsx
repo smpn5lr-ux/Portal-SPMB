@@ -8,7 +8,9 @@ import {
   Menu,
   BookCheck,
   LayoutDashboard,
-  UserCircle
+  UserCircle,
+  CalendarDays,
+  ChevronRight
 } from "lucide-react"
 import { 
   Sidebar, 
@@ -25,7 +27,7 @@ import {
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase"
 import { signOut } from "firebase/auth"
 import { doc, collection, query, where } from "firebase/firestore"
@@ -34,6 +36,7 @@ import { Staff } from "@/lib/types"
 export default function TeacherLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const auth = useAuth()
   const db = useFirestore()
   const { user, loading: userLoading } = useUser()
@@ -47,6 +50,9 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
   }, [db, user])
 
   const { data: staffData, loading: staffLoading } = useCollection<Staff>(staffQuery)
+
+  // Ambil semester dari URL atau default dari sistem
+  const selectedSemester = searchParams.get('semester') || config?.activeSemester?.toString() || "1"
 
   React.useEffect(() => {
     if (!userLoading && !user) router.push('/login')
@@ -66,7 +72,6 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
     </div>
   )
 
-  // Logika Filter: Paksa SIS TERPADU jika di DB masih tersimpan nama lama
   const appName = (config?.appName && config.appName !== "PORTAL SPMB") ? config.appName : "SIS TERPADU"
   const appLogoUrl = config?.appLogoUrl || "/icon-logo.webp"
 
@@ -92,16 +97,49 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
             </div>
           </SidebarHeader>
           <SidebarContent className="px-2 py-4">
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={pathname === '/teacher'}>
-                  <Link href="/teacher" className="flex items-center gap-3">
-                    <LayoutDashboard className="w-5 h-5" />
-                    <span>Dasbor Pengajar</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
+            <div className="space-y-6">
+              <div>
+                <p className="px-3 mb-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Utama</p>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={pathname === '/teacher' && !searchParams.has('semester')}>
+                      <Link href="/teacher" className="flex items-center gap-3">
+                        <LayoutDashboard className="w-5 h-5" />
+                        <span>Dasbor Pengajar</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </div>
+
+              <div>
+                <p className="px-3 mb-2 text-[10px] font-bold text-primary uppercase tracking-widest">Buku Nilai (Semester)</p>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={selectedSemester === "1"}>
+                      <Link href={`/teacher?semester=1`} className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-3">
+                          <CalendarDays className="w-5 h-5" />
+                          <span>Semester 1 (Ganjil)</span>
+                        </div>
+                        {selectedSemester === "1" && <ChevronRight className="w-3 h-3 text-primary" />}
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={selectedSemester === "2"}>
+                      <Link href={`/teacher?semester=2`} className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-3">
+                          <CalendarDays className="w-5 h-5" />
+                          <span>Semester 2 (Genap)</span>
+                        </div>
+                        {selectedSemester === "2" && <ChevronRight className="w-3 h-3 text-primary" />}
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </div>
+            </div>
           </SidebarContent>
           <SidebarFooter className="p-4 border-t border-border">
             <SidebarMenu>
@@ -121,7 +159,10 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
           <header className="h-16 border-b flex items-center justify-between px-6 bg-card/40 backdrop-blur-sm sticky top-0 z-10">
             <div className="flex items-center gap-4">
               <SidebarTrigger className="lg:hidden" />
-              <h2 className="font-bold hidden sm:block">Selamat Datang, Guru {user?.displayName}</h2>
+              <div className="flex flex-col">
+                <h2 className="font-bold hidden sm:block text-sm">Selamat Datang, Guru {user?.displayName}</h2>
+                <p className="text-[10px] text-muted-foreground uppercase font-bold">Periode: Semester {selectedSemester}</p>
+              </div>
             </div>
             <div className="flex items-center gap-3">
                <div className="text-right hidden md:block">
