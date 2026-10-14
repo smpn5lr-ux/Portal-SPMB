@@ -10,9 +10,7 @@ import {
   CheckCircle2, 
   AlertCircle,
   Users,
-  User,
   Info,
-  Calculator,
   Search
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -29,7 +27,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { useUser, useFirestore, useMemoFirebase, useCollection, useDoc } from "@/firebase"
-import { collection, query, where, doc, setDoc, writeBatch } from "firebase/firestore"
+import { collection, query, where, doc, writeBatch } from "firebase/firestore"
 import { TeacherAssignment, Applicant, Classroom, Assessment } from "@/lib/types"
 import { useToast } from '@/hooks/use-toast'
 
@@ -37,6 +35,7 @@ export default function GradingPage() {
   const { assignmentId } = useParams()
   const router = useRouter()
   const db = useFirestore()
+  const { user } = useUser()
   const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -49,11 +48,11 @@ export default function GradingPage() {
   const classRef = useMemoFirebase(() => db && assignment ? doc(db, 'classes', assignment.classId) : null, [db, assignment])
   const { data: classroom, loading: loadingC } = useDoc<Classroom>(classRef)
 
-  // Ambil Semua Murid yang diterima (untuk difilter lokal guna menghindari limit 'in' Firestore)
+  // Ambil Semua Murid yang diterima
   const studentsQuery = useMemoFirebase(() => {
-    if (!db) return null
+    if (!db || !user) return null // Tunggu user terautentikasi
     return query(collection(db, 'applicants'), where('admissionStatus', '==', 'accepted'))
-  }, [db])
+  }, [db, user])
   const { data: allAcceptedStudents, loading: loadingS } = useCollection<Applicant>(studentsQuery)
 
   // Filter murid yang hanya ada di kelas ini
@@ -67,9 +66,9 @@ export default function GradingPage() {
 
   // Ambil Nilai yang Sudah Ada
   const assessmentsQuery = useMemoFirebase(() => {
-    if (!db) return null
+    if (!db || !user || !assignmentId) return null
     return query(collection(db, 'assessments'), where('assignmentId', '==', assignmentId))
-  }, [db, assignmentId])
+  }, [db, user, assignmentId])
   const { data: existingAssessments } = useCollection<Assessment>(assessmentsQuery)
 
   // Local State untuk Form Nilai
@@ -128,7 +127,12 @@ export default function GradingPage() {
     }
   }
 
-  if (loadingA || loadingC || loadingS) return <div className="flex justify-center py-20"><Loader2 className="animate-spin" /></div>
+  if (loadingA || loadingC || loadingS) return (
+    <div className="flex flex-col items-center justify-center py-24 gap-4">
+      <Loader2 className="animate-spin text-primary w-8 h-8" />
+      <p className="text-sm text-muted-foreground animate-pulse">Menyiapkan buku nilai...</p>
+    </div>
+  )
 
   return (
     <div className="space-y-6">
@@ -136,9 +140,9 @@ export default function GradingPage() {
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full border"><ArrowLeft className="w-4 h-4" /></Button>
           <div>
-            <h1 className="text-2xl font-bold">{assignment?.subjectName}</h1>
+            <h1 className="text-2xl font-bold">{assignment?.subjectName || "Mata Pelajaran"}</h1>
             <p className="text-muted-foreground text-sm font-bold uppercase tracking-widest text-primary flex items-center gap-2">
-              Kelas {classroom?.name} <span className="text-xs text-muted-foreground/50">|</span> <Users className="w-3 h-3" /> {students.length} Siswa
+              Kelas {classroom?.name || "-"} <span className="text-xs text-muted-foreground/50">|</span> <Users className="w-3 h-3" /> {students.length} Siswa
             </p>
           </div>
         </div>
@@ -237,14 +241,14 @@ export default function GradingPage() {
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2 text-muted-foreground">
-                  <Users className="w-4 h-4" /> <span>Total Murid</span>
+                  <Users className="w-4 h-4 text-muted-foreground" /> <span>Total Murid</span>
                 </div>
                 <span className="font-bold">{students.length}</span>
               </div>
               <Separator />
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2 text-green-500">
-                  <CheckCircle2 className="w-4 h-4" /> <span>Tuntas (≥75)</span>
+                  <CheckCircle2 className="w-4 h-4" /> <span>Tuntas (&ge;75)</span>
                 </div>
                 <span className="font-bold">{Object.values(grades).filter(g => (g.finalScore || 0) >= 75 && students.some(s => s.id === g.studentId)).length}</span>
               </div>

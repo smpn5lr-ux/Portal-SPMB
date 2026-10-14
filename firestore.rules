@@ -7,42 +7,42 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Aturan default: akses penuh jika terautentikasi (Administrator)
+    // Aturan default: akses penuh jika terautentikasi (Administrator/Staf/Guru)
+    // Komentar pemicu redeploy: Memperbarui izin eksplisit untuk kueri list pada koleksi penilaian dan akademik
     match /{document=**} {
       allow read, write: if isAuthenticated();
     }
     
-    // Aturan spesifik untuk koleksi applicants
+    // Aturan spesifik untuk koleksi applicants (Read publik untuk cek status, Write harus login)
     match /applicants/{applicantId} {
       allow read: if true;
       allow write: if isAuthenticated();
     }
     
-    // Aturan spesifik untuk pengaturan sistem
+    // Aturan spesifik untuk pengaturan sistem (Read publik untuk branding aplikasi)
     match /settings/{settingId} {
       allow read: if true;
       allow write: if isAuthenticated();
     }
 
-    // Aturan spesifik untuk data akademik dan penilaian
-    // Komentar pemicu redeploy: Menambahkan izin eksplisit untuk modul penilaian guru dan manajemen kurikulum
-    match /staff/{staffId} {
+    // Aturan eksplisit untuk koleksi penilaian dan penugasan guna mencegah error 'list'
+    match /assessments/{docId} {
       allow read, write: if isAuthenticated();
     }
 
-    match /classes/{classId} {
+    match /teacherAssignments/{docId} {
       allow read, write: if isAuthenticated();
     }
 
-    match /subjects/{subjectId} {
+    match /classes/{docId} {
       allow read, write: if isAuthenticated();
     }
 
-    match /teacherAssignments/{assignmentId} {
+    match /staff/{docId} {
       allow read, write: if isAuthenticated();
     }
 
-    match /assessments/{assessmentId} {
+    match /subjects/{docId} {
       allow read, write: if isAuthenticated();
     }
   }
