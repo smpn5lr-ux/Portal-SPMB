@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -91,8 +92,8 @@ export default function LoginPage() {
 
   if (authLoading) return null
 
-  // Logika Filter: Jika nama di DB masih "PORTAL SPMB", paksa tampilkan "SIS TERPADU"
-  const appName = (config?.appName && config.appName !== "PORTAL SPMB") ? config.appName : "SIS TERPADU"
+  // Force renaming logic
+  const appName = (config?.appName && config.appName.toUpperCase() !== "PORTAL SPMB") ? config.appName : "SIS TERPADU"
   const appLogoUrl = config?.appLogoUrl || "/icon-logo.webp"
 
   return (

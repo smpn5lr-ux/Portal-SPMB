@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -143,10 +144,10 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   if (!user) return null
 
-  // Logika Filter: Jika nama di DB masih "PORTAL SPMB", paksa tampilkan "SIS TERPADU"
-  const appName = (config?.appName && config.appName !== "PORTAL SPMB") ? config.appName : "SIS TERPADU"
+  // Force renaming: Ganti PORTAL SPMB dengan SIS TERPADU secara permanen
+  const appName = (config?.appName && config.appName.toUpperCase() !== "PORTAL SPMB") ? config.appName : "SIS TERPADU"
   const appLogoUrl = config?.appLogoUrl || "/icon-logo.webp"
-  const isSPMBEnabled = config?.enableSPMB !== false; // Default true if not set
+  const isSPMBEnabled = config?.enableSPMB !== false;
 
   // Grouped Navigation
   const academicNav = [
@@ -214,7 +215,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
             {isSPMBEnabled && (
               <div>
-                <p className="px-3 mb-2 text-[10px] font-bold text-primary uppercase tracking-widest">Portal Pendaftaran (PPDB)</p>
+                <p className="px-3 mb-2 text-[10px] font-bold text-primary uppercase tracking-widest">Fitur Pendaftaran</p>
                 <SidebarMenu>
                   {spmbNav.map((item) => (
                     <SidebarMenuItem key={item.name}>

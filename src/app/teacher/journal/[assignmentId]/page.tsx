@@ -92,7 +92,7 @@ export default function TeachingJournalPage() {
   }, [allAcceptedStudents, classroom])
 
   const journalQuery = useMemoFirebase(() => {
-    // KRITIKAL: Jangan jalankan query jika user/db belum siap untuk mencegah FirestorePermissionError
+    // KRITIKAL: Guard query agar tidak dijalankan sebelum user terautentikasi (Mencegah Permission Error)
     if (!db || !assignmentId || userLoading || !user) return null
     return query(
       collection(db, 'journals'), 

@@ -2,35 +2,40 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Terakhir diperbarui: 2024-05-21 (Sinkronisasi Izin Koleksi Jurnal & Akademik)
+    // Sinkronisasi Izin Terpusat - Update: 2024-05-21 17:00
     
     // Fungsi pembantu untuk memverifikasi autentikasi pengguna
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Aturan eksplisit untuk koleksi akademik guna mencegah error 'list' atau 'permission denied'
-    match /journals/{docId} {
+    // Aturan eksplisit untuk koleksi journals (Mencegah FirestorePermissionError: list)
+    match /journals/{document=**} {
       allow read, write: if isAuthenticated();
     }
 
-    match /assessments/{docId} {
+    // Aturan eksplisit untuk koleksi assessments
+    match /assessments/{document=**} {
       allow read, write: if isAuthenticated();
     }
 
-    match /teacherAssignments/{docId} {
+    // Aturan eksplisit untuk koleksi teacherAssignments
+    match /teacherAssignments/{document=**} {
       allow read, write: if isAuthenticated();
     }
 
-    match /classes/{docId} {
+    // Aturan eksplisit untuk koleksi classes
+    match /classes/{document=**} {
       allow read, write: if isAuthenticated();
     }
 
-    match /staff/{docId} {
+    // Aturan eksplisit untuk koleksi staff
+    match /staff/{document=**} {
       allow read, write: if isAuthenticated();
     }
 
-    match /subjects/{docId} {
+    // Aturan eksplisit untuk koleksi subjects
+    match /subjects/{document=**} {
       allow read, write: if isAuthenticated();
     }
     

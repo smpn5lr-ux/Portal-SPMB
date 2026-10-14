@@ -88,7 +88,7 @@ export default function SettingsPage() {
     dinasName: "DINAS PENDIDIKAN",
     npsn: "00000000",
     academicYear: "2024/2025",
-    activeSemester: "1",
+    activeSemester: 1,
     totalQuota: 250,
     quotaZonasi: 50,
     quotaPrestasi: 30,
@@ -104,7 +104,8 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (config) {
-      const filteredAppName = config.appName === "PORTAL SPMB" ? "SIS TERPADU" : (config.appName || "SIS TERPADU");
+      // Force renaming: Ganti PORTAL SPMB dengan SIS TERPADU
+      const filteredAppName = (config.appName && config.appName.toUpperCase() === "PORTAL SPMB") ? "SIS TERPADU" : (config.appName || "SIS TERPADU");
       setLocalConfig({
         ...localConfig,
         ...config,
@@ -153,33 +154,6 @@ export default function SettingsPage() {
     }
     reader.readAsDataURL(file)
   }
-
-  const handleQuotaChange = (key: string, newValue: number) => {
-    const keys = ["quotaZonasi", "quotaPrestasi", "quotaAfirmasi", "quotaPerpindahan"];
-    const otherKeys = keys.filter(k => k !== key);
-    const remaining = 100 - newValue;
-    const othersTotal = otherKeys.reduce((sum, k) => sum + (localConfig[k] || 0), 0);
-    let updatedConfig = { ...localConfig, [key]: newValue };
-
-    if (othersTotal === 0) {
-      const share = Math.floor(remaining / otherKeys.length);
-      otherKeys.forEach((k, i) => {
-        updatedConfig[k] = i === otherKeys.length - 1 ? remaining - (share * (otherKeys.length - 1)) : share;
-      });
-    } else {
-      let currentSum = newValue;
-      otherKeys.forEach((k, i) => {
-        if (i === otherKeys.length - 1) {
-          updatedConfig[k] = Math.max(0, 100 - currentSum);
-        } else {
-          const share = Math.round((localConfig[k] / othersTotal) * remaining);
-          updatedConfig[k] = share;
-          currentSum += share;
-        }
-      });
-    }
-    setLocalConfig(updatedConfig);
-  };
 
   const handleSaveConfig = () => {
     if (!db || !settingsRef) return
@@ -403,6 +377,40 @@ export default function SettingsPage() {
         </div>
 
         <div className="space-y-6">
+          <Card className="border-border/50 bg-primary/5">
+            <CardHeader>
+               <CardTitle className="text-sm font-bold flex items-center gap-2">
+                 <MapPin className="w-4 h-4" /> Wilayah Zonasi
+               </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Input 
+                  placeholder="Nama sekolah asal..." 
+                  value={newSchool}
+                  onChange={(e) => setNewSchool(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddSchool()}
+                />
+                <Button size="icon" onClick={handleAddSchool}><Plus className="w-4 h-4" /></Button>
+              </div>
+              <div className="flex flex-wrap gap-2 max-h-60 overflow-y-auto p-1">
+                {localSchools.map((s) => (
+                  <Badge key={s} variant="secondary" className="pl-3 pr-1 py-1 gap-1 group">
+                    {s}
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="w-4 h-4 p-0 opacity-0 group-hover:opacity-100 hover:text-destructive transition-all"
+                      onClick={() => handleRemoveSchoolConfirm(s)}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </Badge>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
           <Card className="border-border/50 bg-primary/5">
             <CardContent className="p-6">
               <div className="flex items-start gap-4">
