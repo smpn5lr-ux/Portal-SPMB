@@ -11,16 +11,21 @@ import {
   Loader2,
   Backpack,
   CalendarDays,
-  FileText
+  FileText,
+  Clock,
+  ArrowRight
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { useUser, useFirestore, useMemoFirebase, useCollection, useDoc } from "@/firebase"
 import { collection, query, where, doc } from "firebase/firestore"
-import { TeacherAssignment, Staff } from "@/lib/types"
+import { TeacherAssignment, Staff, RosterEntry } from "@/lib/types"
+import { format, parse, addMinutes } from 'date-fns'
+import { id as localeId } from 'date-fns/locale'
 
 export default function TeacherDashboard() {
   const { user } = useUser()
@@ -28,9 +33,11 @@ export default function TeacherDashboard() {
   const searchParams = useSearchParams()
 
   const settingsRef = useMemoFirebase(() => db ? doc(db, 'settings', 'system') : null, [db])
+  const rosterConfigRef = useMemoFirebase(() => db ? doc(db, 'settings', 'roster') : null, [db])
+  
   const { data: config } = useDoc<any>(settingsRef)
+  const { data: rosterConfig } = useDoc<any>(rosterConfigRef)
 
-  // Ambil semester dari URL atau default sistem
   const selectedSemester = searchParams.get('semester') || config?.activeSemester?.toString() || "1"
 
   const staffQuery = useMemoFirebase(() => {
@@ -46,17 +53,43 @@ export default function TeacherDashboard() {
     return query(collection(db, 'teacherAssignments'), where('teacherId', '==', teacherId))
   }, [db, teacherId])
 
-  const { data: assignments, loading } = useCollection<TeacherAssignment>(assignmentsQuery)
+  const rosterQuery = useMemoFirebase(() => {
+    if (!db || !teacherId) return null
+    return query(collection(db, 'rosterEntries'), where('teacherId', '==', teacherId))
+  }, [db, teacherId])
 
-  if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-primary" /></div>
+  const { data: assignments, loading: loadingA } = useCollection<TeacherAssignment>(assignmentsQuery)
+  const { data: rosters, loading: loadingR } = useCollection<RosterEntry>(rosterQuery)
+
+  const today = format(new Date(), 'eeee', { locale: localeId }) // Senin, Selasa, dll
+  const todaySchedule = useMemo(() => {
+    if (!rosters) return []
+    return rosters
+      .filter(r => r.day === today)
+      .sort((a, b) => a.period - b.period)
+  }, [rosters, today])
+
+  const getTimeForPeriod = (period: number) => {
+    if (!rosterConfig) return "-"
+    let current = parse(rosterConfig.entryTime, 'HH:mm', new Date())
+    for (let i = 1; i < period; i++) {
+      current = addMinutes(current, rosterConfig.jpDuration)
+      const isBreak = rosterConfig.breakTimes?.find((b: any) => b.periodAfter === i)
+      if (isBreak) current = addMinutes(current, isBreak.duration)
+    }
+    const end = addMinutes(current, rosterConfig.jpDuration)
+    return `${format(current, 'HH:mm')} - ${format(end, 'HH:mm')}`
+  }
+
+  if (loadingA || loadingR) return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-primary" /></div>
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-headline font-bold">Mata Pelajaran Anda</h1>
+          <h1 className="text-3xl font-headline font-bold">Halo, Guru {user?.displayName}</h1>
           <p className="text-muted-foreground mt-1">
-            Mengelola nilai & jurnal untuk <span className="text-primary font-bold">Semester {selectedSemester}</span>
+            Selamat datang di Portal Pengajar <span className="text-primary font-bold">Semester {selectedSemester}</span>
           </p>
         </div>
         <div className="flex gap-2">
@@ -71,46 +104,92 @@ export default function TeacherDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {assignments?.map((a) => (
-          <Card key={a.id} className="border-border/50 transition-all shadow-sm hover:shadow-md h-full bg-card/40 backdrop-blur-sm relative group">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <Badge className="bg-primary/20 text-primary border-none text-[10px] font-bold">KELAS {a.className}</Badge>
-                <div className="bg-muted p-2 rounded-lg">
-                  <Star className="w-4 h-4 text-muted-foreground fill-current" />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Kolom Jadwal Hari Ini */}
+        <div className="lg:col-span-1">
+          <Card className="border-border/50 bg-primary/5 h-full relative overflow-hidden">
+             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
+             <CardHeader>
+                <div className="flex items-center justify-between">
+                   <CardTitle className="text-lg flex items-center gap-2"><Clock className="w-5 h-5 text-primary" /> Jadwal Hari Ini</CardTitle>
+                   <Badge className="bg-primary text-primary-foreground">{today}</Badge>
                 </div>
-              </div>
-              <CardTitle className="text-xl font-headline mt-4">{a.subjectName}</CardTitle>
-              <CardDescription className="text-xs uppercase tracking-widest font-bold text-muted-foreground/60">Tingkat Menengah Pertama</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                <Button asChild variant="outline" size="sm" className="gap-2 h-10 border-primary/20 hover:bg-primary/5">
-                  <Link href={`/teacher/grading/${a.id}?semester=${selectedSemester}`}>
-                    <ClipboardCheck className="w-4 h-4 text-primary" /> Buku Nilai
-                  </Link>
+                <CardDescription>Urutan mengajar Anda hari ini.</CardDescription>
+             </CardHeader>
+             <CardContent className="space-y-4">
+                {todaySchedule.length === 0 ? (
+                  <div className="py-12 text-center flex flex-col items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                       <Star className="w-6 h-6 text-muted-foreground opacity-20" />
+                    </div>
+                    <p className="text-xs text-muted-foreground italic">Tidak ada jadwal mengajar hari ini.</p>
+                  </div>
+                ) : (
+                  todaySchedule.map((s, idx) => (
+                    <div key={s.id} className="relative pl-6 border-l-2 border-primary/20 group hover:border-primary transition-all">
+                       <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-background border-2 border-primary group-hover:scale-125 transition-transform"></div>
+                       <div className="flex flex-col gap-1">
+                          <div className="flex items-center justify-between">
+                             <span className="text-[10px] font-bold text-primary uppercase tracking-tighter">JAM KE-{s.period} • {getTimeForPeriod(s.period)}</span>
+                             <Badge variant="outline" className="text-[8px] h-4">KELAS {s.className}</Badge>
+                          </div>
+                          <span className="font-bold text-sm">{s.subjectName}</span>
+                       </div>
+                       {idx < todaySchedule.length - 1 && <Separator className="my-4 opacity-50" />}
+                    </div>
+                  ))
+                )}
+                
+                <Button asChild variant="outline" className="w-full mt-4 text-xs gap-2 border-primary/20">
+                  <Link href="/teacher?roster=all">Lihat Jadwal Mingguan <ArrowRight className="w-3 h-3" /></Link>
                 </Button>
-                <Button asChild variant="outline" size="sm" className="gap-2 h-10 border-accent/20 hover:bg-accent/5">
-                  <Link href={`/teacher/journal/${a.id}?semester=${selectedSemester}`}>
-                    <FileText className="w-4 h-4 text-accent" /> Jurnal
-                  </Link>
-                </Button>
-              </div>
-              <div className="p-2 rounded-lg bg-muted/20 text-center">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Aktivitas Terakhir</p>
-                <p className="text-[11px] font-medium text-foreground">Semester {selectedSemester}</p>
-              </div>
-            </CardContent>
+             </CardContent>
           </Card>
-        ))}
-        {assignments?.length === 0 && (
-          <div className="col-span-full py-20 text-center border-2 border-dashed rounded-2xl bg-muted/20">
-            <Backpack className="w-12 h-12 mx-auto text-muted-foreground opacity-20 mb-4" />
-            <h3 className="text-xl font-bold">Belum Ada Penugasan</h3>
-            <p className="text-muted-foreground">Hubungi Admin untuk plotting jadwal mengajar Anda.</p>
-          </div>
-        )}
+        </div>
+
+        {/* Kolom Daftar Mata Pelajaran */}
+        <div className="lg:col-span-2 space-y-6">
+           <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+             <BookOpen className="w-4 h-4" /> Mata Pelajaran Anda
+           </h2>
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {assignments?.map((a) => (
+                <Card key={a.id} className="border-border/50 transition-all shadow-sm hover:shadow-md bg-card/40 backdrop-blur-sm relative group h-full">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <Badge className="bg-primary/20 text-primary border-none text-[10px] font-bold uppercase">KELAS {a.className}</Badge>
+                      <div className="bg-muted p-2 rounded-lg">
+                        <Star className="w-4 h-4 text-muted-foreground fill-current" />
+                      </div>
+                    </div>
+                    <CardTitle className="text-xl font-headline mt-4">{a.subjectName}</CardTitle>
+                    <CardDescription className="text-xs uppercase tracking-widest font-bold text-muted-foreground/60">Tingkat Menengah Pertama</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button asChild variant="outline" size="sm" className="gap-2 h-10 border-primary/20 hover:bg-primary/5">
+                        <Link href={`/teacher/grading/${a.id}?semester=${selectedSemester}`}>
+                          <ClipboardCheck className="w-4 h-4 text-primary" /> Buku Nilai
+                        </Link>
+                      </Button>
+                      <Button asChild variant="outline" size="sm" className="gap-2 h-10 border-accent/20 hover:bg-accent/5">
+                        <Link href={`/teacher/journal/${a.id}?semester=${selectedSemester}`}>
+                          <FileText className="w-4 h-4 text-accent" /> Jurnal
+                        </Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              {assignments?.length === 0 && (
+                <div className="col-span-full py-20 text-center border-2 border-dashed rounded-2xl bg-muted/20">
+                  <Backpack className="w-12 h-12 mx-auto text-muted-foreground opacity-20 mb-4" />
+                  <h3 className="text-xl font-bold">Belum Ada Penugasan</h3>
+                  <p className="text-muted-foreground">Hubungi Admin/Kurikulum untuk plotting jadwal mengajar Anda.</p>
+                </div>
+              )}
+           </div>
+        </div>
       </div>
     </div>
   )

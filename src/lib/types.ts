@@ -3,7 +3,7 @@ export type AdmissionPath = 'Zonasi' | 'Prestasi' | 'Afirmasi' | 'Perpindahan Or
 export type VerificationStatus = 'Belum Diverifikasi' | 'Lengkap' | 'Perlu Perbaikan' | 'Ditolak';
 export type AdmissionStatus = 'accepted' | 'waitlisted' | 'rejected' | 'pending';
 export type WelfareType = 'PIP' | 'PKH' | 'KKS' | 'KPS' | 'Tidak Ada';
-export type UserRole = 'Admin' | 'Pegawai' | 'Guru';
+export type UserRole = 'Admin' | 'Pegawai' | 'Guru' | 'Kurikulum';
 
 export interface Applicant {
   id: string;
@@ -117,8 +117,8 @@ export interface Journal {
   learningGoal: string;
   material: string;
   kktpAchievement: string;
-  absentStudents: string[]; // Daftar ID siswa berstatus 'A' (Alfa) untuk hitungan nilai
-  attendanceDetail: Record<string, 'H' | 'S' | 'I' | 'A'>; // Detail status per siswa
+  absentStudents: string[];
+  attendanceDetail: Record<string, 'H' | 'S' | 'I' | 'A'>;
   hasTask: boolean;
   taskType: 'task1' | 'task2' | 'task3' | 'groupTask' | null;
   taskScores?: Record<string, number>;
@@ -141,4 +141,22 @@ export interface Assessment {
   finalExam: number;
   finalScore: number;
   updatedAt: string;
+}
+
+export interface RosterEntry {
+  id: string;
+  day: string;
+  period: number; // Jam ke-1, 2, dll
+  classId: string;
+  className: string;
+  teacherId: string;
+  teacherName: string;
+  subjectId: string;
+  subjectName: string;
+}
+
+export interface RosterConfig {
+  entryTime: string; // 07:00
+  jpDuration: number; // 40 menit
+  breakTimes: { periodAfter: number; duration: number }[]; // istirahat setelah jam ke-4 selama 15 menit
 }

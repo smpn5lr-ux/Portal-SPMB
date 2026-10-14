@@ -21,7 +21,8 @@ import {
   Menu,
   BookOpen,
   UserCheck,
-  GraduationCap
+  GraduationCap,
+  CalendarClock
 } from "lucide-react"
 import { 
   Sidebar, 
@@ -143,16 +144,19 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   if (!user) return null
 
-  // FORCE SIS TERPADU BRANDING - NO DATABASE OVERRIDE FOR NAME
   const appName = "SIS TERPADU"
   const appLogoUrl = config?.appLogoUrl || "/icon-logo.webp"
   const isSPMBEnabled = config?.enableSPMB !== false;
+  
+  const userRole = staffData?.[0]?.role || 'Administrator'
+  const isKurikulum = userRole === 'Kurikulum' || userRole === 'Admin'
 
   const academicNav = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Manajemen Kelas', href: '/dashboard/classes', icon: School },
     { name: 'Kurikulum & Mapel', href: '/dashboard/subjects', icon: BookOpen },
     { name: 'Penugasan Guru', href: '/dashboard/assignments', icon: UserCheck },
+    ...(isKurikulum ? [{ name: 'Manajemen Roster', href: '/dashboard/roster', icon: CalendarClock }] : []),
     { name: 'Manajemen Pegawai', href: '/dashboard/staff', icon: UserPlus },
     { name: 'Laporan', href: '/dashboard/reports', icon: BarChart3 },
   ]
@@ -180,7 +184,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             </div>
             <div className="flex flex-col overflow-hidden">
               <span className="font-headline font-bold text-lg tracking-tight uppercase line-clamp-1">{appName}</span>
-              <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Administrator</span>
+              <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{userRole}</span>
             </div>
           </div>
         </SidebarHeader>
@@ -302,7 +306,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 <span className="text-sm font-semibold group-hover:text-primary transition-colors">
                   {user?.displayName || 'Admin'}
                 </span>
-                <span className="text-[10px] text-primary font-bold uppercase tracking-widest">{staffData?.[0]?.role || 'Administrator'}</span>
+                <span className="text-[10px] text-primary font-bold uppercase tracking-widest">{userRole}</span>
               </div>
               <div className="w-9 h-9 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary overflow-hidden relative">
                 {user?.photoURL ? (

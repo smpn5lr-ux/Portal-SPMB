@@ -72,7 +72,7 @@ import { FirestorePermissionError } from '@/firebase/errors'
 const staffFormSchema = z.object({
   fullName: z.string().min(2, "Nama minimal 2 karakter"),
   email: z.string().email("Format email tidak valid"),
-  role: z.enum(['Admin', 'Pegawai', 'Guru']),
+  role: z.enum(['Admin', 'Pegawai', 'Guru', 'Kurikulum']),
   phone: z.string().optional(),
 })
 
@@ -208,6 +208,7 @@ export default function StaffManagementPage() {
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="Admin">Admin (Penuh)</SelectItem>
+                        <SelectItem value="Kurikulum">Kurikulum (Jadwal & Akademik)</SelectItem>
                         <SelectItem value="Pegawai">Pegawai (Operasional)</SelectItem>
                         <SelectItem value="Guru">Guru (Pengajar & Nilai)</SelectItem>
                       </SelectContent>
@@ -265,7 +266,7 @@ export default function StaffManagementPage() {
                       <div>
                         <div className="font-medium">{staff.fullName}</div>
                         <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
-                          {staff.role === 'Guru' ? 'PENGAJAR' : 'STAF SEKOLAH'}
+                          {staff.role === 'Guru' ? 'PENGAJAR' : staff.role === 'Kurikulum' ? 'BAGIAN KURIKULUM' : 'STAF SEKOLAH'}
                         </div>
                       </div>
                     </div>
@@ -283,8 +284,8 @@ export default function StaffManagementPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={staff.role === 'Admin' ? 'default' : staff.role === 'Guru' ? 'secondary' : 'outline'} className="text-[10px] font-bold uppercase">
-                      {staff.role === 'Guru' ? <GraduationCap className="w-3 h-3 mr-1" /> : <ShieldCheck className="w-3 h-3 mr-1" />}
+                    <Badge variant={staff.role === 'Admin' ? 'default' : staff.role === 'Guru' || staff.role === 'Kurikulum' ? 'secondary' : 'outline'} className="text-[10px] font-bold uppercase">
+                      {staff.role === 'Guru' || staff.role === 'Kurikulum' ? <GraduationCap className="w-3 h-3 mr-1" /> : <ShieldCheck className="w-3 h-3 mr-1" />}
                       {staff.role}
                     </Badge>
                   </TableCell>

@@ -90,68 +90,25 @@
       "properties": {
         "fullName": { "type": "string" },
         "email": { "type": "string" },
-        "role": { "type": "string", "enum": ["Admin", "Pegawai", "Guru"] },
+        "role": { "type": "string", "enum": ["Admin", "Pegawai", "Guru", "Kurikulum"] },
         "phone": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["fullName", "email", "role"]
     },
-    "Subject": {
-      "title": "Subject",
-      "description": "Educational subjects taught in school.",
+    "RosterEntry": {
+      "title": "RosterEntry",
+      "description": "A single entry in the school schedule.",
       "type": "object",
       "properties": {
-        "name": { "type": "string" },
-        "code": { "type": "string" },
-        "grade": { "type": "number" }
-      },
-      "required": ["name"]
-    },
-    "TeacherAssignment": {
-      "title": "TeacherAssignment",
-      "description": "Mapping of which teacher teaches which subject in which class.",
-      "type": "object",
-      "properties": {
-        "teacherId": { "type": "string" },
-        "teacherName": { "type": "string" },
+        "day": { "type": "string", "enum": ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"] },
+        "period": { "type": "number" },
         "classId": { "type": "string" },
         "className": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "teacherName": { "type": "string" },
         "subjectId": { "type": "string" },
         "subjectName": { "type": "string" }
-      }
-    },
-    "Journal": {
-      "title": "Journal",
-      "description": "Teaching journals and attendance for each meeting.",
-      "type": "object",
-      "properties": {
-        "assignmentId": { "type": "string" },
-        "meetingNumber": { "type": "number" },
-        "date": { "type": "string" },
-        "material": { "type": "string" },
-        "absentStudents": { "type": "array", "items": { "type": "string" } },
-        "hasTask": { "type": "boolean" },
-        "taskType": { "type": "string" },
-        "semester": { "type": "number" }
-      }
-    },
-    "Assessment": {
-      "title": "Assessment",
-      "description": "Student grades for a specific subject and class per semester.",
-      "type": "object",
-      "properties": {
-        "studentId": { "type": "string" },
-        "assignmentId": { "type": "string" },
-        "semester": { "type": "number", "enum": [1, 2] },
-        "attendance": { "type": "number" },
-        "task1": { "type": "number" },
-        "task2": { "type": "number" },
-        "task3": { "type": "number" },
-        "groupTask": { "type": "number" },
-        "midExam": { "type": "number" },
-        "finalExam": { "type": "number" },
-        "finalScore": { "type": "number" },
-        "updatedAt": { "type": "string" }
       }
     }
   },
@@ -186,6 +143,10 @@
     "/assessments/{assessmentId}": {
       "schema": "Assessment",
       "description": "Collection of student grades."
+    },
+    "/rosterEntries/{entryId}": {
+      "schema": "RosterEntry",
+      "description": "Collection of scheduling data."
     },
     "/settings/{settingId}": {
       "schema": "object",
