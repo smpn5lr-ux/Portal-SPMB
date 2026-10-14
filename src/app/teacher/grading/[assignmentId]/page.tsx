@@ -192,7 +192,7 @@ export default function GradingPage() {
       })
 
       autoTable(doc, {
-        head: [['No', 'Nama Murid', 'NISN', 'Absen', 'Tgs 1', 'Tgs 2', 'Tgs 3', 'Kelmpk', 'UTS', 'UAS', 'Total']],
+        head: [['No', 'Nama Murid', 'NISN', 'Absen', 'Tgs 1', 'Tgs 2', 'Tgs 3', 'Ulangan', 'UTS', 'UAS', 'Total']],
         body: tableData,
         startY: 58,
         theme: 'striped',
@@ -264,7 +264,7 @@ export default function GradingPage() {
                   <TableHead className="w-16 text-center text-[10px] uppercase font-bold text-primary">Tgs 1</TableHead>
                   <TableHead className="w-16 text-center text-[10px] uppercase font-bold text-primary">Tgs 2</TableHead>
                   <TableHead className="w-16 text-center text-[10px] uppercase font-bold text-primary">Tgs 3</TableHead>
-                  <TableHead className="w-16 text-center text-[10px] uppercase font-bold text-accent">Kelmpk</TableHead>
+                  <TableHead className="w-16 text-center text-[10px] uppercase font-bold text-accent">Ulangan</TableHead>
                   <TableHead className="w-16 text-center text-[10px] uppercase font-bold text-foreground">UTS</TableHead>
                   <TableHead className="w-16 text-center text-[10px] uppercase font-bold text-foreground">UAS</TableHead>
                   <TableHead className="w-24 text-center font-bold text-primary">TOTAL</TableHead>

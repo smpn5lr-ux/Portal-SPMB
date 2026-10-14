@@ -636,7 +636,7 @@ export default function TeachingJournalPage() {
                         <SelectItem value="task1">Tugas 1</SelectItem>
                         <SelectItem value="task2">Tugas 2</SelectItem>
                         <SelectItem value="task3">Tugas 3</SelectItem>
-                        <SelectItem value="groupTask">Tugas Kelompok</SelectItem>
+                        <SelectItem value="groupTask">Ulangan</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
