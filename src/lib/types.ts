@@ -161,5 +161,11 @@ export interface RosterEntry {
 export interface RosterConfig {
   entryTime: string; // 07:00
   jpDuration: number; // 40 menit
-  breakTimes: { periodAfter: number; duration: number }[]; // istirahat setelah jam ke-4 selama 15 menit
+  break1Active: boolean;
+  break1Period: number;
+  break1Duration: number;
+  break2Active: boolean;
+  break2Period: number;
+  break2Duration: number;
+  globalActivities?: { day: string; period: number; name: string }[];
 }

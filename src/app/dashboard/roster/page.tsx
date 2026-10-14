@@ -23,7 +23,9 @@ import {
   Zap,
   LayoutGrid,
   Download,
-  ChevronDown
+  ChevronDown,
+  RefreshCw,
+  Layers
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -60,12 +62,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/tabs"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase'
 import { collection, query, doc, setDoc, addDoc, deleteDoc, writeBatch } from 'firebase/firestore'
-import { RosterEntry, Staff, Classroom, Subject, TeacherAssignment } from '@/lib/types'
+import { RosterEntry, Staff, Classroom, Subject, TeacherAssignment, RosterConfig } from '@/lib/types'
 import { useToast } from '@/hooks/use-toast'
 import { addMinutes, format, parse } from 'date-fns'
 
@@ -73,22 +75,10 @@ const DAYS = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"]
 const MAX_PERIODS = 10 
 
 const PALETTE = [
-  [255, 182, 193], // Light Pink
-  [173, 216, 230], // Light Blue
-  [144, 238, 144], // Light Green
-  [255, 255, 224], // Light Yellow
-  [255, 218, 185], // Peach
-  [221, 160, 221], // Plum
-  [175, 238, 238], // Pale Turquoise
-  [240, 230, 140], // Khaki
-  [250, 128, 114], // Salmon
-  [152, 251, 152], // Pale Green
-  [219, 112, 147], // Pale Violet Red
-  [176, 196, 222], // Steel Blue
-  [255, 160, 122], // Light Salmon
-  [102, 205, 170], // Medium Aquamarine
-  [123, 104, 238], // Medium Slate Blue
-  [244, 164, 96],  // Sandy Brown
+  [255, 182, 193], [173, 216, 230], [144, 238, 144], [255, 255, 224],
+  [255, 218, 185], [221, 160, 221], [175, 238, 238], [240, 230, 140],
+  [250, 128, 114], [152, 251, 152], [219, 112, 147], [176, 196, 222],
+  [255, 160, 122], [102, 205, 170], [123, 104, 238], [244, 164, 96],
 ];
 
 export default function RosterManagementPage() {
@@ -99,6 +89,7 @@ export default function RosterManagementPage() {
   const [submitting, setSubmitting] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isAutoGenerating, setIsAutoGenerating] = useState(false)
+  const [isSyncingGlobal, setIsSyncingGlobal] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   
   const [newEntry, setNewEntry] = useState<Partial<RosterEntry>>({
@@ -122,9 +113,9 @@ export default function RosterManagementPage() {
   const { data: rosterEntries, loading: loadingR } = useCollection<RosterEntry>(rosterQuery)
   const { data: assignments } = useCollection<TeacherAssignment>(assignmentsQuery)
   const { data: staff } = useCollection<Staff>(staffQuery)
-  const { data: classes, loading: loadingC } = useCollection<Classroom>(classesQuery)
+  const { data: classes } = useCollection<Classroom>(classesQuery)
   const { data: subjects } = useCollection<Subject>(subjectsQuery)
-  const { data: rosterConfig, loading: loadingConfigDoc } = useDoc<any>(configRef)
+  const { data: rosterConfig, loading: loadingConfigDoc } = useDoc<RosterConfig>(configRef)
   const { data: systemSettings } = useDoc<any>(systemSettingsRef)
 
   const teachers = staff?.filter(s => s.role === 'Guru') || []
@@ -132,20 +123,27 @@ export default function RosterManagementPage() {
   const config = rosterConfig || {
     entryTime: "07:00",
     jpDuration: 40,
-    breakTimes: [
-      { periodAfter: 4, duration: 15 },
-      { periodAfter: 8, duration: 15 }
-    ]
+    break1Active: true,
+    break1Period: 5,
+    break1Duration: 30,
+    break2Active: false,
+    break2Period: 8,
+    break2Duration: 15
   }
 
   const getTimeForPeriod = (period: number) => {
     let current = parse(config.entryTime, 'HH:mm', new Date())
     for (let i = 1; i < period; i++) {
-      current = addMinutes(current, config.jpDuration)
-      const isBreak = config.breakTimes?.find((b: any) => b.periodAfter === i)
-      if (isBreak) current = addMinutes(current, isBreak.duration)
+      let duration = config.jpDuration
+      if (config.break1Active && i === config.break1Period) duration = config.break1Duration
+      if (config.break2Active && i === config.break2Period) duration = config.break2Duration
+      current = addMinutes(current, duration)
     }
-    const end = addMinutes(current, config.jpDuration)
+    let currentDuration = config.jpDuration
+    if (config.break1Active && period === config.break1Period) currentDuration = config.break1Duration
+    if (config.break2Active && period === config.break2Period) currentDuration = config.break2Duration
+    
+    const end = addMinutes(current, currentDuration)
     return `${format(current, 'HH:mm')} - ${format(end, 'HH:mm')}`
   }
 
@@ -168,313 +166,146 @@ export default function RosterManagementPage() {
 
   const rosterKoding = useMemo(() => {
     if (!assignments) return { teacherCodes: new Map(), subjectColors: new Map() };
-    
     const teacherCodes = new Map<string, number>();
     const subjectColors = new Map<string, number[]>();
-    
     const uniqueTeachers = Array.from(new Set(assignments.map(a => a.teacherId)))
       .map(id => assignments.find(a => a.teacherId === id)!)
       .sort((a, b) => a.teacherName.localeCompare(b.teacherName));
-      
-    uniqueTeachers.forEach((t, idx) => {
-      teacherCodes.set(t.teacherId, idx + 1);
-    });
-    
+    uniqueTeachers.forEach((t, idx) => teacherCodes.set(t.teacherId, idx + 1));
     const sortedAssignments = [...assignments].sort((a, b) => {
       const nameComp = a.teacherName.localeCompare(b.teacherName);
       if (nameComp !== 0) return nameComp;
       return a.subjectName.localeCompare(b.subjectName);
     });
-    
     sortedAssignments.forEach((asg, idx) => {
       const key = `${asg.teacherId}_${asg.subjectId}`;
-      if (!subjectColors.has(key)) {
-        subjectColors.set(key, PALETTE[idx % PALETTE.length]);
-      }
+      if (!subjectColors.has(key)) subjectColors.set(key, PALETTE[idx % PALETTE.length]);
     });
-    
     return { teacherCodes, subjectColors };
   }, [assignments]);
 
-  const handleDownloadRoster = async (mode: 'consolidated' | 'per-class') => {
-    if (!classes || !rosterEntries || !assignments) return
-    setIsExporting(true)
+  const handleSyncGlobalBlocks = async () => {
+    if (!db || !classes || !rosterEntries) return
+    setIsSyncingGlobal(true)
+    const batch = writeBatch(db)
+    let addedCount = 0
+
     try {
-      const { default: jsPDF } = await import('jspdf')
-      const { default: autoTable } = await import('jspdf-autotable')
-      
-      const dinasName = systemSettings?.dinasName || "DINAS PENDIDIKAN"
-      const schoolName = systemSettings?.schoolName || "SIS TERPADU"
-      const brandBlue = [67, 97, 238] as [number, number, number]
-
-      if (mode === 'consolidated') {
-        const doc = new jsPDF('l', 'mm', 'a4')
-        
-        doc.setFontSize(14).setFont("helvetica", "bold").setTextColor(brandBlue[0], brandBlue[1], brandBlue[2])
-        doc.text(`MATRIKS ROSTER JADWAL PELAJARAN TERPADU`, 148.5, 15, { align: "center" })
-        doc.setFontSize(9).setTextColor(100).setFont("helvetica", "normal")
-        doc.text(`${dinasName} | ${schoolName}`, 148.5, 21, { align: "center" })
-        doc.setDrawColor(brandBlue[0], brandBlue[1], brandBlue[2]).setLineWidth(0.3).line(14, 25, 283, 25)
-
-        const sortedClasses = [...classes].sort((a,b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
-        const headers = [['HARI', 'JAM', 'WAKTU', ...sortedClasses.map(c => c.name)]]
-        
-        const body: any[] = []
-        DAYS.forEach(day => {
-          for (let p = 1; p <= MAX_PERIODS; p++) {
-            const row: any[] = []
-            
-            if (p === 1) {
-              row.push({ 
-                content: day.toUpperCase(), 
-                rowSpan: MAX_PERIODS, 
-                styles: { halign: 'center', valign: 'middle', fontStyle: 'bold', fillColor: [240, 240, 240], textColor: [0, 0, 0], fontSize: 8 } 
+      for (const cls of classes) {
+        for (const day of DAYS) {
+          // Sync Break 1
+          if (config.break1Active) {
+            const hasB1 = rosterEntries.some(e => e.classId === cls.id && e.day === day && e.period === config.break1Period)
+            if (!hasB1) {
+              const ref = doc(collection(db, 'rosterEntries'))
+              batch.set(ref, {
+                day, period: config.break1Period, classId: cls.id, className: cls.name,
+                isActivity: true, activityName: "ISTIRAHAT 1", createdAt: new Date().toISOString()
               })
-            }
-            
-            row.push(p)
-            row.push(getTimeForPeriod(p))
-
-            sortedClasses.forEach(cls => {
-              const entry = rosterEntries.find(e => e.day === day && e.period === p && e.classId === cls.id)
-              if (!entry) {
-                row.push("-")
-              } else if (entry.isActivity) {
-                row.push(entry.activityName || "KEG")
-              } else {
-                const teacherCode = rosterKoding.teacherCodes.get(entry.teacherId!);
-                row.push(teacherCode ? teacherCode.toString() : "?")
-              }
-            })
-            body.push(row)
-          }
-        })
-
-        autoTable(doc, {
-          head: headers,
-          body: body,
-          startY: 30,
-          theme: 'grid',
-          headStyles: { fillColor: brandBlue, textColor: [255, 255, 255], halign: 'center', fontSize: 7, cellPadding: 1.5 },
-          styles: { fontSize: 6, cellPadding: 1, halign: 'center', valign: 'middle' },
-          columnStyles: { 
-            0: { cellWidth: 15 }, 
-            1: { cellWidth: 8, fontStyle: 'bold' },
-            2: { cellWidth: 20 }
-          },
-          didParseCell: (data) => {
-            if (data.section === 'body' && data.column.index > 2) {
-              const val = data.cell.text[0]
-              const cls = sortedClasses[data.column.index - 3]
-              const dayIndex = Math.floor(body.indexOf(data.row.raw) / MAX_PERIODS);
-              const period = (body.indexOf(data.row.raw) % MAX_PERIODS + 1);
-              const entry = rosterEntries.find(e => e.day === DAYS[dayIndex] && e.period === period && e.classId === cls?.id)
-              
-              if (entry && !entry.isActivity) {
-                const key = `${entry.teacherId}_${entry.subjectId}`;
-                const color = rosterKoding.subjectColors.get(key);
-                if (color) {
-                  data.cell.styles.fillColor = color as [number, number, number];
-                  data.cell.styles.fontStyle = 'bold';
-                  data.cell.styles.fontSize = 7;
-                }
-              } else if (entry?.isActivity) {
-                data.cell.styles.fillColor = [235, 245, 255];
-                data.cell.styles.fontSize = 5;
-              }
+              addedCount++
             }
           }
-        })
-
-        doc.addPage()
-        doc.setFontSize(14).setFont("helvetica", "bold").setTextColor(brandBlue[0], brandBlue[1], brandBlue[2])
-        doc.text(`LEGENDA KODE GURU & MATA PELAJARAN`, 148.5, 15, { align: "center" })
-        doc.setDrawColor(brandBlue[0], brandBlue[1], brandBlue[2]).setLineWidth(0.5).line(14, 20, 283, 20)
-
-        const teacherLegend: any[] = [];
-        Array.from(rosterKoding.teacherCodes.entries()).sort((a, b) => a[1] - b[1]).forEach(([tId, code]) => {
-          const teacherAsgs = assignments.filter(a => a.teacherId === tId);
-          const tName = teacherAsgs[0]?.teacherName || "-";
-          
-          const uniqueSubjectNames = Array.from(new Set(teacherAsgs.map(a => a.subjectName)));
-          const subjectsList = uniqueSubjectNames.join(", ");
-
-          const colors: number[][] = uniqueSubjectNames.map(sName => {
-             const asg = teacherAsgs.find(a => a.subjectName === sName);
-             return rosterKoding.subjectColors.get(`${tId}_${asg!.subjectId}`) || [255, 255, 255];
-          });
-          
-          teacherLegend.push({
-            code,
-            name: tName,
-            subjects: subjectsList,
-            colors: colors.slice(0, 2)
-          });
-        });
-
-        autoTable(doc, {
-          head: [['KODE', 'NAMA GURU', 'MATA PELAJARAN']],
-          body: teacherLegend.map(l => [l.code, l.name, l.subjects]),
-          startY: 30,
-          theme: 'striped',
-          headStyles: { fillColor: brandBlue },
-          columnStyles: { 0: { cellWidth: 20, halign: 'center', fontStyle: 'bold' } },
-          didDrawCell: (data) => {
-            if (data.section === 'body' && data.column.index === 0) {
-              const info = teacherLegend[data.row.index];
-              if (info && info.colors.length > 0) {
-                const ctx = data.doc;
-                const x = data.cell.x;
-                const y = data.cell.y;
-                const w = data.cell.width;
-                const h = data.cell.height;
-
-                if (info.colors.length === 1) {
-                  ctx.setFillColor(info.colors[0][0], info.colors[0][1], info.colors[0][2]);
-                  ctx.rect(x, y, w, h, 'F');
-                } else if (info.colors.length >= 2) {
-                  ctx.setFillColor(info.colors[0][0], info.colors[0][1], info.colors[0][2]);
-                  ctx.triangle(x, y, x + w, y, x, y + h, 'F');
-                  
-                  ctx.setFillColor(info.colors[1][0], info.colors[1][1], info.colors[1][2]);
-                  ctx.triangle(x + w, y, x + w, y + h, x, y + h, 'F');
-                }
-                
-                ctx.setTextColor(0);
-                ctx.setFontSize(8);
-                ctx.setFont("helvetica", "bold");
-                ctx.text(info.code.toString(), x + w/2, y + h/2 + 1, { align: 'center' });
-              }
+          // Sync Break 2
+          if (config.break2Active) {
+            const hasB2 = rosterEntries.some(e => e.classId === cls.id && e.day === day && e.period === config.break2Period)
+            if (!hasB2) {
+              const ref = doc(collection(db, 'rosterEntries'))
+              batch.set(ref, {
+                day, period: config.break2Period, classId: cls.id, className: cls.name,
+                isActivity: true, activityName: "ISTIRAHAT 2", createdAt: new Date().toISOString()
+              })
+              addedCount++
             }
           }
-        })
-
-        doc.save(`Roster_Matriks_Terpadu.pdf`)
-      } else {
-        const doc = new jsPDF('l', 'mm', 'a4')
-        const sortedClasses = [...classes].sort((a,b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
-
-        sortedClasses.forEach((cls, idx) => {
-          if (idx > 0) doc.addPage()
-          
-          doc.setFontSize(12).setFont("helvetica", "bold").setTextColor(brandBlue[0], brandBlue[1], brandBlue[2])
-          doc.text(dinasName.toUpperCase(), 148.5, 15, { align: "center" })
-          doc.text(schoolName.toUpperCase(), 148.5, 22, { align: "center" })
-          doc.setDrawColor(brandBlue[0], brandBlue[1], brandBlue[2]).setLineWidth(0.5).line(14, 26, 283, 26)
-
-          doc.setFontSize(14).setTextColor(0).text(`JADWAL PELAJARAN - KELAS ${cls.name}`, 14, 35)
-          doc.setFontSize(10).setTextColor(100).text(`Wali Kelas: ${cls.homeroomTeacher || '-'}`, 14, 42)
-
-          const headers = [['JAM', 'WAKTU', ...DAYS]]
-          const body: any[] = []
-
-          for (let p = 1; p <= MAX_PERIODS; p++) {
-            const row = [p, getTimeForPeriod(p)]
-            DAYS.forEach(day => {
-              const entry = rosterEntries.find(e => e.day === day && e.period === p && e.classId === cls.id)
-              if (!entry) {
-                row.push("-")
-              } else if (entry.isActivity) {
-                row.push(entry.activityName || "KEGIATAN")
-              } else {
-                row.push(`${entry.subjectName}\n(${entry.teacherName})`)
-              }
-            })
-            body.push(row)
-          }
-
-          autoTable(doc, {
-            head: headers,
-            body: body,
-            startY: 48,
-            theme: 'grid',
-            headStyles: { fillColor: brandBlue, halign: 'center' },
-            styles: { fontSize: 7, halign: 'center', valign: 'middle', cellPadding: 2 },
-            columnStyles: { 0: { cellWidth: 10 }, 1: { cellWidth: 25 } }
-          })
-        })
-
-        doc.save(`Roster_Per_Kelas.pdf`)
+        }
       }
-      
-      toast({ title: "Unduh Berhasil", description: "Laporan roster telah disimpan." })
+      await batch.commit()
+      toast({ title: "Blok Global Diterapkan", description: `${addedCount} slot istirahat telah diisi ke seluruh kelas.` })
     } catch (e) {
-      console.error(e)
-      toast({ variant: "destructive", title: "Gagal Mengunduh" })
+      toast({ variant: "destructive", title: "Gagal" })
     } finally {
-      setIsExporting(false)
+      setIsSyncingGlobal(false)
     }
+  }
+
+  const handleAutoGenerate = async () => {
+    if (!db || !assignments || !rosterEntries || !classes) return
+    setIsAutoGenerating(true)
+    const batch = writeBatch(db)
+    let filledCount = 0
+    const localRoster = [...rosterEntries]
+
+    // Priority: Fill blocks first
+    const unfinished = workloadStats
+      .filter(w => !w.isMet)
+      .sort(() => Math.random() - 0.5)
+
+    for (const job of unfinished) {
+      let remaining = job.totalJP - job.scheduled
+      if (remaining <= 0) continue
+      const targetClass = classes.find(c => c.id === job.classId)
+      if (!targetClass) continue
+
+      for (const day of DAYS) {
+        for (let p = 1; p <= MAX_PERIODS; p++) {
+          if (remaining <= 0) break
+          // Don't overwrite global blocks
+          if (config.break1Active && p === config.break1Period) continue
+          if (config.break2Active && p === config.break2Period) continue
+
+          const isSlotTaken = localRoster.some(e => e.day === day && e.period === p && e.classId === targetClass.id)
+          if (isSlotTaken) continue
+          const isTeacherBusy = localRoster.some(e => e.day === day && e.period === p && e.teacherId === job.teacherId)
+          if (isTeacherBusy) continue
+
+          const newRef = doc(collection(db, 'rosterEntries'))
+          const entry = {
+            day, period: p, classId: targetClass.id, className: targetClass.name,
+            teacherId: job.teacherId, teacherName: job.teacherName,
+            subjectId: job.subjectId, subjectName: job.subjectName,
+            isActivity: false, createdAt: new Date().toISOString()
+          }
+          batch.set(newRef, entry)
+          localRoster.push({ id: newRef.id, ...entry })
+          remaining--
+          filledCount++
+        }
+        if (remaining <= 0) break
+      }
+    }
+
+    if (filledCount > 0) {
+      await batch.commit()
+      toast({ title: "Generate Berhasil", description: `${filledCount} slot jadwal berhasil diisi otomatis.` })
+    } else {
+      toast({ title: "Selesai", description: "Tidak ada slot kosong lagi yang bisa diisi." })
+    }
+    setIsAutoGenerating(false)
   }
 
   const handleSaveConfig = async (e: any) => {
     e.preventDefault()
     if (!configRef) return
     setIsSaving(true)
-    const formData = new FormData(e.currentTarget)
-    const newConfig = {
-      ...config,
-      entryTime: formData.get('entryTime'),
-      jpDuration: parseInt(formData.get('jpDuration') as string),
-    }
-    await setDoc(configRef, newConfig, { merge: true })
+    await setDoc(configRef, config, { merge: true })
     toast({ title: "Konfigurasi Disimpan" })
     setIsSaving(false)
   }
 
-  const handleAddBreak = async () => {
-    if (!configRef) return
-    const updatedBreaks = [...(config.breakTimes || []), { periodAfter: 1, duration: 15 }]
-      .sort((a, b) => a.periodAfter - b.periodAfter)
-    await setDoc(configRef, { ...config, breakTimes: updatedBreaks }, { merge: true })
-  }
-
-  const handleUpdateBreak = async (index: number, field: string, value: any) => {
-    if (!configRef) return
-    const updatedBreaks = [...config.breakTimes]
-    updatedBreaks[index] = { ...updatedBreaks[index], [field]: parseInt(value) }
-    await setDoc(configRef, { ...config, breakTimes: updatedBreaks }, { merge: true })
-  }
-
-  const handleRemoveBreak = async (index: number) => {
-    if (!configRef) return
-    const updatedBreaks = config.breakTimes.filter((_: any, i: number) => i !== index)
-    await setDoc(configRef, { ...config, breakTimes: updatedBreaks }, { merge: true })
+  const handleDeleteEntry = async (id: string) => {
+    if (!db) return
+    await deleteDoc(doc(db, 'rosterEntries', id))
   }
 
   const handleAddEntry = async () => {
     if (!db || !newEntry.day || !newEntry.period || !newEntry.classId) {
-      toast({ variant: "destructive", title: "Pilih Hari, Jam, dan Kelas" })
+      toast({ variant: "destructive", title: "Mohon lengkapi data" })
       return
     }
-
-    if (!newEntry.isActivity && (!newEntry.teacherId || !newEntry.subjectId)) {
-      toast({ variant: "destructive", title: "Pilih Guru dan Mata Pelajaran" })
-      return
-    }
-
-    if (!newEntry.isActivity) {
-      const teacherConflict = rosterEntries?.find(e => 
-        e.day === newEntry.day && 
-        e.period === newEntry.period && 
-        e.teacherId === newEntry.teacherId
-      )
-      if (teacherConflict) {
-        toast({ variant: "destructive", title: "Guru Bentrok!", description: `Guru tersebut sudah mengajar di Kelas ${teacherConflict.className} pada jam ini.` })
-        return
-      }
-    }
-
-    const classConflict = rosterEntries?.find(e => e.day === newEntry.day && e.period === newEntry.period && e.classId === newEntry.classId)
-    if (classConflict) {
-      toast({ variant: "destructive", title: "Kelas Bentrok!", description: `Rombel ini sudah terisi ${classConflict.isActivity ? 'kegiatan' : classConflict.subjectName} pada jam ini.` })
-      return
-    }
-
     setSubmitting(true)
     const t = teachers.find(t => t.id === newEntry.teacherId)
     const c = classes?.find(c => c.id === newEntry.classId)
     const s = subjects?.find(s => s.id === newEntry.subjectId)
-
     try {
       await addDoc(collection(db, 'rosterEntries'), {
         ...newEntry,
@@ -492,97 +323,24 @@ export default function RosterManagementPage() {
     }
   }
 
-  const handleAutoGenerate = async () => {
-    if (!db || !assignments || !rosterEntries || !classes) return
-    
-    setIsAutoGenerating(true)
-    const batch = writeBatch(db)
-    let filledCount = 0
-    const localRoster = [...rosterEntries]
-
-    const unfinished = workloadStats
-      .filter(w => !w.isMet)
-      .sort(() => Math.random() - 0.5)
-
-    for (const job of unfinished) {
-      let remaining = job.totalJP - job.scheduled
-      if (remaining <= 0) continue
-
-      const targetClass = classes.find(c => c.id === job.classId)
-      if (!targetClass) continue
-
-      for (const day of DAYS) {
-        for (let p = 1; p <= MAX_PERIODS; p++) {
-          if (remaining <= 0) break
-          const isSlotTaken = localRoster.some(e => e.day === day && e.period === p && e.classId === targetClass.id)
-          if (isSlotTaken) continue
-          const isTeacherBusy = localRoster.some(e => e.day === day && e.period === p && e.teacherId === job.teacherId)
-          if (isTeacherBusy) continue
-
-          const newRef = doc(collection(db, 'rosterEntries'))
-          const entry = {
-            day,
-            period: p,
-            classId: targetClass.id,
-            className: targetClass.name,
-            teacherId: job.teacherId,
-            teacherName: job.teacherName,
-            subjectId: job.subjectId,
-            subjectName: job.subjectName,
-            isActivity: false,
-            createdAt: new Date().toISOString()
-          }
-
-          batch.set(newRef, entry)
-          localRoster.push({ id: newRef.id, ...entry })
-          remaining--
-          filledCount++
-        }
-        if (remaining <= 0) break
-      }
-    }
-
-    if (filledCount > 0) {
-      await batch.commit()
-      toast({ title: "Generate Berhasil", description: `${filledCount} slot jadwal berhasil diisi otomatis.` })
-    } else {
-      toast({ title: "Tidak Ada Slot Cocok", description: "Semua slot penuh atau tidak ditemukan slot bebas bentrok untuk guru yang tersisa." })
-    }
-    setIsAutoGenerating(false)
-  }
-
-  const handleDeleteEntry = async (id: string) => {
-    if (!db) return
-    await deleteDoc(doc(db, 'rosterEntries', id))
-  }
-
   const getEntry = (day: string, period: number, classId: string) => {
     return rosterEntries?.find(e => e.day === day && e.period === period && e.classId === classId)
   }
 
-  if (loadingR || loadingC || loadingConfigDoc) return <div className="flex justify-center py-24"><Loader2 className="animate-spin text-primary" /></div>
+  if (loadingR || loadingConfigDoc) return <div className="flex justify-center py-24"><Loader2 className="animate-spin text-primary" /></div>
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline font-bold">Manajemen Roster</h1>
-          <p className="text-muted-foreground mt-1">Plotting jadwal mengajar sesuai beban JP Dapodik (Senin - Sabtu).</p>
+          <p className="text-muted-foreground mt-1">Plotting jadwal mengajar sesuai beban JP Dapodik.</p>
         </div>
         <div className="flex gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" disabled={isExporting} className="gap-2 border-primary/30">
-                {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                Unduh Roster <ChevronDown className="w-3 h-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleDownloadRoster('consolidated')}>Format Matriks Terpadu</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleDownloadRoster('per-class')}>Format Per Kelas</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
+          <Button variant="outline" onClick={handleSyncGlobalBlocks} disabled={isSyncingGlobal} className="gap-2 border-primary/30 text-primary">
+            {isSyncingGlobal ? <Loader2 className="w-4 h-4 animate-spin" /> : <Layers className="w-4 h-4" />}
+            Sinkronkan Blok Global
+          </Button>
           <Button variant="outline" onClick={handleAutoGenerate} disabled={isAutoGenerating} className="gap-2 border-accent/30 text-accent hover:bg-accent/5">
             {isAutoGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
             Generate Otomatis
@@ -591,110 +349,123 @@ export default function RosterManagementPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <div className="lg:col-span-1 space-y-6">
-          <Card className="border-border/50 bg-primary/5">
-             <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-bold flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-primary" /> Tracking Beban Jam</CardTitle>
-             </CardHeader>
-             <CardContent className="space-y-4 pt-2">
-                <div className="max-h-[500px] overflow-y-auto space-y-4 pr-2">
-                   {workloadStats.map((w, idx) => (
-                      <div key={idx} className="space-y-1.5">
-                         <div className="flex justify-between items-end">
-                            <div className="flex flex-col">
-                               <span className="text-[10px] font-bold text-primary truncate max-w-[120px]">{w.teacherName}</span>
-                               <span className="text-[9px] text-muted-foreground">{w.subjectName} ({w.className})</span>
-                            </div>
-                            <span className="text-[10px] font-bold">{w.scheduled} / {w.totalJP} JP</span>
-                         </div>
-                         <Progress value={w.percent} className={`h-1.5 ${w.isMet ? 'bg-green-500/20' : 'bg-amber-500/20'}`} />
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="bg-muted/50 border p-1 mb-6">
+          <TabsTrigger value="builder" className="gap-2"><LayoutGrid className="w-4 h-4" /> Jadwal Mingguan</TabsTrigger>
+          <TabsTrigger value="settings" className="gap-2"><Settings2 className="w-4 h-4" /> Konfigurasi Waktu & Istirahat</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="builder" className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <div className="lg:col-span-1 space-y-6">
+            <Card className="border-border/50 bg-primary/5">
+              <CardHeader className="pb-2"><CardTitle className="text-sm font-bold flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-primary" /> Progress Dapodik</CardTitle></CardHeader>
+              <CardContent className="space-y-4 pt-2">
+                <div className="max-h-[600px] overflow-y-auto space-y-4 pr-2">
+                  {workloadStats.map((w, idx) => (
+                    <div key={idx} className="space-y-1.5">
+                      <div className="flex justify-between items-end">
+                        <div className="flex flex-col"><span className="text-[10px] font-bold text-primary truncate max-w-[120px]">{w.teacherName}</span><span className="text-[9px] text-muted-foreground">{w.subjectName} ({w.className})</span></div>
+                        <span className="text-[10px] font-bold">{w.scheduled} / {w.totalJP} JP</span>
                       </div>
-                   ))}
+                      <Progress value={w.percent} className={`h-1.5 ${w.isMet ? 'bg-green-500/20' : 'bg-amber-500/20'}`} />
+                    </div>
+                  ))}
                 </div>
-             </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+          </div>
 
-        <div className="lg:col-span-3">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="bg-muted/50 border p-1">
-              <TabsTrigger value="builder" className="gap-2"><LayoutGrid className="w-4 h-4" /> Jadwal Mingguan</TabsTrigger>
-              <TabsTrigger value="settings" className="gap-2"><Settings2 className="w-4 h-4" /> Konfigurasi Waktu</TabsTrigger>
-            </TabsList>
+          <div className="lg:col-span-3 space-y-8">
+            {classes?.sort((a,b) => a.name.localeCompare(b.name, undefined, { numeric: true })).map(cls => (
+              <Card key={cls.id} className="border-border/50 overflow-hidden shadow-md">
+                <CardHeader className="bg-muted/20 border-b py-3 px-6 flex flex-row items-center justify-between">
+                  <CardTitle className="text-lg flex items-center gap-2 font-headline uppercase"><Users className="w-4 h-4 text-primary" /> Kelas {cls.name}</CardTitle>
+                  <Badge variant="outline" className="font-mono">TINGKAT {cls.gradeLevel}</Badge>
+                </CardHeader>
+                <CardContent className="p-0 overflow-x-auto">
+                  <Table className="border-collapse">
+                    <TableHeader><TableRow className="bg-muted/10"><TableHead className="w-24 border-r font-bold text-center">WAKTU</TableHead>{DAYS.map(day => <TableHead key={day} className="text-center min-w-[150px] font-bold border-r last:border-r-0">{day.toUpperCase()}</TableHead>)}</TableRow></TableHeader>
+                    <TableBody>
+                      {Array.from({ length: MAX_PERIODS }).map((_, i) => {
+                        const period = i + 1
+                        const isGlobalBreak = (config.break1Active && period === config.break1Period) || (config.break2Active && period === config.break2Period)
+                        return (
+                          <TableRow key={period} className={isGlobalBreak ? "bg-muted/5" : ""}>
+                            <TableCell className="border-r font-medium text-[10px] text-center p-2">
+                              <div className={`font-bold ${isGlobalBreak ? 'text-accent' : 'text-primary'}`}>{isGlobalBreak ? 'REHAT' : `JAM ${period}`}</div>
+                              <div className="text-[9px] text-muted-foreground mt-0.5">{getTimeForPeriod(period)}</div>
+                            </TableCell>
+                            {DAYS.map(day => {
+                              const entry = getEntry(day, period, cls.id)
+                              return (
+                                <TableCell key={day} className="p-1 border-r last:border-r-0 h-24 group relative">
+                                  {entry ? (
+                                    <div className={`h-full border rounded-lg p-2.5 flex flex-col justify-center transition-all shadow-sm ${entry.isActivity ? 'bg-accent/10 border-accent/20' : 'bg-primary/10 border-primary/20'}`}>
+                                      <div className="text-[10px] font-bold truncate uppercase text-foreground leading-tight">{entry.isActivity ? entry.activityName : entry.subjectName}</div>
+                                      {!entry.isActivity && <div className="text-[9px] text-muted-foreground truncate mt-1 italic">{entry.teacherName}</div>}
+                                      <Button variant="ghost" size="icon" className="absolute top-1.5 right-1.5 h-6 w-6 opacity-0 group-hover:opacity-100 text-destructive" onClick={() => handleDeleteEntry(entry.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                                    </div>
+                                  ) : (
+                                    <div className="h-full flex flex-col items-center justify-center border-2 border-dashed border-border/30 rounded-lg group-hover:border-primary/30 cursor-pointer bg-muted/5" onClick={() => { setNewEntry({...newEntry, day, period, classId: cls.id}); setIsAddOpen(true); }}>
+                                      <Plus className="w-4 h-4 text-muted-foreground opacity-20" />
+                                      <span className="text-[8px] uppercase tracking-tighter text-muted-foreground opacity-30">Kosong</span>
+                                    </div>
+                                  )}
+                                </TableCell>
+                              )
+                            })}
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
 
-            <TabsContent value="builder" className="space-y-8 mt-6">
-              {classes?.sort((a,b) => a.name.localeCompare(b.name, undefined, { numeric: true })).map(cls => (
-                <Card key={cls.id} className="border-border/50 overflow-hidden shadow-md">
-                  <CardHeader className="bg-muted/20 border-b py-3 px-6 flex flex-row items-center justify-between">
-                     <CardTitle className="text-lg flex items-center gap-2 font-headline uppercase"><Users className="w-4 h-4 text-primary" /> Kelas {cls.name}</CardTitle>
-                     <Badge variant="outline" className="font-mono">TINGKAT {cls.gradeLevel}</Badge>
-                  </CardHeader>
-                  <CardContent className="p-0 overflow-x-auto">
-                    <Table className="border-collapse">
-                      <TableHeader>
-                        <TableRow className="bg-muted/10">
-                          <TableHead className="w-24 border-r font-bold text-center">WAKTU</TableHead>
-                          {DAYS.map(day => <TableHead key={day} className="text-center min-w-[150px] font-bold border-r last:border-r-0">{day.toUpperCase()}</TableHead>)}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {Array.from({ length: MAX_PERIODS }).map((_, i) => {
-                          const period = i + 1
-                          return (
-                            <TableRow key={period} className="hover:bg-transparent">
-                              <TableCell className="border-r font-medium text-[10px] bg-muted/5 text-center p-2">
-                                 <div className="font-bold text-primary">JAM {period}</div>
-                                 <div className="text-[9px] text-muted-foreground mt-0.5">{getTimeForPeriod(period)}</div>
-                              </TableCell>
-                              {DAYS.map(day => {
-                                const entry = getEntry(day, period, cls.id)
-                                return (
-                                  <TableCell key={day} className="p-1 border-r last:border-r-0 h-24 group relative">
-                                    {entry ? (
-                                      <div className={`h-full border rounded-lg p-2.5 flex flex-col justify-center transition-all shadow-sm ${entry.isActivity ? 'bg-accent/10 border-accent/20' : 'bg-primary/10 border-primary/20'}`}>
-                                        <div className="text-[10px] font-bold truncate uppercase text-foreground leading-tight">{entry.isActivity ? entry.activityName : entry.subjectName}</div>
-                                        {!entry.isActivity && <div className="text-[9px] text-muted-foreground truncate mt-1 italic">{entry.teacherName}</div>}
-                                        <Button variant="ghost" size="icon" className="absolute top-1.5 right-1.5 h-6 w-6 opacity-0 group-hover:opacity-100 text-destructive" onClick={() => handleDeleteEntry(entry.id)}>
-                                          <Trash2 className="w-3.5 h-3.5" />
-                                        </Button>
-                                      </div>
-                                    ) : (
-                                      <div className="h-full flex flex-col items-center justify-center border-2 border-dashed border-border/30 rounded-lg group-hover:border-primary/30 cursor-pointer bg-muted/5" onClick={() => { setNewEntry({...newEntry, day, period, classId: cls.id}); setIsAddOpen(true); }}>
-                                        <Plus className="w-4 h-4 text-muted-foreground opacity-20" />
-                                        <span className="text-[8px] uppercase tracking-tighter text-muted-foreground opacity-30">Kosong</span>
-                                      </div>
-                                    )}
-                                  </TableCell>
-                                )
-                              })}
-                            </TableRow>
-                          )
-                        })}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              ))}
-            </TabsContent>
+        <TabsContent value="settings" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="border-border/50">
+              <CardHeader className="border-b bg-muted/5"><CardTitle className="text-lg flex items-center gap-2"><Clock className="w-5 h-5 text-primary" /> Dasar Waktu Pelajaran</CardTitle></CardHeader>
+              <CardContent className="pt-6 space-y-4">
+                <div className="space-y-2"><Label>Jam Masuk Sekolah (Jam Ke-1)</Label><Input type="time" value={config.entryTime} onChange={e => setDoc(configRef!, { ...config, entryTime: e.target.value }, { merge: true })} /></div>
+                <div className="space-y-2"><Label>Durasi 1 JP (Menit)</Label><Input type="number" value={config.jpDuration} onChange={e => setDoc(configRef!, { ...config, jpDuration: parseInt(e.target.value) }, { merge: true })} /></div>
+              </CardContent>
+            </Card>
 
-            <TabsContent value="settings" className="mt-6">
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 <Card className="border-border/50">
-                    <CardHeader className="border-b bg-muted/5"><CardTitle className="text-lg">Parameter Jam Sekolah</CardTitle></CardHeader>
-                    <CardContent className="pt-6">
-                      <form onSubmit={handleSaveConfig} className="space-y-6">
-                         <div className="space-y-2"><Label>Jam Ke-1 Mulai</Label><Input name="entryTime" type="time" defaultValue={config.entryTime} /></div>
-                         <div className="space-y-2"><Label>Durasi per JP (Menit)</Label><Input name="jpDuration" type="number" defaultValue={config.jpDuration} /></div>
-                         <Button type="submit" disabled={isSaving} className="w-full h-11 gap-2">{isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Simpan Konfigurasi</Button>
-                      </form>
-                    </CardContent>
-                 </Card>
-               </div>
-            </TabsContent>
-          </Tabs>
-        </div>
-      </div>
+            <Card className="border-border/50">
+              <CardHeader className="border-b bg-muted/5"><CardTitle className="text-lg flex items-center gap-2"><Coffee className="w-5 h-5 text-accent" /> Konfigurasi Istirahat</CardTitle></CardHeader>
+              <CardContent className="pt-6 space-y-8">
+                <div className="p-4 rounded-xl border border-border/50 space-y-4 bg-accent/5">
+                  <div className="flex items-center justify-between"><Label className="font-bold">Istirahat Pertama</Label><Switch checked={config.break1Active} onCheckedChange={v => setDoc(configRef!, { ...config, break1Active: v }, { merge: true })} /></div>
+                  {config.break1Active && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2"><Label className="text-[10px] uppercase">Pada Jam Ke-</Label><Input type="number" min="1" max="10" value={config.break1Period} onChange={e => setDoc(configRef!, { ...config, break1Period: parseInt(e.target.value) }, { merge: true })} /></div>
+                      <div className="space-y-2"><Label className="text-[10px] uppercase">Durasi (Menit)</Label><Input type="number" value={config.break1Duration} onChange={e => setDoc(configRef!, { ...config, break1Duration: parseInt(e.target.value) }, { merge: true })} /></div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-4 rounded-xl border border-border/50 space-y-4 bg-accent/5">
+                  <div className="flex items-center justify-between"><Label className="font-bold">Istirahat Kedua</Label><Switch checked={config.break2Active} onCheckedChange={v => setDoc(configRef!, { ...config, break2Active: v }, { merge: true })} /></div>
+                  {config.break2Active && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2"><Label className="text-[10px] uppercase">Pada Jam Ke-</Label><Input type="number" min="1" max="10" value={config.break2Period} onChange={e => setDoc(configRef!, { ...config, break2Period: parseInt(e.target.value) }, { merge: true })} /></div>
+                      <div className="space-y-2"><Label className="text-[10px] uppercase">Durasi (Menit)</Label><Input type="number" value={config.break2Duration} onChange={e => setDoc(configRef!, { ...config, break2Duration: parseInt(e.target.value) }, { merge: true })} /></div>
+                    </div>
+                  )}
+                </div>
+                <div className="bg-muted/30 p-3 rounded-lg flex gap-3">
+                  <Info className="w-4 h-4 text-muted-foreground shrink-0 mt-1" />
+                  <p className="text-[10px] text-muted-foreground leading-relaxed italic">Aktifkan istirahat untuk memblokir slot pada jam pelajaran tertentu di seluruh kelas. Pastikan melakukan "Sinkronkan Blok Global" setelah mengubah seting ini.</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
         <DialogContent className="sm:max-w-[450px]">
