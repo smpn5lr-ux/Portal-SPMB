@@ -92,7 +92,8 @@ export default function TeachingJournalPage() {
   }, [allAcceptedStudents, classroom])
 
   const journalQuery = useMemoFirebase(() => {
-    if (!db || !assignmentId || !user) return null
+    // PROTEKSI: Jangan jalankan query jika user belum terdeteksi
+    if (!db || !assignmentId || !user || !user.uid) return null
     return query(
       collection(db, 'journals'), 
       where('assignmentId', '==', assignmentId),
@@ -214,7 +215,7 @@ export default function TeachingJournalPage() {
     toast({ title: "Jurnal Dihapus" })
   }
 
-  if (userLoading || loadingA || loadingJ) return (
+  if (userLoading || loadingA || (loadingJ && !journals)) return (
     <div className="flex flex-col items-center justify-center py-24 gap-4">
       <Loader2 className="animate-spin text-primary w-8 h-8" />
       <p className="text-sm text-muted-foreground animate-pulse">Memuat jurnal mengajar...</p>
