@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo, useEffect } from 'react'
@@ -9,9 +8,10 @@ import {
   Loader2, 
   CheckCircle2, 
   AlertCircle,
-  Calculation,
+  Users,
   User,
-  Info
+  Info,
+  Calculator
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -108,7 +108,7 @@ export default function GradingPage() {
       })
       
       await batch.commit()
-      toast({ title: "Nilai Berhasil Disimpan", description: "Seluruh data nilai murid telah diperbarui." })
+      toast({ title: "Nilai Berhasil Simpan", description: "Seluruh data nilai murid telah diperbarui." })
     } catch (e) {
       toast({ variant: "destructive", title: "Gagal menyimpan nilai" })
     } finally {
@@ -149,7 +149,7 @@ export default function GradingPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {students?.sort((a,b) => a.fullName.localeCompare(b.fullName)).map((s) => {
+                {students?.sort((a,b) => (a.fullName || "").localeCompare(b.fullName || "")).map((s) => {
                   const sGrade = grades[s.id] || {}
                   return (
                     <TableRow key={s.id}>
