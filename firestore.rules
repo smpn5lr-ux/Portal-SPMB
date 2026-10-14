@@ -13,7 +13,6 @@ service cloud.firestore {
     }
     
     // Aturan spesifik untuk koleksi applicants
-    // Komentar pemicu redeploy: Memperbarui logika sinkronisasi murid ke manajemen kelas dan deteksi zonasi sekolah
     match /applicants/{applicantId} {
       allow read: if true;
       allow write: if isAuthenticated();
@@ -25,8 +24,25 @@ service cloud.firestore {
       allow write: if isAuthenticated();
     }
 
-    // Aturan spesifik untuk data pegawai
+    // Aturan spesifik untuk data akademik dan penilaian
+    // Komentar pemicu redeploy: Menambahkan izin eksplisit untuk modul penilaian guru dan manajemen kurikulum
     match /staff/{staffId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /classes/{classId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /subjects/{subjectId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /teacherAssignments/{assignmentId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /assessments/{assessmentId} {
       allow read, write: if isAuthenticated();
     }
   }
