@@ -25,7 +25,8 @@ import {
   Download,
   ChevronDown,
   RefreshCw,
-  Layers
+  Layers,
+  LayoutTemplate
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -75,7 +76,7 @@ const DAYS = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"]
 const MAX_PERIODS = 10 
 
 const PALETTE = [
-  [255, 182, 193], [173, 216, 230], [144, 238, 144], [255, 255, 224],
+  [173, 216, 230], [255, 182, 193], [144, 238, 144], [255, 255, 224],
   [255, 218, 185], [221, 160, 221], [175, 238, 238], [240, 230, 140],
   [250, 128, 114], [152, 251, 152], [219, 112, 147], [176, 196, 222],
   [255, 160, 122], [102, 205, 170], [123, 104, 238], [244, 164, 96],
@@ -113,7 +114,7 @@ export default function RosterManagementPage() {
   const { data: rosterEntries, loading: loadingR } = useCollection<RosterEntry>(rosterQuery)
   const { data: assignments } = useCollection<TeacherAssignment>(assignmentsQuery)
   const { data: staff } = useCollection<Staff>(staffQuery)
-  const { data: classes } = useCollection<Classroom>(classesQuery)
+  const { data: classes, loading: loadingClasses } = useCollection<Classroom>(classesQuery)
   const { data: subjects } = useCollection<Subject>(subjectsQuery)
   const { data: rosterConfig, loading: loadingConfigDoc } = useDoc<RosterConfig>(configRef)
   const { data: systemSettings } = useDoc<any>(systemSettingsRef)
@@ -170,7 +171,6 @@ export default function RosterManagementPage() {
     const teacherMap = new Map();
     const subjectColors = new Map();
     
-    // Pastikan kode guru unik (angka)
     const uniqueTeacherIds = Array.from(new Set(assignments.map(a => a.teacherId)))
       .sort((a, b) => {
         const nameA = assignments.find(x => x.teacherId === a)?.teacherName || "";
@@ -182,7 +182,6 @@ export default function RosterManagementPage() {
       teacherMap.set(id, idx + 1);
     });
 
-    // Warna unik per mata pelajaran (meskipun guru sama)
     const sortedAssignments = [...assignments].sort((a, b) => {
       const tComp = a.teacherName.localeCompare(b.teacherName);
       if (tComp !== 0) return tComp;
@@ -253,7 +252,7 @@ export default function RosterManagementPage() {
       .sort(() => Math.random() - 0.5)
 
     for (const job of unfinished) {
-      let remaining = job.totalJP - job.scheduled
+      let remaining = (job.totalJP || 0) - job.scheduled
       if (remaining <= 0) continue
       const targetClass = classes.find(c => c.id === job.classId)
       if (!targetClass) continue
@@ -262,7 +261,6 @@ export default function RosterManagementPage() {
         for (let p = 1; p <= MAX_PERIODS; p++) {
           if (remaining <= 0) break
 
-          // Cek apakah Jam ini adalah Istirahat
           const isBreak = (config.break1Active && p === config.break1Period) || (config.break2Active && p === config.break2Period)
           if (isBreak) continue
 
@@ -272,7 +270,6 @@ export default function RosterManagementPage() {
           const isTeacherBusy = localRoster.some(e => e.day === day && e.period === p && e.teacherId === job.teacherId)
           if (isTeacherBusy) continue
 
-          // Strategi Blok 2 Jam: Coba cek slot berikutnya
           let currentBatchSize = 1
           if (remaining >= 2 && p < MAX_PERIODS) {
             const nextP = p + 1
@@ -285,7 +282,6 @@ export default function RosterManagementPage() {
             }
           }
 
-          // Isi slot
           for (let i = 0; i < currentBatchSize; i++) {
             const currentP = p + i
             const newRef = doc(collection(db, 'rosterEntries'))
@@ -296,12 +292,12 @@ export default function RosterManagementPage() {
               isActivity: false, createdAt: new Date().toISOString()
             }
             batch.set(newRef, entry)
-            localRoster.push({ id: newRef.id, ...entry })
+            localRoster.push({ id: newRef.id, ...entry } as any)
             remaining--
             filledCount++
           }
 
-          if (currentBatchSize > 1) p++ // Skip jam berikutnya karena sudah diisi
+          if (currentBatchSize > 1) p++
         }
         if (remaining <= 0) break
       }
@@ -309,9 +305,9 @@ export default function RosterManagementPage() {
 
     if (filledCount > 0) {
       await batch.commit()
-      toast({ title: "Generate Berhasil", description: `${filledCount} slot jadwal berhasil diisi otomatis dalam blok pelajaran.` })
+      toast({ title: "Generate Berhasil", description: `${filledCount} slot jadwal berhasil diisi otomatis.` })
     } else {
-      toast({ title: "Selesai", description: "Tidak ada slot kosong lagi yang bisa diisi sesuai aturan." })
+      toast({ title: "Selesai", description: "Tidak ada slot kosong lagi yang bisa diisi otomatis." })
     }
     setIsAutoGenerating(false)
   }
@@ -371,7 +367,6 @@ export default function RosterManagementPage() {
       const schoolName = systemSettings?.schoolName || "SIS TERPADU";
       const dinasName = systemSettings?.dinasName || "DINAS PENDIDIKAN";
 
-      // Header Matriks
       doc.setFontSize(10).setFont("helvetica", "bold").setTextColor(67, 97, 238);
       doc.text(dinasName.toUpperCase(), 148.5, 12, { align: "center" });
       doc.text(`MATRIKS JADWAL PELAJARAN TERPADU - ${schoolName.toUpperCase()}`, 148.5, 18, { align: "center" });
@@ -383,27 +378,17 @@ export default function RosterManagementPage() {
       DAYS.forEach(day => {
         for (let p = 1; p <= MAX_PERIODS; p++) {
           const row: any[] = [];
-          
-          // Kolom Hari (Hanya isi di Jam ke-1 untuk rowSpan)
           if (p === 1) {
             row.push({ content: day, rowSpan: MAX_PERIODS, styles: { fillColor: [240, 240, 240], fontStyle: 'bold', halign: 'center', valign: 'middle' } });
           }
-          
           row.push(p);
           row.push(getTimeForPeriod(p));
-          
           sortedClasses.forEach(cls => {
             const entry = getEntry(day, p, cls.id);
             if (entry) {
-              if (entry.isActivity) {
-                row.push("REHAT");
-              } else {
-                const code = teacherMap.get(entry.teacherId);
-                row.push(code || "?");
-              }
-            } else {
-              row.push("");
-            }
+              if (entry.isActivity) row.push("REHAT");
+              else row.push(teacherMap.get(entry.teacherId) || "?");
+            } else row.push("");
           });
           tableBody.push(row);
         }
@@ -416,29 +401,21 @@ export default function RosterManagementPage() {
         theme: 'grid',
         styles: { fontSize: 6, cellPadding: 1, halign: 'center', valign: 'middle' },
         headStyles: { fillColor: [67, 97, 238], textColor: [255, 255, 255], fontSize: 7, fontStyle: 'bold' },
-        columnStyles: {
-          0: { cellWidth: 15 }, // HARI
-          1: { cellWidth: 8 },  // JAM
-          2: { cellWidth: 15 }  // WAKTU
-        },
+        columnStyles: { 0: { cellWidth: 15 }, 1: { cellWidth: 8 }, 2: { cellWidth: 15 } },
         didParseCell: (data) => {
-          // Mewarnai sel berdasarkan mapel (mengabaikan kolom HARI yang rowspanned pada baris > 1)
           const isFirstRowOfDay = (data.row.index % MAX_PERIODS) === 0;
           const classColumnOffset = isFirstRowOfDay ? 3 : 2;
-          
           if (data.section === 'body' && data.column.index >= classColumnOffset) {
             const currentDayIdx = Math.floor(data.row.index / MAX_PERIODS);
             const day = DAYS[currentDayIdx];
             const period = (data.row.index % MAX_PERIODS) + 1;
             const clsIdx = data.column.index - classColumnOffset;
             const cls = sortedClasses[clsIdx];
-            
             if (cls) {
               const entry = getEntry(day, period, cls.id);
               if (entry) {
-                if (entry.isActivity) {
-                  data.cell.styles.fillColor = [220, 220, 220];
-                } else {
+                if (entry.isActivity) data.cell.styles.fillColor = [220, 220, 220];
+                else {
                   const color = subjectColors.get(`${entry.teacherId}_${entry.subjectId}`);
                   if (color) data.cell.styles.fillColor = color;
                   data.cell.styles.fontStyle = 'bold';
@@ -449,7 +426,6 @@ export default function RosterManagementPage() {
         },
       });
 
-      // Halaman 2: Legenda
       doc.addPage();
       doc.setFontSize(14).setFont("helvetica", "bold").text("LEGENDA GURU & MATA PELAJARAN", 14, 20);
       
@@ -470,24 +446,23 @@ export default function RosterManagementPage() {
 
       autoTable(doc, {
         head: [['KODE', 'NAMA GURU', 'MATA PELAJARAN']],
-        body: uniqueTeachers.map(t => [t.code, t.name, t.subjects.join(", ")]),
+        body: uniqueTeachers.map(t => ["", t.name, t.subjects.join(", ")]),
         startY: 30,
         theme: 'grid',
-        styles: { fontSize: 9, cellPadding: 3 },
-        headStyles: { fillColor: [67, 97, 238] },
-        columnStyles: { 0: { cellWidth: 20, halign: 'center' }, 1: { cellWidth: 80 } },
+        styles: { fontSize: 9, cellPadding: 4, minCellHeight: 12, valign: 'middle' },
+        headStyles: { fillColor: [67, 97, 238], halign: 'center' },
+        columnStyles: { 0: { cellWidth: 15, halign: 'center' }, 1: { cellWidth: 80 } },
         didDrawCell: (data) => {
           if (data.section === 'body' && data.column.index === 0) {
             const t = uniqueTeachers[data.row.index];
-            const x = data.cell.x + 2;
-            const y = data.cell.y + 2;
-            const size = data.cell.width - 4;
+            const padding = 1.5;
+            const x = data.cell.x + padding;
+            const y = data.cell.y + padding;
+            const size = data.cell.width - (padding * 2);
             
-            // Logic split warna (diagonal)
             if (t.subjectIds.length >= 2) {
               const color1 = subjectColors.get(`${t.id}_${t.subjectIds[0]}`);
               const color2 = subjectColors.get(`${t.id}_${t.subjectIds[1]}`);
-              
               if (color1) {
                 doc.setFillColor(color1[0], color1[1], color1[2]);
                 doc.triangle(x, y, x + size, y, x, y + size, 'F');
@@ -496,15 +471,15 @@ export default function RosterManagementPage() {
                 doc.setFillColor(color2[0], color2[1], color2[2]);
                 doc.triangle(x + size, y, x + size, y + size, x, y + size, 'F');
               }
-              doc.setDrawColor(0).rect(x, y, size, size);
-              doc.setTextColor(0).setFontSize(8).text(t.code.toString(), x + size/2, y + size/2 + 2, { align: 'center' });
             } else {
               const color = subjectColors.get(`${t.id}_${t.subjectIds[0]}`);
               if (color) doc.setFillColor(color[0], color[1], color[2]);
               doc.rect(x, y, size, size, 'F');
-              doc.setDrawColor(0).rect(x, y, size, size);
-              doc.setTextColor(0).setFontSize(8).text(t.code.toString(), x + size/2, y + size/2 + 2, { align: 'center' });
             }
+            
+            doc.setDrawColor(0, 0, 0).setLineWidth(0.2).rect(x, y, size, size);
+            doc.setTextColor(0, 0, 0).setFontSize(9).setFont("helvetica", "bold");
+            doc.text(t.code.toString(), x + size / 2, y + size / 2 + 1, { align: 'center', baseline: 'middle' });
           }
         }
       });
@@ -518,7 +493,7 @@ export default function RosterManagementPage() {
     }
   };
 
-  if (loadingR || loadingConfigDoc) return <div className="flex justify-center py-24"><Loader2 className="animate-spin text-primary" /></div>
+  if (loadingR || loadingConfigDoc || loadingClasses) return <div className="flex justify-center py-24"><Loader2 className="animate-spin text-primary" /></div>
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -544,7 +519,7 @@ export default function RosterManagementPage() {
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuItem onClick={handleDownloadUnified}>Format Matriks Terpadu (2 Hal)</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => toast({ title: "Fitur ini akan segera tersedia." })}>Format Per Kelas (PDF)</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => toast({ title: "Fitur ini segera tersedia." })}>Format Per Kelas (PDF)</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <Button onClick={() => setIsAddOpen(true)} className="gap-2 shadow-lg shadow-primary/20"><Plus className="w-4 h-4" /> Plot Jadwal</Button>
@@ -567,7 +542,7 @@ export default function RosterManagementPage() {
                     <div key={idx} className="space-y-1.5">
                       <div className="flex justify-between items-end">
                         <div className="flex flex-col"><span className="text-[10px] font-bold text-primary truncate max-w-[120px]">{w.teacherName}</span><span className="text-[9px] text-muted-foreground">{w.subjectName} ({w.className})</span></div>
-                        <span className="text-[10px] font-bold">{w.scheduled} / {w.totalJP} JP</span>
+                        <span className="text-[10px] font-bold">{w.scheduled} / {w.totalJP || 0} JP</span>
                       </div>
                       <Progress value={w.percent} className={`h-1.5 ${w.isMet ? 'bg-green-500/20' : 'bg-amber-500/20'}`} />
                     </div>
@@ -634,19 +609,11 @@ export default function RosterManagementPage() {
               <CardContent className="pt-6 space-y-4">
                 <div className="space-y-2">
                   <Label>Jam Masuk Sekolah (Jam Ke-1)</Label>
-                  <Input 
-                    type="time" 
-                    value={config.entryTime || "07:00"} 
-                    onChange={e => setDoc(configRef!, { ...config, entryTime: e.target.value }, { merge: true })} 
-                  />
+                  <Input type="time" value={config.entryTime || "07:00"} onChange={e => setDoc(configRef!, { ...config, entryTime: e.target.value }, { merge: true })} />
                 </div>
                 <div className="space-y-2">
                   <Label>Durasi 1 JP (Menit)</Label>
-                  <Input 
-                    type="number" 
-                    value={config.jpDuration || 40} 
-                    onChange={e => setDoc(configRef!, { ...config, jpDuration: parseInt(e.target.value) || 0 }, { merge: true })} 
-                  />
+                  <Input type="number" value={config.jpDuration || 0} onChange={e => setDoc(configRef!, { ...config, jpDuration: parseInt(e.target.value) || 0 }, { merge: true })} />
                 </div>
                 <Button onClick={handleSaveConfig} disabled={isSaving} className="w-full gap-2">
                   {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
@@ -664,25 +631,14 @@ export default function RosterManagementPage() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label className="text-[10px] uppercase">Pada Jam Ke- (Pilih Jam Genap)</Label>
-                        <Select 
-                          value={config.break1Period?.toString() || "4"} 
-                          onValueChange={v => setDoc(configRef!, { ...config, break1Period: parseInt(v) }, { merge: true })}
-                        >
+                        <Select value={config.break1Period?.toString() || "4"} onValueChange={v => setDoc(configRef!, { ...config, break1Period: parseInt(v) }, { merge: true })}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="2">Jam Ke-2</SelectItem>
-                            <SelectItem value="4">Jam Ke-4</SelectItem>
-                            <SelectItem value="6">Jam Ke-6</SelectItem>
-                          </SelectContent>
+                          <SelectContent><SelectItem value="2">Jam Ke-2</SelectItem><SelectItem value="4">Jam Ke-4</SelectItem><SelectItem value="6">Jam Ke-6</SelectItem></SelectContent>
                         </Select>
                       </div>
                       <div className="space-y-2">
                         <Label className="text-[10px] uppercase">Durasi (Menit)</Label>
-                        <Input 
-                          type="number" 
-                          value={config.break1Duration ?? 30} 
-                          onChange={e => setDoc(configRef!, { ...config, break1Duration: parseInt(e.target.value) || 0 }, { merge: true })} 
-                        />
+                        <Input type="number" value={config.break1Duration || 0} onChange={e => setDoc(configRef!, { ...config, break1Duration: parseInt(e.target.value) || 0 }, { merge: true })} />
                       </div>
                     </div>
                   )}
@@ -694,32 +650,17 @@ export default function RosterManagementPage() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label className="text-[10px] uppercase">Pada Jam Ke- (Pilih Jam Genap)</Label>
-                        <Select 
-                          value={config.break2Period?.toString() || "6"} 
-                          onValueChange={v => setDoc(configRef!, { ...config, break2Period: parseInt(v) }, { merge: true })}
-                        >
+                        <Select value={config.break2Period?.toString() || "6"} onValueChange={v => setDoc(configRef!, { ...config, break2Period: parseInt(v) }, { merge: true })}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="4">Jam Ke-4</SelectItem>
-                            <SelectItem value="6">Jam Ke-6</SelectItem>
-                            <SelectItem value="8">Jam Ke-8</SelectItem>
-                          </SelectContent>
+                          <SelectContent><SelectItem value="4">Jam Ke-4</SelectItem><SelectItem value="6">Jam Ke-6</SelectItem><SelectItem value="8">Jam Ke-8</SelectItem></SelectContent>
                         </Select>
                       </div>
                       <div className="space-y-2">
                         <Label className="text-[10px] uppercase">Durasi (Menit)</Label>
-                        <Input 
-                          type="number" 
-                          value={config.break2Duration ?? 15} 
-                          onChange={e => setDoc(configRef!, { ...config, break2Duration: parseInt(e.target.value) || 0 }, { merge: true })} 
-                        />
+                        <Input type="number" value={config.break2Duration || 0} onChange={e => setDoc(configRef!, { ...config, break2Duration: parseInt(e.target.value) || 0 }, { merge: true })} />
                       </div>
                     </div>
                   )}
-                </div>
-                <div className="bg-muted/30 p-3 rounded-lg flex gap-3">
-                  <Info className="w-4 h-4 text-muted-foreground shrink-0 mt-1" />
-                  <p className="text-[10px] text-muted-foreground leading-relaxed italic">Catatan: Istirahat sebaiknya ditempatkan setelah jam ke-2, 4, atau 6 agar selaras dengan blok pengajaran 2 jam (Jam 1-2, Jam 3-4, dst).</p>
                 </div>
               </CardContent>
             </Card>
@@ -740,14 +681,7 @@ export default function RosterManagementPage() {
                <div className="space-y-2"><Label>Jam Ke-</Label><Select value={newEntry.period?.toString() || "1"} onValueChange={v => setNewEntry({...newEntry, period: parseInt(v)})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Array.from({length: MAX_PERIODS}).map((_, i) => <SelectItem key={i+1} value={(i+1).toString()}>{i+1}</SelectItem>)}</SelectContent></Select></div>
             </div>
             {newEntry.isActivity ? (
-               <div className="space-y-2">
-                 <Label>Nama Kegiatan</Label>
-                 <Input 
-                   value={newEntry.activityName || ""} 
-                   onChange={e => setNewEntry({...newEntry, activityName: e.target.value})} 
-                   placeholder="Contoh: ISTIRAHAT"
-                 />
-               </div>
+               <div className="space-y-2"><Label>Nama Kegiatan</Label><Input value={newEntry.activityName || ""} onChange={e => setNewEntry({...newEntry, activityName: e.target.value})} placeholder="Contoh: ISTIRAHAT" /></div>
             ) : (
                <div className="space-y-2">
                  <Label>Pilih Penugasan Guru</Label>
@@ -755,9 +689,7 @@ export default function RosterManagementPage() {
                    <SelectTrigger><SelectValue placeholder="Pilih Guru & Mapel" /></SelectTrigger>
                    <SelectContent>
                      {assignments?.filter(a => a.classId === newEntry.classId).map(a => (
-                       <SelectItem key={a.id} value={`${a.teacherId}|${a.subjectId}`}>
-                         {a.teacherName} - {a.subjectName}
-                       </SelectItem>
+                       <SelectItem key={a.id} value={`${a.teacherId}|${a.subjectId}`}>{a.teacherName} - {a.subjectName}</SelectItem>
                      ))}
                    </SelectContent>
                  </Select>
