@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useMemo } from 'react'
+import React, { useMemo, Suspense } from 'react'
 import { 
   BookOpen, 
   Users, 
@@ -27,7 +27,7 @@ import { TeacherAssignment, Staff, RosterEntry } from "@/lib/types"
 import { format, parse, addMinutes } from 'date-fns'
 import { id as localeId } from 'date-fns/locale'
 
-export default function TeacherDashboard() {
+function TeacherDashboardContent() {
   const { user } = useUser()
   const db = useFirestore()
   const searchParams = useSearchParams()
@@ -200,5 +200,13 @@ export default function TeacherDashboard() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function TeacherDashboard() {
+  return (
+    <Suspense fallback={<div className="flex justify-center py-20"><Loader2 className="animate-spin text-primary" /></div>}>
+      <TeacherDashboardContent />
+    </Suspense>
   )
 }

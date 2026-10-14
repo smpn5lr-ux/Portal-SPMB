@@ -40,7 +40,7 @@ import { Staff, TeacherAssignment, Journal, Assessment, Applicant, Classroom } f
 import { useToast } from "@/hooks/use-toast"
 import * as XLSX from 'xlsx'
 
-export default function TeacherLayout({ children }: { children: React.ReactNode }) {
+function TeacherLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -179,5 +179,13 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
         </SidebarInset>
       </div>
     </SidebarProvider>
+  )
+}
+
+export default function TeacherLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <React.Suspense fallback={<div className="flex h-screen w-full items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+      <TeacherLayoutContent>{children}</TeacherLayoutContent>
+    </React.Suspense>
   )
 }

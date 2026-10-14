@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, Suspense } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { 
   ArrowLeft, 
@@ -35,7 +35,7 @@ import { TeacherAssignment, Applicant, Classroom, Assessment } from "@/lib/types
 import { useToast } from '@/hooks/use-toast'
 import Link from 'next/link'
 
-export default function GradingPage() {
+function GradingPageContent() {
   const { assignmentId } = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -343,5 +343,13 @@ export default function GradingPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function GradingPage() {
+  return (
+    <Suspense fallback={<div className="flex flex-col items-center justify-center py-24 gap-4"><Loader2 className="animate-spin text-primary w-8 h-8" /><p className="text-sm text-muted-foreground animate-pulse">Memuat buku nilai...</p></div>}>
+      <GradingPageContent />
+    </Suspense>
   )
 }

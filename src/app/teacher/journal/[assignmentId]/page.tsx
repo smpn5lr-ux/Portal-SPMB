@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, Suspense } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { 
   ArrowLeft, 
@@ -58,7 +58,7 @@ import { collection, query, where, doc, writeBatch, deleteDoc, updateDoc } from 
 import { TeacherAssignment, Applicant, Classroom, Journal } from "@/lib/types"
 import { useToast } from '@/hooks/use-toast'
 
-export default function TeachingJournalPage() {
+function TeachingJournalPageContent() {
   const { assignmentId } = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -648,5 +648,13 @@ export default function TeachingJournalPage() {
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+export default function TeachingJournalPage() {
+  return (
+    <Suspense fallback={<div className="flex flex-col items-center justify-center py-24 gap-4"><Loader2 className="animate-spin text-primary w-8 h-8" /><p className="text-sm text-muted-foreground animate-pulse">Menghubungkan ke sistem...</p></div>}>
+      <TeachingJournalPageContent />
+    </Suspense>
   )
 }
