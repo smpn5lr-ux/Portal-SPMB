@@ -124,10 +124,10 @@ export default function RosterManagementPage() {
     entryTime: rosterConfig?.entryTime || "07:00",
     jpDuration: rosterConfig?.jpDuration ?? 40,
     break1Active: rosterConfig?.break1Active ?? true,
-    break1Period: rosterConfig?.break1Period ?? 5,
+    break1Period: rosterConfig?.break1Period ?? 4,
     break1Duration: rosterConfig?.break1Duration ?? 30,
     break2Active: rosterConfig?.break2Active ?? false,
-    break2Period: rosterConfig?.break2Period ?? 8,
+    break2Period: rosterConfig?.break2Period ?? 6,
     break2Duration: rosterConfig?.break2Duration ?? 15
   }), [rosterConfig])
 
@@ -256,25 +256,47 @@ export default function RosterManagementPage() {
       for (const day of DAYS) {
         for (let p = 1; p <= MAX_PERIODS; p++) {
           if (remaining <= 0) break
-          if (config.break1Active && p === config.break1Period) continue
-          if (config.break2Active && p === config.break2Period) continue
+
+          // Cek apakah Jam ini adalah Istirahat
+          const isBreak = (config.break1Active && p === config.break1Period) || (config.break2Active && p === config.break2Period)
+          if (isBreak) continue
 
           const isSlotTaken = localRoster.some(e => e.day === day && e.period === p && e.classId === targetClass.id)
           if (isSlotTaken) continue
+
           const isTeacherBusy = localRoster.some(e => e.day === day && e.period === p && e.teacherId === job.teacherId)
           if (isTeacherBusy) continue
 
-          const newRef = doc(collection(db, 'rosterEntries'))
-          const entry = {
-            day, period: p, classId: targetClass.id, className: targetClass.name,
-            teacherId: job.teacherId, teacherName: job.teacherName,
-            subjectId: job.subjectId, subjectName: job.subjectName,
-            isActivity: false, createdAt: new Date().toISOString()
+          // Strategi Blok 2 Jam: Coba cek slot berikutnya
+          let currentBatchSize = 1
+          if (remaining >= 2 && p < MAX_PERIODS) {
+            const nextP = p + 1
+            const isNextBreak = (config.break1Active && nextP === config.break1Period) || (config.break2Active && nextP === config.break2Period)
+            const isNextTaken = localRoster.some(e => e.day === day && e.period === nextP && e.classId === targetClass.id)
+            const isTeacherBusyNext = localRoster.some(e => e.day === day && e.period === nextP && e.teacherId === job.teacherId)
+            
+            if (!isNextBreak && !isNextTaken && !isTeacherBusyNext) {
+              currentBatchSize = 2
+            }
           }
-          batch.set(newRef, entry)
-          localRoster.push({ id: newRef.id, ...entry })
-          remaining--
-          filledCount++
+
+          // Isi slot
+          for (let i = 0; i < currentBatchSize; i++) {
+            const currentP = p + i
+            const newRef = doc(collection(db, 'rosterEntries'))
+            const entry = {
+              day, period: currentP, classId: targetClass.id, className: targetClass.name,
+              teacherId: job.teacherId, teacherName: job.teacherName,
+              subjectId: job.subjectId, subjectName: job.subjectName,
+              isActivity: false, createdAt: new Date().toISOString()
+            }
+            batch.set(newRef, entry)
+            localRoster.push({ id: newRef.id, ...entry })
+            remaining--
+            filledCount++
+          }
+
+          if (currentBatchSize > 1) p++ // Skip jam berikutnya karena sudah diisi
         }
         if (remaining <= 0) break
       }
@@ -282,9 +304,9 @@ export default function RosterManagementPage() {
 
     if (filledCount > 0) {
       await batch.commit()
-      toast({ title: "Generate Berhasil", description: `${filledCount} slot jadwal berhasil diisi otomatis.` })
+      toast({ title: "Generate Berhasil", description: `${filledCount} slot jadwal berhasil diisi otomatis dalam blok pelajaran.` })
     } else {
-      toast({ title: "Selesai", description: "Tidak ada slot kosong lagi yang bisa diisi." })
+      toast({ title: "Selesai", description: "Tidak ada slot kosong lagi yang bisa diisi sesuai aturan." })
     }
     setIsAutoGenerating(false)
   }
@@ -615,14 +637,18 @@ export default function RosterManagementPage() {
                   {config.break1Active && (
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label className="text-[10px] uppercase">Pada Jam Ke-</Label>
-                        <Input 
-                          type="number" 
-                          min="1" 
-                          max="10" 
-                          value={config.break1Period ?? 0} 
-                          onChange={e => setDoc(configRef!, { ...config, break1Period: parseInt(e.target.value) || 0 }, { merge: true })} 
-                        />
+                        <Label className="text-[10px] uppercase">Pada Jam Ke- (Harus Genap)</Label>
+                        <Select 
+                          value={config.break1Period?.toString() || "4"} 
+                          onValueChange={v => setDoc(configRef!, { ...config, break1Period: parseInt(v) }, { merge: true })}
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="2">Jam Ke-2</SelectItem>
+                            <SelectItem value="4">Jam Ke-4</SelectItem>
+                            <SelectItem value="6">Jam Ke-6</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="space-y-2">
                         <Label className="text-[10px] uppercase">Durasi (Menit)</Label>
@@ -641,14 +667,18 @@ export default function RosterManagementPage() {
                   {config.break2Active && (
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label className="text-[10px] uppercase">Pada Jam Ke-</Label>
-                        <Input 
-                          type="number" 
-                          min="1" 
-                          max="10" 
-                          value={config.break2Period ?? 0} 
-                          onChange={e => setDoc(configRef!, { ...config, break2Period: parseInt(e.target.value) || 0 }, { merge: true })} 
-                        />
+                        <Label className="text-[10px] uppercase">Pada Jam Ke- (Harus Genap)</Label>
+                        <Select 
+                          value={config.break2Period?.toString() || "6"} 
+                          onValueChange={v => setDoc(configRef!, { ...config, break2Period: parseInt(v) }, { merge: true })}
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="4">Jam Ke-4</SelectItem>
+                            <SelectItem value="6">Jam Ke-6</SelectItem>
+                            <SelectItem value="8">Jam Ke-8</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="space-y-2">
                         <Label className="text-[10px] uppercase">Durasi (Menit)</Label>
@@ -663,7 +693,7 @@ export default function RosterManagementPage() {
                 </div>
                 <div className="bg-muted/30 p-3 rounded-lg flex gap-3">
                   <Info className="w-4 h-4 text-muted-foreground shrink-0 mt-1" />
-                  <p className="text-[10px] text-muted-foreground leading-relaxed italic">Aktifkan istirahat untuk memblokir slot pada jam pelajaran tertentu di seluruh kelas. Pastikan melakukan "Sinkronkan Blok Global" setelah mengubah seting ini.</p>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed italic">Aturan Genap: Istirahat sebaiknya ditempatkan setelah jam ke-2, 4, atau 6 agar selaras dengan blok pengajaran 2 jam (Jam 1-2, Jam 3-4, dst).</p>
                 </div>
               </CardContent>
             </Card>
