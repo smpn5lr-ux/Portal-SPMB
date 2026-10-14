@@ -166,25 +166,37 @@ export default function RosterManagementPage() {
     })
   }, [assignments, rosterEntries])
 
-  const assignmentCodes = useMemo(() => {
-    if (!assignments) return new Map<string, { code: number; color: number[] }>();
-    const map = new Map<string, { code: number; color: number[] }>();
+  // Logika Koding Roster Canggih: 1 Kode per Guru, Warna per Mapel
+  const rosterKoding = useMemo(() => {
+    if (!assignments) return { teacherCodes: new Map(), subjectColors: new Map() };
     
-    const uniquePairs = assignments.reduce((acc, curr) => {
-      const key = `${curr.teacherId}_${curr.subjectId}`;
-      if (!acc.find(i => i.key === key)) {
-        acc.push({ key, name: curr.teacherName, subject: curr.subjectName });
-      }
-      return acc;
-    }, [] as any[]).sort((a, b) => a.name.localeCompare(b.name));
-
-    uniquePairs.forEach((pair, idx) => {
-      map.set(pair.key, {
-        code: idx + 1,
-        color: PALETTE[idx % PALETTE.length]
-      });
+    const teacherCodes = new Map<string, number>();
+    const subjectColors = new Map<string, number[]>();
+    
+    // 1. Assign 1 kode angka per Guru (Urut abjad nama guru)
+    const uniqueTeachers = Array.from(new Set(assignments.map(a => a.teacherId)))
+      .map(id => assignments.find(a => a.teacherId === id)!)
+      .sort((a, b) => a.teacherName.localeCompare(b.teacherName));
+      
+    uniqueTeachers.forEach((t, idx) => {
+      teacherCodes.set(t.teacherId, idx + 1);
     });
-    return map;
+    
+    // 2. Assign warna per pasangan Guru-Mapel (Urut abjad)
+    const sortedAssignments = [...assignments].sort((a, b) => {
+      const nameComp = a.teacherName.localeCompare(b.teacherName);
+      if (nameComp !== 0) return nameComp;
+      return a.subjectName.localeCompare(b.subjectName);
+    });
+    
+    sortedAssignments.forEach((asg, idx) => {
+      const key = `${asg.teacherId}_${asg.subjectId}`;
+      if (!subjectColors.has(key)) {
+        subjectColors.set(key, PALETTE[idx % PALETTE.length]);
+      }
+    });
+    
+    return { teacherCodes, subjectColors };
   }, [assignments]);
 
   const handleDownloadRoster = async (mode: 'consolidated' | 'per-class') => {
@@ -215,7 +227,6 @@ export default function RosterManagementPage() {
           for (let p = 1; p <= MAX_PERIODS; p++) {
             const row: any[] = []
             
-            // Kolom HARI dengan rowSpan agar hemat tempat dan tidak dobel
             if (p === 1) {
               row.push({ 
                 content: day.toUpperCase(), 
@@ -234,9 +245,8 @@ export default function RosterManagementPage() {
               } else if (entry.isActivity) {
                 row.push(entry.activityName || "KEG")
               } else {
-                const key = `${entry.teacherId}_${entry.subjectId}`
-                const codeData = assignmentCodes.get(key)
-                row.push(codeData ? codeData.code.toString() : "?")
+                const teacherCode = rosterKoding.teacherCodes.get(entry.teacherId!);
+                row.push(teacherCode ? teacherCode.toString() : "?")
               }
             })
             body.push(row)
@@ -258,46 +268,82 @@ export default function RosterManagementPage() {
           didParseCell: (data) => {
             if (data.section === 'body' && data.column.index > 2) {
               const val = data.cell.text[0]
-              if (val && val !== "-" && !isNaN(Number(val))) {
-                const codeNum = parseInt(val)
-                const match = Array.from(assignmentCodes.values()).find(v => v.code === codeNum)
-                if (match) {
-                  data.cell.styles.fillColor = match.color as [number, number, number]
-                  data.cell.styles.fontStyle = 'bold'
-                  data.cell.styles.fontSize = 7
+              const cls = sortedClasses[data.column.index - 3]
+              const entry = rosterEntries.find(e => e.day === DAYS[Math.floor(body.indexOf(data.row.raw) / MAX_PERIODS)] && e.period === (body.indexOf(data.row.raw) % MAX_PERIODS + 1) && e.classId === cls?.id)
+              
+              if (entry && !entry.isActivity) {
+                const key = `${entry.teacherId}_${entry.subjectId}`;
+                const color = rosterKoding.subjectColors.get(key);
+                if (color) {
+                  data.cell.styles.fillColor = color as [number, number, number];
+                  data.cell.styles.fontStyle = 'bold';
+                  data.cell.styles.fontSize = 7;
                 }
-              } else if (val && val !== "-" && isNaN(Number(val))) {
-                data.cell.styles.fillColor = [235, 245, 255]
-                data.cell.styles.fontSize = 5
+              } else if (entry?.isActivity) {
+                data.cell.styles.fillColor = [235, 245, 255];
+                data.cell.styles.fontSize = 5;
               }
             }
           }
         })
 
-        // HALAMAN 2: LEGENDA
+        // HALAMAN 2: LEGENDA KODE GURU & MAPEL
         doc.addPage()
         doc.setFontSize(14).setFont("helvetica", "bold").setTextColor(brandBlue[0], brandBlue[1], brandBlue[2])
         doc.text(`LEGENDA KODE GURU & MATA PELAJARAN`, 148.5, 15, { align: "center" })
         doc.setDrawColor(brandBlue[0], brandBlue[1], brandBlue[2]).setLineWidth(0.5).line(14, 20, 283, 20)
 
-        const legendBody = Array.from(assignmentCodes.entries()).map(([key, val]) => {
-          const asg = assignments.find(a => `${a.teacherId}_${a.subjectId}` === key)
-          return [val.code, asg?.teacherName || "-", asg?.subjectName || "-"]
-        }).sort((a, b) => (a[0] as number) - (b[0] as number))
+        // Group assignments by teacher for the legend
+        const teacherLegend: any[] = [];
+        Array.from(rosterKoding.teacherCodes.entries()).sort((a, b) => a[1] - b[1]).forEach(([tId, code]) => {
+          const teacherAsgs = assignments.filter(a => a.teacherId === tId);
+          const tName = teacherAsgs[0]?.teacherName || "-";
+          
+          const colors: number[][] = teacherAsgs.map(a => rosterKoding.subjectColors.get(`${tId}_${a.subjectId}`) || [255, 255, 255]);
+          const subjectsList = teacherAsgs.map(a => a.subjectName).join(", ");
+          
+          teacherLegend.push({
+            code,
+            name: tName,
+            subjects: subjectsList,
+            colors: colors.slice(0, 2) // We support split color for up to 2 subjects
+          });
+        });
 
         autoTable(doc, {
           head: [['KODE', 'NAMA GURU', 'MATA PELAJARAN']],
-          body: legendBody,
+          body: teacherLegend.map(l => [l.code, l.name, l.subjects]),
           startY: 30,
           theme: 'striped',
           headStyles: { fillColor: brandBlue },
           columnStyles: { 0: { cellWidth: 20, halign: 'center', fontStyle: 'bold' } },
-          didParseCell: (data) => {
+          didDrawCell: (data) => {
             if (data.section === 'body' && data.column.index === 0) {
-              const codeNum = data.cell.raw as number
-              const match = Array.from(assignmentCodes.values()).find(v => v.code === codeNum)
-              if (match) {
-                data.cell.styles.fillColor = match.color as [number, number, number]
+              const info = teacherLegend[data.row.index];
+              if (info && info.colors.length > 0) {
+                const ctx = data.doc;
+                const x = data.cell.x;
+                const y = data.cell.y;
+                const w = data.cell.width;
+                const h = data.cell.height;
+
+                if (info.colors.length === 1) {
+                  ctx.setFillColor(info.colors[0][0], info.colors[0][1], info.colors[0][2]);
+                  ctx.rect(x, y, w, h, 'F');
+                } else if (info.colors.length >= 2) {
+                  // Drawing the split background (cross/diagonal)
+                  ctx.setFillColor(info.colors[0][0], info.colors[0][1], info.colors[0][2]);
+                  ctx.triangle(x, y, x + w, y, x, y + h, 'F');
+                  
+                  ctx.setFillColor(info.colors[1][0], info.colors[1][1], info.colors[1][2]);
+                  ctx.triangle(x + w, y, x + w, y + h, x, y + h, 'F');
+                }
+                
+                // Redraw text on top of the custom background
+                ctx.setTextColor(0);
+                ctx.setFontSize(8);
+                ctx.setFont("helvetica", "bold");
+                ctx.text(info.code.toString(), x + w/2, y + h/2 + 1, { align: 'center' });
               }
             }
           }
