@@ -45,49 +45,49 @@ export default function TeacherDashboard() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline font-bold">Mata Pelajaran Anda</h1>
-          <p className="text-muted-foreground mt-1">Daftar kelas dan mata pelajaran yang Anda ampu semester ini.</p>
+          <p className="text-muted-foreground mt-1">Pilih kelas di bawah ini untuk mengelola daftar murid dan input nilai.</p>
         </div>
         <div className="bg-primary/10 px-4 py-2 rounded-xl border border-primary/20 flex items-center gap-2">
           <BookOpen className="w-4 h-4 text-primary" />
-          <span className="text-sm font-bold text-primary uppercase">{assignments?.length || 0} Penugasan</span>
+          <span className="text-sm font-bold text-primary uppercase">{assignments?.length || 0} Penugasan Aktif</span>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {assignments?.map((a) => (
-          <Card key={a.id} className="border-border/50 hover:border-primary/40 transition-all group shadow-sm hover:shadow-md">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <Badge className="bg-primary/20 text-primary border-none text-[10px] font-bold">KELAS {a.className}</Badge>
-                <div className="bg-muted p-2 rounded-lg group-hover:bg-primary/10 transition-colors">
-                  <Star className="w-4 h-4 text-muted-foreground group-hover:text-primary" />
-                </div>
-              </div>
-              <CardTitle className="text-xl font-headline mt-4">{a.subjectName}</CardTitle>
-              <CardDescription className="text-xs uppercase tracking-widest font-bold text-muted-foreground/60">Tingkat Menengah Pertama</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-muted/30 p-3 rounded-lg border">
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase">Tugas</p>
-                    <p className="text-lg font-bold">30%</p>
-                  </div>
-                  <div className="bg-muted/30 p-3 rounded-lg border">
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase">UTS/UAS</p>
-                    <p className="text-lg font-bold">60%</p>
+          <Link key={a.id} href={`/teacher/grading/${a.id}`} className="block group">
+            <Card className="border-border/50 group-hover:border-primary/40 transition-all shadow-sm hover:shadow-md h-full">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <Badge className="bg-primary/20 text-primary border-none text-[10px] font-bold">KELAS {a.className}</Badge>
+                  <div className="bg-muted p-2 rounded-lg group-hover:bg-primary/10 transition-colors">
+                    <Star className="w-4 h-4 text-muted-foreground group-hover:text-primary fill-current" />
                   </div>
                 </div>
-                <Button asChild className="w-full gap-2 group/btn h-11">
-                  <Link href={`/teacher/grading/${a.id}`}>
+                <CardTitle className="text-xl font-headline mt-4 group-hover:text-primary transition-colors">{a.subjectName}</CardTitle>
+                <CardDescription className="text-xs uppercase tracking-widest font-bold text-muted-foreground/60">Tingkat Menengah Pertama</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-muted/30 p-3 rounded-lg border">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase">Tugas</p>
+                      <p className="text-lg font-bold">30%</p>
+                    </div>
+                    <div className="bg-muted/30 p-3 rounded-lg border">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase">UTS/UAS</p>
+                      <p className="text-lg font-bold">60%</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-primary font-bold text-sm pt-2">
                     <ClipboardCheck className="w-4 h-4" />
                     Input Nilai Murid
-                    <ChevronRight className="w-4 h-4 ml-auto group-hover/btn:translate-x-1 transition-transform" />
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+                    <ChevronRight className="w-4 h-4 ml-auto group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
         ))}
         {assignments?.length === 0 && (
           <div className="col-span-full py-20 text-center border-2 border-dashed rounded-2xl bg-muted/20">
