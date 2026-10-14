@@ -13,7 +13,8 @@ import {
   Info,
   Search,
   Calendar,
-  BookOpen
+  BookOpen,
+  Download
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -42,6 +43,7 @@ export default function GradingPage() {
   const { user, loading: userLoading } = useUser()
   const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   
   const settingsRef = useMemoFirebase(() => {
@@ -81,7 +83,6 @@ export default function GradingPage() {
       .sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""))
   }, [allAcceptedStudents, classroom, searchTerm])
 
-  // OPTIMASI: Sederhanakan kueri agar tidak butuh indeks
   const assessmentsQuery = useMemoFirebase(() => {
     if (!db || userLoading || !user || !assignmentId) return null
     return query(
@@ -97,7 +98,6 @@ export default function GradingPage() {
   useEffect(() => {
     if (rawAssessments) {
       const gMap: Record<string, Partial<Assessment>> = {}
-      // Filter semester di memori
       rawAssessments.filter(a => a.semester === activeSemester).forEach(a => {
         gMap[a.studentId] = a
       })
@@ -153,6 +153,62 @@ export default function GradingPage() {
     }
   }
 
+  const handleDownloadPDF = async () => {
+    if (!assignment || !students.length) return
+    setIsExporting(true)
+    try {
+      const { default: jsPDF } = await import('jspdf')
+      const { default: autoTable } = await import('jspdf-autotable')
+      const doc = new jsPDF('landscape')
+      
+      const dinasName = config?.dinasName || "DINAS PENDIDIKAN"
+      const schoolName = config?.schoolName || "SIS TERPADU"
+      
+      doc.setFontSize(12).setFont("helvetica", "bold").setTextColor(67, 97, 238)
+      doc.text(dinasName.toUpperCase(), 148, 15, { align: "center" })
+      doc.text(schoolName.toUpperCase(), 148, 22, { align: "center" })
+      doc.setDrawColor(67, 97, 238).setLineWidth(0.5).line(14, 26, 283, 26)
+
+      doc.setFontSize(14).setTextColor(0).text(`LAPORAN NILAI SISWA - SEMESTER ${activeSemester}`, 14, 38)
+      doc.setFontSize(10).setTextColor(100)
+      doc.text(`Mata Pelajaran: ${assignment.subjectName}`, 14, 45)
+      doc.text(`Kelas: ${assignment.className} | Guru: ${user?.displayName || '-'}`, 14, 51)
+      
+      const tableData = students.map((s, idx) => {
+        const g = grades[s.id] || {}
+        return [
+          idx + 1,
+          s.fullName,
+          s.NISN,
+          g.attendance || 0,
+          g.task1 || 0,
+          g.task2 || 0,
+          g.task3 || 0,
+          g.groupTask || 0,
+          g.midExam || 0,
+          g.finalExam || 0,
+          g.finalScore || 0
+        ]
+      })
+
+      autoTable(doc, {
+        head: [['No', 'Nama Murid', 'NISN', 'Absen', 'Tgs 1', 'Tgs 2', 'Tgs 3', 'Klmok', 'UTS', 'UAS', 'Total']],
+        body: tableData,
+        startY: 58,
+        theme: 'striped',
+        headStyles: { fillColor: [67, 97, 238], textColor: [255, 255, 255] },
+        styles: { fontSize: 8, cellPadding: 2 }
+      })
+
+      doc.save(`Nilai_${assignment.subjectName}_Kelas_${assignment.className}_Smt${activeSemester}.pdf`)
+      toast({ title: "Berhasil Mengunduh", description: "Buku nilai telah disimpan sebagai PDF." })
+    } catch (e) {
+      toast({ variant: "destructive", title: "Gagal ekspor PDF" })
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   if (userLoading || loadingA || loadingC || loadingS) return (
     <div className="flex flex-col items-center justify-center py-24 gap-4">
       <Loader2 className="animate-spin text-primary w-8 h-8" />
@@ -174,7 +230,7 @@ export default function GradingPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <div className="relative">
+          <div className="relative hidden sm:block">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input 
               placeholder="Cari murid..." 
@@ -183,6 +239,10 @@ export default function GradingPage() {
               className="pl-9 w-48 bg-muted/20"
             />
           </div>
+          <Button variant="outline" onClick={handleDownloadPDF} disabled={isExporting} className="gap-2 border-primary/30">
+            {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            Cetak PDF
+          </Button>
           <Button asChild variant="outline" className="gap-2 border-accent/30 text-accent">
             <Link href={`/teacher/journal/${assignmentId}?semester=${activeSemester}`}><BookOpen className="w-4 h-4" /> Jurnal & Absensi</Link>
           </Button>
