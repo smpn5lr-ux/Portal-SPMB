@@ -170,14 +170,19 @@ export default function RosterManagementPage() {
     const teacherMap = new Map();
     const subjectColors = new Map();
     
-    const uniqueTeachers = Array.from(new Set(assignments.map(a => a.teacherId)))
-      .map(id => assignments.find(a => a.teacherId === id)!)
-      .sort((a, b) => a.teacherName.localeCompare(b.teacherName));
+    // Pastikan kode guru unik (angka)
+    const uniqueTeacherIds = Array.from(new Set(assignments.map(a => a.teacherId)))
+      .sort((a, b) => {
+        const nameA = assignments.find(x => x.teacherId === a)?.teacherName || "";
+        const nameB = assignments.find(x => x.teacherId === b)?.teacherName || "";
+        return nameA.localeCompare(nameB);
+      });
       
-    uniqueTeachers.forEach((t, idx) => {
-      teacherMap.set(t.teacherId, idx + 1);
+    uniqueTeacherIds.forEach((id, idx) => {
+      teacherMap.set(id, idx + 1);
     });
 
+    // Warna unik per mata pelajaran (meskipun guru sama)
     const sortedAssignments = [...assignments].sort((a, b) => {
       const tComp = a.teacherName.localeCompare(b.teacherName);
       if (tComp !== 0) return tComp;
@@ -366,6 +371,7 @@ export default function RosterManagementPage() {
       const schoolName = systemSettings?.schoolName || "SIS TERPADU";
       const dinasName = systemSettings?.dinasName || "DINAS PENDIDIKAN";
 
+      // Header Matriks
       doc.setFontSize(10).setFont("helvetica", "bold").setTextColor(67, 97, 238);
       doc.text(dinasName.toUpperCase(), 148.5, 12, { align: "center" });
       doc.text(`MATRIKS JADWAL PELAJARAN TERPADU - ${schoolName.toUpperCase()}`, 148.5, 18, { align: "center" });
@@ -376,7 +382,16 @@ export default function RosterManagementPage() {
       const tableBody: any[] = [];
       DAYS.forEach(day => {
         for (let p = 1; p <= MAX_PERIODS; p++) {
-          const row = [day, p, getTimeForPeriod(p)];
+          const row: any[] = [];
+          
+          // Kolom Hari (Hanya isi di Jam ke-1 untuk rowSpan)
+          if (p === 1) {
+            row.push({ content: day, rowSpan: MAX_PERIODS, styles: { fillColor: [240, 240, 240], fontStyle: 'bold', halign: 'center', valign: 'middle' } });
+          }
+          
+          row.push(p);
+          row.push(getTimeForPeriod(p));
+          
           sortedClasses.forEach(cls => {
             const entry = getEntry(day, p, cls.id);
             if (entry) {
@@ -400,32 +415,41 @@ export default function RosterManagementPage() {
         startY: 25,
         theme: 'grid',
         styles: { fontSize: 6, cellPadding: 1, halign: 'center', valign: 'middle' },
-        headStyles: { fillColor: [67, 97, 238], textColor: [255, 255, 255], fontSize: 7 },
+        headStyles: { fillColor: [67, 97, 238], textColor: [255, 255, 255], fontSize: 7, fontStyle: 'bold' },
         columnStyles: {
-          0: { cellWidth: 15, fillColor: [240, 240, 240] },
-          1: { cellWidth: 8 },
-          2: { cellWidth: 15 }
+          0: { cellWidth: 15 }, // HARI
+          1: { cellWidth: 8 },  // JAM
+          2: { cellWidth: 15 }  // WAKTU
         },
         didParseCell: (data) => {
-          if (data.section === 'body' && data.column.index > 2) {
-            const day = data.row.cells[0].text[0];
-            const period = parseInt(data.row.cells[1].text[0]);
-            const cls = sortedClasses[data.column.index - 3];
-            const entry = getEntry(day, period, cls.id);
+          // Mewarnai sel berdasarkan mapel (mengabaikan kolom HARI yang rowspanned pada baris > 1)
+          const isFirstRowOfDay = (data.row.index % MAX_PERIODS) === 0;
+          const classColumnOffset = isFirstRowOfDay ? 3 : 2;
+          
+          if (data.section === 'body' && data.column.index >= classColumnOffset) {
+            const currentDayIdx = Math.floor(data.row.index / MAX_PERIODS);
+            const day = DAYS[currentDayIdx];
+            const period = (data.row.index % MAX_PERIODS) + 1;
+            const clsIdx = data.column.index - classColumnOffset;
+            const cls = sortedClasses[clsIdx];
             
-            if (entry) {
-              if (entry.isActivity) {
-                data.cell.styles.fillColor = [220, 220, 220];
-              } else {
-                const color = subjectColors.get(`${entry.teacherId}_${entry.subjectId}`);
-                if (color) data.cell.styles.fillColor = color;
-                data.cell.styles.fontStyle = 'bold';
+            if (cls) {
+              const entry = getEntry(day, period, cls.id);
+              if (entry) {
+                if (entry.isActivity) {
+                  data.cell.styles.fillColor = [220, 220, 220];
+                } else {
+                  const color = subjectColors.get(`${entry.teacherId}_${entry.subjectId}`);
+                  if (color) data.cell.styles.fillColor = color;
+                  data.cell.styles.fontStyle = 'bold';
+                }
               }
             }
           }
         },
       });
 
+      // Halaman 2: Legenda
       doc.addPage();
       doc.setFontSize(14).setFont("helvetica", "bold").text("LEGENDA GURU & MATA PELAJARAN", 14, 20);
       
@@ -433,11 +457,12 @@ export default function RosterManagementPage() {
         .map(id => {
           const tAsgs = assignments.filter(a => a.teacherId === id);
           const distinctSubjects = Array.from(new Set(tAsgs.map(a => a.subjectName)));
+          const distinctSubjectIds = Array.from(new Set(tAsgs.map(a => a.subjectId)));
           return {
             id,
             name: tAsgs[0].teacherName,
             subjects: distinctSubjects,
-            subjectIds: Array.from(new Set(tAsgs.map(a => a.subjectId))),
+            subjectIds: distinctSubjectIds,
             code: teacherMap.get(id)
           };
         })
@@ -458,6 +483,7 @@ export default function RosterManagementPage() {
             const y = data.cell.y + 2;
             const size = data.cell.width - 4;
             
+            // Logic split warna (diagonal)
             if (t.subjectIds.length >= 2) {
               const color1 = subjectColors.get(`${t.id}_${t.subjectIds[0]}`);
               const color2 = subjectColors.get(`${t.id}_${t.subjectIds[1]}`);
@@ -483,7 +509,7 @@ export default function RosterManagementPage() {
         }
       });
 
-      doc.save(`Roster_Matriks_Terpadu_${schoolName}.pdf`);
+      doc.save(`Roster_Matriks_Terpadu_${schoolName.replace(/\s+/g, '_')}.pdf`);
     } catch (e) {
       console.error(e);
       toast({ variant: "destructive", title: "Gagal unduh" });
@@ -518,7 +544,7 @@ export default function RosterManagementPage() {
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuItem onClick={handleDownloadUnified}>Format Matriks Terpadu (2 Hal)</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => toast({ title: "Segera Hadir" })}>Format Per Kelas (PDF)</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => toast({ title: "Fitur ini akan segera tersedia." })}>Format Per Kelas (PDF)</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <Button onClick={() => setIsAddOpen(true)} className="gap-2 shadow-lg shadow-primary/20"><Plus className="w-4 h-4" /> Plot Jadwal</Button>
@@ -618,7 +644,7 @@ export default function RosterManagementPage() {
                   <Label>Durasi 1 JP (Menit)</Label>
                   <Input 
                     type="number" 
-                    value={config.jpDuration || 0} 
+                    value={config.jpDuration || 40} 
                     onChange={e => setDoc(configRef!, { ...config, jpDuration: parseInt(e.target.value) || 0 }, { merge: true })} 
                   />
                 </div>
@@ -637,7 +663,7 @@ export default function RosterManagementPage() {
                   {config.break1Active && (
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label className="text-[10px] uppercase">Pada Jam Ke- (Harus Genap)</Label>
+                        <Label className="text-[10px] uppercase">Pada Jam Ke- (Pilih Jam Genap)</Label>
                         <Select 
                           value={config.break1Period?.toString() || "4"} 
                           onValueChange={v => setDoc(configRef!, { ...config, break1Period: parseInt(v) }, { merge: true })}
@@ -654,7 +680,7 @@ export default function RosterManagementPage() {
                         <Label className="text-[10px] uppercase">Durasi (Menit)</Label>
                         <Input 
                           type="number" 
-                          value={config.break1Duration ?? 0} 
+                          value={config.break1Duration ?? 30} 
                           onChange={e => setDoc(configRef!, { ...config, break1Duration: parseInt(e.target.value) || 0 }, { merge: true })} 
                         />
                       </div>
@@ -667,7 +693,7 @@ export default function RosterManagementPage() {
                   {config.break2Active && (
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label className="text-[10px] uppercase">Pada Jam Ke- (Harus Genap)</Label>
+                        <Label className="text-[10px] uppercase">Pada Jam Ke- (Pilih Jam Genap)</Label>
                         <Select 
                           value={config.break2Period?.toString() || "6"} 
                           onValueChange={v => setDoc(configRef!, { ...config, break2Period: parseInt(v) }, { merge: true })}
@@ -684,7 +710,7 @@ export default function RosterManagementPage() {
                         <Label className="text-[10px] uppercase">Durasi (Menit)</Label>
                         <Input 
                           type="number" 
-                          value={config.break2Duration ?? 0} 
+                          value={config.break2Duration ?? 15} 
                           onChange={e => setDoc(configRef!, { ...config, break2Duration: parseInt(e.target.value) || 0 }, { merge: true })} 
                         />
                       </div>
@@ -693,7 +719,7 @@ export default function RosterManagementPage() {
                 </div>
                 <div className="bg-muted/30 p-3 rounded-lg flex gap-3">
                   <Info className="w-4 h-4 text-muted-foreground shrink-0 mt-1" />
-                  <p className="text-[10px] text-muted-foreground leading-relaxed italic">Aturan Genap: Istirahat sebaiknya ditempatkan setelah jam ke-2, 4, atau 6 agar selaras dengan blok pengajaran 2 jam (Jam 1-2, Jam 3-4, dst).</p>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed italic">Catatan: Istirahat sebaiknya ditempatkan setelah jam ke-2, 4, atau 6 agar selaras dengan blok pengajaran 2 jam (Jam 1-2, Jam 3-4, dst).</p>
                 </div>
               </CardContent>
             </Card>
@@ -706,7 +732,7 @@ export default function RosterManagementPage() {
           <DialogHeader><DialogTitle>Plot Jadwal Manual</DialogTitle></DialogHeader>
           <div className="space-y-6 py-4">
             <div className="flex items-center justify-between p-3 bg-accent/5 border border-accent/20 rounded-xl">
-               <div><Label className="font-bold">Mode Kegiatan Sekolah</Label><p className="text-[10px] text-muted-foreground italic">Agenda non-KBM</p></div>
+               <div><Label className="font-bold">Mode Kegiatan Sekolah</Label><p className="text-[10px] text-muted-foreground italic">Agenda non-KBM (Upacara/Istirahat)</p></div>
                <Switch checked={newEntry.isActivity} onCheckedChange={v => setNewEntry({...newEntry, isActivity: v})} />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -719,7 +745,7 @@ export default function RosterManagementPage() {
                  <Input 
                    value={newEntry.activityName || ""} 
                    onChange={e => setNewEntry({...newEntry, activityName: e.target.value})} 
-                   placeholder="Contoh: Upacara Bendera"
+                   placeholder="Contoh: ISTIRAHAT"
                  />
                </div>
             ) : (
