@@ -166,14 +166,12 @@ export default function RosterManagementPage() {
     })
   }, [assignments, rosterEntries])
 
-  // Logika Koding Roster Canggih: 1 Kode per Guru, Warna per Mapel
   const rosterKoding = useMemo(() => {
     if (!assignments) return { teacherCodes: new Map(), subjectColors: new Map() };
     
     const teacherCodes = new Map<string, number>();
     const subjectColors = new Map<string, number[]>();
     
-    // 1. Assign 1 kode angka per Guru (Urut abjad nama guru)
     const uniqueTeachers = Array.from(new Set(assignments.map(a => a.teacherId)))
       .map(id => assignments.find(a => a.teacherId === id)!)
       .sort((a, b) => a.teacherName.localeCompare(b.teacherName));
@@ -182,7 +180,6 @@ export default function RosterManagementPage() {
       teacherCodes.set(t.teacherId, idx + 1);
     });
     
-    // 2. Assign warna per pasangan Guru-Mapel (Urut abjad)
     const sortedAssignments = [...assignments].sort((a, b) => {
       const nameComp = a.teacherName.localeCompare(b.teacherName);
       if (nameComp !== 0) return nameComp;
@@ -269,7 +266,9 @@ export default function RosterManagementPage() {
             if (data.section === 'body' && data.column.index > 2) {
               const val = data.cell.text[0]
               const cls = sortedClasses[data.column.index - 3]
-              const entry = rosterEntries.find(e => e.day === DAYS[Math.floor(body.indexOf(data.row.raw) / MAX_PERIODS)] && e.period === (body.indexOf(data.row.raw) % MAX_PERIODS + 1) && e.classId === cls?.id)
+              const dayIndex = Math.floor(body.indexOf(data.row.raw) / MAX_PERIODS);
+              const period = (body.indexOf(data.row.raw) % MAX_PERIODS + 1);
+              const entry = rosterEntries.find(e => e.day === DAYS[dayIndex] && e.period === period && e.classId === cls?.id)
               
               if (entry && !entry.isActivity) {
                 const key = `${entry.teacherId}_${entry.subjectId}`;
@@ -287,26 +286,29 @@ export default function RosterManagementPage() {
           }
         })
 
-        // HALAMAN 2: LEGENDA KODE GURU & MAPEL
         doc.addPage()
         doc.setFontSize(14).setFont("helvetica", "bold").setTextColor(brandBlue[0], brandBlue[1], brandBlue[2])
         doc.text(`LEGENDA KODE GURU & MATA PELAJARAN`, 148.5, 15, { align: "center" })
         doc.setDrawColor(brandBlue[0], brandBlue[1], brandBlue[2]).setLineWidth(0.5).line(14, 20, 283, 20)
 
-        // Group assignments by teacher for the legend
         const teacherLegend: any[] = [];
         Array.from(rosterKoding.teacherCodes.entries()).sort((a, b) => a[1] - b[1]).forEach(([tId, code]) => {
           const teacherAsgs = assignments.filter(a => a.teacherId === tId);
           const tName = teacherAsgs[0]?.teacherName || "-";
           
-          const colors: number[][] = teacherAsgs.map(a => rosterKoding.subjectColors.get(`${tId}_${a.subjectId}`) || [255, 255, 255]);
-          const subjectsList = teacherAsgs.map(a => a.subjectName).join(", ");
+          const uniqueSubjectNames = Array.from(new Set(teacherAsgs.map(a => a.subjectName)));
+          const subjectsList = uniqueSubjectNames.join(", ");
+
+          const colors: number[][] = uniqueSubjectNames.map(sName => {
+             const asg = teacherAsgs.find(a => a.subjectName === sName);
+             return rosterKoding.subjectColors.get(`${tId}_${asg!.subjectId}`) || [255, 255, 255];
+          });
           
           teacherLegend.push({
             code,
             name: tName,
             subjects: subjectsList,
-            colors: colors.slice(0, 2) // We support split color for up to 2 subjects
+            colors: colors.slice(0, 2)
           });
         });
 
@@ -331,7 +333,6 @@ export default function RosterManagementPage() {
                   ctx.setFillColor(info.colors[0][0], info.colors[0][1], info.colors[0][2]);
                   ctx.rect(x, y, w, h, 'F');
                 } else if (info.colors.length >= 2) {
-                  // Drawing the split background (cross/diagonal)
                   ctx.setFillColor(info.colors[0][0], info.colors[0][1], info.colors[0][2]);
                   ctx.triangle(x, y, x + w, y, x, y + h, 'F');
                   
@@ -339,7 +340,6 @@ export default function RosterManagementPage() {
                   ctx.triangle(x + w, y, x + w, y + h, x, y + h, 'F');
                 }
                 
-                // Redraw text on top of the custom background
                 ctx.setTextColor(0);
                 ctx.setFontSize(8);
                 ctx.setFont("helvetica", "bold");
@@ -351,7 +351,6 @@ export default function RosterManagementPage() {
 
         doc.save(`Roster_Matriks_Terpadu.pdf`)
       } else {
-        // MODE PER KELAS
         const doc = new jsPDF('l', 'mm', 'a4')
         const sortedClasses = [...classes].sort((a,b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
 
