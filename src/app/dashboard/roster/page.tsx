@@ -22,7 +22,8 @@ import {
   Check,
   Zap,
   LayoutGrid,
-  Download
+  Download,
+  ChevronDown
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -53,6 +54,12 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
@@ -65,7 +72,6 @@ import { addMinutes, format, parse } from 'date-fns'
 const DAYS = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"]
 const MAX_PERIODS = 10 
 
-// Predefined soft colors for PDF coding (RGB)
 const PALETTE = [
   [255, 182, 193], // Light Pink
   [173, 216, 230], // Light Blue
@@ -160,12 +166,10 @@ export default function RosterManagementPage() {
     })
   }, [assignments, rosterEntries])
 
-  // Coding logic for PDF
   const assignmentCodes = useMemo(() => {
     if (!assignments) return new Map<string, { code: number; color: number[] }>();
     const map = new Map<string, { code: number; color: number[] }>();
     
-    // Sort unique teacher+subject pairs to give consistent codes
     const uniquePairs = assignments.reduce((acc, curr) => {
       const key = `${curr.teacherId}_${curr.subjectId}`;
       if (!acc.find(i => i.key === key)) {
@@ -183,107 +187,155 @@ export default function RosterManagementPage() {
     return map;
   }, [assignments]);
 
-  const handleDownloadRoster = async () => {
+  const handleDownloadRoster = async (mode: 'consolidated' | 'per-class') => {
     if (!classes || !rosterEntries || !assignments) return
     setIsExporting(true)
     try {
       const { default: jsPDF } = await import('jspdf')
       const { default: autoTable } = await import('jspdf-autotable')
-      const doc = new jsPDF('l', 'mm', 'a4')
       
       const dinasName = systemSettings?.dinasName || "DINAS PENDIDIKAN"
       const schoolName = systemSettings?.schoolName || "SIS TERPADU"
-      
-      // PAGE 1: CONSOLIDATED ROSTER
-      doc.setFontSize(14).setFont("helvetica", "bold").setTextColor(67, 97, 238)
-      doc.text(`MATRIKS ROSTER JADWAL PELAJARAN TERPADU`, 148.5, 15, { align: "center" })
-      doc.setFontSize(10).setTextColor(100).setFont("helvetica", "normal")
-      doc.text(`${dinasName} | ${schoolName}`, 148.5, 22, { align: "center" })
-      doc.setDrawColor(67, 97, 238).setLineWidth(0.5).line(14, 26, 283, 26)
+      const brandBlue = [67, 97, 238] as [number, number, number]
 
-      const sortedClasses = [...classes].sort((a,b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
-      const headers = [['HARI / JAM', ...sortedClasses.map(c => `KLAS ${c.name}`)]]
-      
-      const body: any[] = []
-      DAYS.forEach(day => {
-        for (let p = 1; p <= MAX_PERIODS; p++) {
-          const row = [`${day}\n${p} (${getTimeForPeriod(p)})`]
-          sortedClasses.forEach(cls => {
-            const entry = rosterEntries.find(e => e.day === day && e.period === p && e.classId === cls.id)
-            if (!entry) {
-              row.push("-")
-            } else if (entry.isActivity) {
-              row.push(entry.activityName || "KEGIATAN")
-            } else {
-              const key = `${entry.teacherId}_${entry.subjectId}`
-              const codeData = assignmentCodes.get(key)
-              row.push(codeData ? codeData.code.toString() : "?")
+      if (mode === 'consolidated') {
+        const doc = new jsPDF('l', 'mm', 'a4')
+        
+        // HALAMAN 1: MATRIKS TERPADU
+        doc.setFontSize(14).setFont("helvetica", "bold").setTextColor(brandBlue[0], brandBlue[1], brandBlue[2])
+        doc.text(`MATRIKS ROSTER JADWAL PELAJARAN TERPADU`, 148.5, 15, { align: "center" })
+        doc.setFontSize(10).setTextColor(100).setFont("helvetica", "normal")
+        doc.text(`${dinasName} | ${schoolName}`, 148.5, 22, { align: "center" })
+        doc.setDrawColor(brandBlue[0], brandBlue[1], brandBlue[2]).setLineWidth(0.5).line(14, 26, 283, 26)
+
+        const sortedClasses = [...classes].sort((a,b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+        const headers = [['HARI / JAM', ...sortedClasses.map(c => `KLAS ${c.name}`)]]
+        
+        const body: any[] = []
+        DAYS.forEach(day => {
+          for (let p = 1; p <= MAX_PERIODS; p++) {
+            const row = [`${day}\n${p} (${getTimeForPeriod(p)})`]
+            sortedClasses.forEach(cls => {
+              const entry = rosterEntries.find(e => e.day === day && e.period === p && e.classId === cls.id)
+              if (!entry) {
+                row.push("-")
+              } else if (entry.isActivity) {
+                row.push(entry.activityName || "KEGIATAN")
+              } else {
+                const key = `${entry.teacherId}_${entry.subjectId}`
+                const codeData = assignmentCodes.get(key)
+                row.push(codeData ? codeData.code.toString() : "?")
+              }
+            })
+            body.push(row)
+          }
+        })
+
+        autoTable(doc, {
+          head: headers,
+          body: body,
+          startY: 35,
+          theme: 'grid',
+          headStyles: { fillColor: brandBlue, textColor: [255, 255, 255], halign: 'center', fontSize: 7 },
+          styles: { fontSize: 6.5, cellPadding: 1.5, halign: 'center', valign: 'middle' },
+          columnStyles: { 0: { cellWidth: 25, fontStyle: 'bold', fillColor: [245, 247, 255] } },
+          didParseCell: (data) => {
+            if (data.section === 'body' && data.column.index > 0) {
+              const val = data.cell.text[0]
+              if (val && val !== "-" && !isNaN(Number(val))) {
+                const codeNum = parseInt(val)
+                const match = Array.from(assignmentCodes.values()).find(v => v.code === codeNum)
+                if (match) {
+                  data.cell.styles.fillColor = match.color as [number, number, number]
+                  data.cell.styles.fontStyle = 'bold'
+                }
+              } else if (val && val !== "-" && isNaN(Number(val))) {
+                data.cell.styles.fillColor = [230, 240, 255]
+                data.cell.styles.fontSize = 5
+              }
             }
-          })
-          body.push(row)
-        }
-      })
+          }
+        })
 
-      autoTable(doc, {
-        head: headers,
-        body: body,
-        startY: 35,
-        theme: 'grid',
-        headStyles: { fillColor: [67, 97, 238], textColor: [255, 255, 255], halign: 'center', fontSize: 7 },
-        styles: { fontSize: 6.5, cellPadding: 1, halign: 'center', valign: 'middle' },
-        columnStyles: { 0: { cellWidth: 25, fontStyle: 'bold', fillColor: [245, 247, 255] } },
-        didParseCell: (data) => {
-          if (data.section === 'body' && data.column.index > 0) {
-            const val = data.cell.text[0]
-            if (val && val !== "-" && !isNaN(Number(val))) {
-              const codeNum = parseInt(val)
+        // HALAMAN 2: LEGENDA
+        doc.addPage()
+        doc.setFontSize(14).setFont("helvetica", "bold").setTextColor(brandBlue[0], brandBlue[1], brandBlue[2])
+        doc.text(`LEGENDA KODE GURU & MATA PELAJARAN`, 148.5, 15, { align: "center" })
+        doc.setDrawColor(brandBlue[0], brandBlue[1], brandBlue[2]).setLineWidth(0.5).line(14, 20, 283, 20)
+
+        const legendBody = Array.from(assignmentCodes.entries()).map(([key, val]) => {
+          const asg = assignments.find(a => `${a.teacherId}_${a.subjectId}` === key)
+          return [val.code, asg?.teacherName || "-", asg?.subjectName || "-"]
+        }).sort((a, b) => (a[0] as number) - (b[0] as number))
+
+        autoTable(doc, {
+          head: [['KODE', 'NAMA GURU', 'MATA PELAJARAN']],
+          body: legendBody,
+          startY: 30,
+          theme: 'striped',
+          headStyles: { fillColor: brandBlue },
+          columnStyles: { 0: { cellWidth: 20, halign: 'center', fontStyle: 'bold' } },
+          didParseCell: (data) => {
+            if (data.section === 'body' && data.column.index === 0) {
+              const codeNum = data.cell.raw as number
               const match = Array.from(assignmentCodes.values()).find(v => v.code === codeNum)
               if (match) {
                 data.cell.styles.fillColor = match.color as [number, number, number]
-                data.cell.styles.fontStyle = 'bold'
               }
-            } else if (val && val !== "-" && isNaN(Number(val))) {
-              // Activity cell
-              data.cell.styles.fillColor = [230, 240, 255]
-              data.cell.styles.fontSize = 5
             }
           }
-        }
-      })
+        })
 
-      // PAGE 2: LEGEND (GURU & MAPEL)
-      doc.addPage()
-      doc.setFontSize(14).setFont("helvetica", "bold").setTextColor(67, 97, 238)
-      doc.text(`LEGENDA KODE GURU & MATA PELAJARAN`, 148.5, 15, { align: "center" })
-      doc.setDrawColor(67, 97, 238).setLineWidth(0.5).line(14, 20, 283, 20)
+        doc.save(`Roster_Terpadu_Matriks.pdf`)
+      } else {
+        // MODE PER KELAS
+        const doc = new jsPDF('l', 'mm', 'a4')
+        const sortedClasses = [...classes].sort((a,b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
 
-      const legendBody = Array.from(assignmentCodes.entries()).map(([key, val]) => {
-        const asg = assignments.find(a => `${a.teacherId}_${a.subjectId}` === key)
-        return [val.code, asg?.teacherName || "-", asg?.subjectName || "-"]
-      }).sort((a, b) => (a[0] as number) - (b[0] as number))
+        sortedClasses.forEach((cls, idx) => {
+          if (idx > 0) doc.addPage()
+          
+          doc.setFontSize(12).setFont("helvetica", "bold").setTextColor(brandBlue[0], brandBlue[1], brandBlue[2])
+          doc.text(dinasName.toUpperCase(), 148.5, 15, { align: "center" })
+          doc.text(schoolName.toUpperCase(), 148.5, 22, { align: "center" })
+          doc.setDrawColor(brandBlue[0], brandBlue[1], brandBlue[2]).setLineWidth(0.5).line(14, 26, 283, 26)
 
-      autoTable(doc, {
-        head: [['KODE', 'NAMA GURU', 'MATA PELAJARAN']],
-        body: legendBody,
-        startY: 30,
-        theme: 'striped',
-        headStyles: { fillColor: [67, 97, 238] },
-        columnStyles: { 
-          0: { cellWidth: 20, halign: 'center', fontStyle: 'bold' } 
-        },
-        didParseCell: (data) => {
-          if (data.section === 'body' && data.column.index === 0) {
-            const codeNum = data.cell.raw as number
-            const match = Array.from(assignmentCodes.values()).find(v => v.code === codeNum)
-            if (match) {
-              data.cell.styles.fillColor = match.color as [number, number, number]
-            }
+          doc.setFontSize(14).setTextColor(0).text(`JADWAL PELAJARAN - KELAS ${cls.name}`, 14, 35)
+          doc.setFontSize(10).setTextColor(100).text(`Wali Kelas: ${cls.homeroomTeacher || '-'}`, 14, 42)
+
+          const headers = [['JAM', 'WAKTU', ...DAYS]]
+          const body: any[] = []
+
+          for (let p = 1; p <= MAX_PERIODS; p++) {
+            const row = [p, getTimeForPeriod(p)]
+            DAYS.forEach(day => {
+              const entry = rosterEntries.find(e => e.day === day && e.period === p && e.classId === cls.id)
+              if (!entry) {
+                row.push("-")
+              } else if (entry.isActivity) {
+                row.push(entry.activityName || "KEGIATAN")
+              } else {
+                row.push(`${entry.subjectName}\n(${entry.teacherName})`)
+              }
+            })
+            body.push(row)
           }
-        }
-      })
 
-      doc.save(`Roster_Terpadu_${schoolName}.pdf`)
-      toast({ title: "Unduh Berhasil", description: "Roster matriks dan legenda telah disimpan." })
+          autoTable(doc, {
+            head: headers,
+            body: body,
+            startY: 48,
+            theme: 'grid',
+            headStyles: { fillColor: brandBlue, halign: 'center' },
+            styles: { fontSize: 7, halign: 'center', valign: 'middle', cellPadding: 2 },
+            columnStyles: { 0: { cellWidth: 10 }, 1: { cellWidth: 25 } }
+          })
+        })
+
+        doc.save(`Roster_Per_Kelas.pdf`)
+      }
+      
+      toast({ title: "Unduh Berhasil", description: "Laporan roster telah disimpan." })
     } catch (e) {
       console.error(e)
       toast({ variant: "destructive", title: "Gagal Mengunduh" })
@@ -456,15 +508,27 @@ export default function RosterManagementPage() {
           <p className="text-muted-foreground mt-1">Plotting jadwal mengajar sesuai beban JP Dapodik (Senin - Sabtu).</p>
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            onClick={handleDownloadRoster} 
-            disabled={isExporting}
-            className="gap-2 border-primary/30"
-          >
-            {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            Unduh Roster
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="outline" 
+                disabled={isExporting}
+                className="gap-2 border-primary/30"
+              >
+                {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                Unduh Roster <ChevronDown className="w-3 h-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleDownloadRoster('consolidated')}>
+                Format Matriks Terpadu (2 Halaman)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleDownloadRoster('per-class')}>
+                Format Per Kelas (Satu Halaman/Kelas)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <Button 
             variant="outline" 
             onClick={handleAutoGenerate} 
