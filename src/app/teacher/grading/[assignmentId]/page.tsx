@@ -39,20 +39,32 @@ export default function GradingPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const db = useFirestore()
-  const { user } = useUser()
+  const { user, loading: userLoading } = useUser()
   const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   
-  const settingsRef = useMemoFirebase(() => db ? doc(db, 'settings', 'system') : null, [db])
+  const settingsRef = useMemoFirebase(() => {
+    if (!db || !user) return null
+    return doc(db, 'settings', 'system')
+  }, [db, user])
+  
   const { data: config } = useDoc<any>(settingsRef)
 
   const activeSemester = parseInt(searchParams.get('semester') || config?.activeSemester?.toString() || "1")
 
-  const assignmentRef = useMemoFirebase(() => db ? doc(db, 'teacherAssignments', assignmentId as string) : null, [db, assignmentId])
+  const assignmentRef = useMemoFirebase(() => {
+    if (!db || !assignmentId || !user) return null
+    return doc(db, 'teacherAssignments', assignmentId as string)
+  }, [db, assignmentId, user])
+  
   const { data: assignment, loading: loadingA } = useDoc<TeacherAssignment>(assignmentRef)
 
-  const classRef = useMemoFirebase(() => db && assignment ? doc(db, 'classes', assignment.classId) : null, [db, assignment])
+  const classRef = useMemoFirebase(() => {
+    if (!db && !assignment && !user) return null
+    return assignment ? doc(db!, 'classes', assignment.classId) : null
+  }, [db, assignment, user])
+  
   const { data: classroom, loading: loadingC } = useDoc<Classroom>(classRef)
 
   const studentsQuery = useMemoFirebase(() => {
@@ -99,11 +111,6 @@ export default function GradingPage() {
       const current = prev[studentId] || { studentId, assignmentId: assignmentId as string, semester: activeSemester }
       const updated = { ...current, [field]: numValue }
       
-      // Kalkulasi Bobot Nilai Akhir Baru
-      // Kehadiran 10%
-      // Rata-rata Tugas (1,2,3, Kelompok) 40%
-      // UTS 20%
-      // UAS 30%
       const att = (updated.attendance || 0) * 0.1
       const t1 = updated.task1 || 0
       const t2 = updated.task2 || 0
@@ -120,7 +127,7 @@ export default function GradingPage() {
   }
 
   const saveAllGrades = async () => {
-    if (!db || !activeSemester) return
+    if (!db || !activeSemester || !user) return
     setIsSaving(true)
     const batch = writeBatch(db)
     
@@ -146,7 +153,7 @@ export default function GradingPage() {
     }
   }
 
-  if (loadingA || loadingC || loadingS) return (
+  if (userLoading || loadingA || loadingC || loadingS) return (
     <div className="flex flex-col items-center justify-center py-24 gap-4">
       <Loader2 className="animate-spin text-primary w-8 h-8" />
       <p className="text-sm text-muted-foreground animate-pulse">Memuat buku nilai...</p>
@@ -265,9 +272,11 @@ export default function GradingPage() {
                 <span className="text-muted-foreground">Tuntas (KKM 75)</span>
                 <span className="font-bold text-green-500">{Object.values(grades).filter(g => (g.finalScore || 0) >= 75).length}</span>
               </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Remedial</span>
-                <span className="font-bold text-destructive">{Object.values(grades).filter(g => (g.finalScore || 0) < 75 && g.finalScore !== undefined).length}</span>
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2 text-destructive">
+                  <AlertCircle className="w-4 h-4" /> <span>Remedial (&lt;75)</span>
+                </div>
+                <span className="font-bold">{Object.values(grades).filter(g => (g.finalScore || 0) < 75 && g.finalScore !== undefined).length}</span>
               </div>
             </CardContent>
           </Card>

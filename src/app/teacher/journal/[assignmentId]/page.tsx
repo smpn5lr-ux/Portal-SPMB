@@ -56,7 +56,7 @@ export default function TeachingJournalPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const db = useFirestore()
-  const { user } = useUser()
+  const { user, loading: userLoading } = useUser()
   const { toast } = useToast()
   
   const [isAddOpen, setIsAddOpen] = useState(false)
@@ -64,10 +64,18 @@ export default function TeachingJournalPage() {
   
   const activeSemester = parseInt(searchParams.get('semester') || "1")
 
-  const assignmentRef = useMemoFirebase(() => db ? doc(db, 'teacherAssignments', assignmentId as string) : null, [db, assignmentId])
+  const assignmentRef = useMemoFirebase(() => {
+    if (!db || !assignmentId || !user) return null
+    return doc(db, 'teacherAssignments', assignmentId as string)
+  }, [db, assignmentId, user])
+  
   const { data: assignment, loading: loadingA } = useDoc<TeacherAssignment>(assignmentRef)
 
-  const classRef = useMemoFirebase(() => db && assignment ? doc(db, 'classes', assignment.classId) : null, [db, assignment])
+  const classRef = useMemoFirebase(() => {
+    if (!db || !assignment || !user) return null
+    return doc(db, 'classes', assignment.classId)
+  }, [db, assignment, user])
+  
   const { data: classroom } = useDoc<Classroom>(classRef)
 
   const studentsQuery = useMemoFirebase(() => {
@@ -84,14 +92,14 @@ export default function TeachingJournalPage() {
   }, [allAcceptedStudents, classroom])
 
   const journalQuery = useMemoFirebase(() => {
-    if (!db || !assignmentId) return null
+    if (!db || !assignmentId || !user) return null
     return query(
       collection(db, 'journals'), 
       where('assignmentId', '==', assignmentId),
       where('semester', '==', activeSemester),
       orderBy('meetingNumber', 'asc')
     )
-  }, [db, assignmentId, activeSemester])
+  }, [db, assignmentId, activeSemester, user])
   const { data: journals, loading: loadingJ } = useCollection<Journal>(journalQuery)
 
   // State untuk Journal Baru
@@ -130,7 +138,7 @@ export default function TeachingJournalPage() {
   }
 
   const saveJournal = async () => {
-    if (!db || !assignmentId) return
+    if (!db || !assignmentId || !user) return
     setSubmitting(true)
     
     try {
@@ -163,7 +171,6 @@ export default function TeachingJournalPage() {
       }
       
       // 3. Update Kehadiran di Assessment secara otomatis
-      // Logika: Ambil semua jurnal (termasuk yang baru) dan hitung ulang % kehadiran
       const allJournals = [...(journals || []), journalData as Journal]
       const totalMeetings = allJournals.length
       
@@ -183,7 +190,7 @@ export default function TeachingJournalPage() {
       })
 
       await batch.commit()
-      toast({ title: "Jurnal Berhasil Disimpan", description: `Pertemuan ke-${newJournal.meetingNumber} telah dicatat.` })
+      toast({ title: "Jurnal Berhasil Simpan", description: `Pertemuan ke-${newJournal.meetingNumber} telah dicatat.` })
       setIsAddOpen(false)
       setNewJournal({
         meetingNumber: (journals?.length || 0) + 2,
@@ -207,7 +214,12 @@ export default function TeachingJournalPage() {
     toast({ title: "Jurnal Dihapus" })
   }
 
-  if (loadingA || loadingJ) return <div className="flex justify-center py-24"><Loader2 className="animate-spin" /></div>
+  if (userLoading || loadingA || loadingJ) return (
+    <div className="flex flex-col items-center justify-center py-24 gap-4">
+      <Loader2 className="animate-spin text-primary w-8 h-8" />
+      <p className="text-sm text-muted-foreground animate-pulse">Memuat jurnal mengajar...</p>
+    </div>
+  )
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">

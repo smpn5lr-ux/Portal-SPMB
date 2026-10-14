@@ -2,6 +2,8 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Terakhir diperbarui: 2024-05-20 (Force update untuk koleksi journals & assessments)
+    
     // Fungsi pembantu untuk memverifikasi autentikasi pengguna
     function isAuthenticated() {
       return request.auth != null;
