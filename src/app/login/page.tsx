@@ -8,14 +8,15 @@ import {
   createUserWithEmailAndPassword,
   updateProfile
 } from "firebase/auth"
-import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase"
+import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { School, LogIn, Mail, Lock, Loader2, UserPlus } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { doc } from "firebase/firestore"
+import { doc, collection, query, where } from "firebase/firestore"
+import { Staff } from "@/lib/types"
 
 export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(true)
@@ -37,11 +38,24 @@ export default function LoginPage() {
 
   const { data: config } = useDoc<any>(settingsRef)
 
+  // Query check role
+  const staffQuery = useMemoFirebase(() => {
+    if (!db || !user?.email) return null
+    return query(collection(db, 'staff'), where('email', '==', user.email))
+  }, [db, user])
+
+  const { data: staffData } = useCollection<Staff>(staffQuery)
+
   useEffect(() => {
-    if (!authLoading && user) {
-      router.push("/dashboard")
+    if (!authLoading && user && staffData) {
+      const role = staffData[0]?.role
+      if (role === 'Guru') {
+        router.push("/teacher")
+      } else {
+        router.push("/dashboard")
+      }
     }
-  }, [user, authLoading, router])
+  }, [user, authLoading, staffData, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -51,7 +65,7 @@ export default function LoginPage() {
         await signInWithEmailAndPassword(auth, email, password)
         toast({
           title: "Berhasil Masuk",
-          description: "Selamat datang kembali di Portal Administrator.",
+          description: "Selamat datang kembali di Portal Sistem.",
         })
       } else {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password)
@@ -61,7 +75,6 @@ export default function LoginPage() {
           description: "Silakan gunakan akun Anda untuk mengelola sistem.",
         })
       }
-      router.push("/dashboard")
     } catch (error: any) {
       let message = "Terjadi kesalahan. Silakan coba lagi."
       if (error.code === 'auth/email-already-in-use') message = "Email sudah terdaftar."
@@ -73,7 +86,6 @@ export default function LoginPage() {
         title: isLogin ? "Masuk Gagal" : "Pendaftaran Gagal",
         description: message,
       })
-    } finally {
       setLoading(false)
     }
   }
@@ -81,12 +93,10 @@ export default function LoginPage() {
   if (authLoading) return null
 
   const appName = config?.appName || "Portal SPMB"
-  // Gunakan logo lokal sebagai fallback jika di database kosong
   const appLogoUrl = config?.appLogoUrl || "/icon-logo.webp"
 
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-background/50 relative overflow-hidden p-4">
-      {/* Latar Belakang Dekoratif */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/10 rounded-full blur-[120px]"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-accent/10 rounded-full blur-[120px]"></div>
 
@@ -103,10 +113,10 @@ export default function LoginPage() {
           </div>
           <div>
             <CardTitle className="font-headline text-2xl font-bold tracking-tight">
-              {isLogin ? `Admin ${appName}` : "Daftar Admin Baru"}
+              {isLogin ? `${appName}` : "Daftar Akun Baru"}
             </CardTitle>
             <CardDescription>
-              {isLogin ? `Masuk untuk mengelola sistem ${appName}.` : "Buat akun administrator baru untuk mengelola sistem."}
+              {isLogin ? `Masuk ke portal administrasi & penilaian ${appName}.` : "Buat akun baru untuk mengelola sistem."}
             </CardDescription>
           </div>
         </CardHeader>
@@ -120,7 +130,7 @@ export default function LoginPage() {
                   <Input 
                     id="fullName"
                     type="text" 
-                    placeholder="Nama Lengkap Administrator" 
+                    placeholder="Nama Lengkap Anda" 
                     className="pl-10"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
@@ -136,7 +146,7 @@ export default function LoginPage() {
                 <Input 
                   id="email"
                   type="email" 
-                  placeholder="admin@sekolah.sch.id" 
+                  placeholder="anda@sekolah.sch.id" 
                   className="pl-10"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -181,7 +191,7 @@ export default function LoginPage() {
         </CardContent>
         <CardFooter className="flex flex-col gap-2">
           <p className="text-[10px] text-center text-muted-foreground uppercase tracking-widest font-bold">
-            {appName} • Sistem Informasi Manajemen Sekolah
+            {appName} • Sistem Informasi Terpadu
           </p>
         </CardFooter>
       </Card>

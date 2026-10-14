@@ -18,7 +18,9 @@ import {
   Pencil,
   Trash2,
   UserPlus,
-  Menu
+  Menu,
+  BookOpen,
+  UserCheck
 } from "lucide-react"
 import { 
   Sidebar, 
@@ -46,10 +48,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase"
+import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase"
 import { signOut, updateProfile } from "firebase/auth"
-import { doc } from "firebase/firestore"
+import { doc, collection, query, where } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
+import { Staff } from "@/lib/types"
 
 const navigation = [
   { name: 'Ringkasan', href: '/dashboard', icon: LayoutDashboard },
@@ -57,6 +60,8 @@ const navigation = [
   { name: 'Verifikasi Berkas', href: '/dashboard/verification', icon: CheckSquare },
   { name: 'Sistem Seleksi', href: '/dashboard/selection', icon: Target },
   { name: 'Manajemen Kelas', href: '/dashboard/classes', icon: School },
+  { name: 'Kurikulum', href: '/dashboard/subjects', icon: BookOpen },
+  { name: 'Penugasan Guru', href: '/dashboard/assignments', icon: UserCheck },
   { name: 'Manajemen Pegawai', href: '/dashboard/staff', icon: UserPlus },
   { name: 'Laporan', href: '/dashboard/reports', icon: BarChart3 },
   { name: 'Sampah', href: '/dashboard/trash', icon: Trash2 },
@@ -82,6 +87,14 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   const { data: config } = useDoc<any>(settingsRef)
 
+  // Cek Role Guru untuk redirect balik jika nyasar
+  const staffQuery = useMemoFirebase(() => {
+    if (!db || !user?.email) return null
+    return query(collection(db, 'staff'), where('email', '==', user.email))
+  }, [db, user])
+
+  const { data: staffData, loading: staffLoading } = useCollection<Staff>(staffQuery)
+
   React.useEffect(() => {
     if (!userLoading && !user) {
       router.push('/login')
@@ -89,7 +102,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     if (user) {
       setNewName(user.displayName || "")
     }
-  }, [user, userLoading, router])
+    if (!staffLoading && staffData && staffData.length > 0) {
+      const role = staffData[0].role
+      if (role === 'Guru' && !pathname.startsWith('/teacher')) {
+        router.push('/teacher')
+      }
+    }
+  }, [user, userLoading, staffLoading, staffData, router, pathname])
 
   const handleLogout = async () => {
     try {
@@ -127,7 +146,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     }
   }
 
-  if (userLoading) {
+  if (userLoading || staffLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -138,7 +157,6 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   if (!user) return null
 
   const appName = config?.appName || "Portal SPMB"
-  // Gunakan logo lokal sebagai fallback jika di database kosong
   const appLogoUrl = config?.appLogoUrl || "/icon-logo.webp"
 
   return (
@@ -247,7 +265,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 <span className="text-sm font-semibold group-hover:text-primary transition-colors">
                   {user?.displayName || 'Admin'}
                 </span>
-                <span className="text-[10px] text-primary font-bold uppercase tracking-widest">Administrator</span>
+                <span className="text-[10px] text-primary font-bold uppercase tracking-widest">{staffData?.[0]?.role || 'Administrator'}</span>
               </div>
               <div className="w-9 h-9 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary overflow-hidden relative">
                 {user?.photoURL ? (

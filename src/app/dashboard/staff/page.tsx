@@ -10,7 +10,8 @@ import {
   ShieldCheck, 
   Search, 
   Loader2,
-  ShieldAlert
+  ShieldAlert,
+  GraduationCap
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -71,7 +72,7 @@ import { FirestorePermissionError } from '@/firebase/errors'
 const staffFormSchema = z.object({
   fullName: z.string().min(2, "Nama minimal 2 karakter"),
   email: z.string().email("Format email tidak valid"),
-  role: z.enum(['Admin', 'Pegawai']),
+  role: z.enum(['Admin', 'Pegawai', 'Guru']),
   phone: z.string().optional(),
 })
 
@@ -160,7 +161,7 @@ export default function StaffManagementPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline font-bold">Manajemen Pegawai</h1>
-          <p className="text-muted-foreground mt-1">Kelola akun staf yang memiliki izin operasional sistem.</p>
+          <p className="text-muted-foreground mt-1">Kelola akun staf dan guru yang memiliki izin operasional sistem.</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
@@ -206,8 +207,9 @@ export default function StaffManagementPage() {
                         <SelectTrigger><SelectValue placeholder="Pilih Role" /></SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="Pegawai">Pegawai (Operasional)</SelectItem>
                         <SelectItem value="Admin">Admin (Penuh)</SelectItem>
+                        <SelectItem value="Pegawai">Pegawai (Operasional)</SelectItem>
+                        <SelectItem value="Guru">Guru (Pengajar & Nilai)</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -262,7 +264,9 @@ export default function StaffManagementPage() {
                       </div>
                       <div>
                         <div className="font-medium">{staff.fullName}</div>
-                        <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">STAF SEKOLAH</div>
+                        <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
+                          {staff.role === 'Guru' ? 'PENGAJAR' : 'STAF SEKOLAH'}
+                        </div>
                       </div>
                     </div>
                   </TableCell>
@@ -279,8 +283,9 @@ export default function StaffManagementPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={staff.role === 'Admin' ? 'default' : 'outline'} className="text-[10px] font-bold uppercase">
-                      <ShieldCheck className="w-3 h-3 mr-1" /> {staff.role}
+                    <Badge variant={staff.role === 'Admin' ? 'default' : staff.role === 'Guru' ? 'secondary' : 'outline'} className="text-[10px] font-bold uppercase">
+                      {staff.role === 'Guru' ? <GraduationCap className="w-3 h-3 mr-1" /> : <ShieldCheck className="w-3 h-3 mr-1" />}
+                      {staff.role}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">

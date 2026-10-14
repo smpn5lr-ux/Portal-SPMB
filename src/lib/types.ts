@@ -3,6 +3,7 @@ export type AdmissionPath = 'Zonasi' | 'Prestasi' | 'Afirmasi' | 'Perpindahan Or
 export type VerificationStatus = 'Belum Diverifikasi' | 'Lengkap' | 'Perlu Perbaikan' | 'Ditolak';
 export type AdmissionStatus = 'accepted' | 'waitlisted' | 'rejected' | 'pending';
 export type WelfareType = 'PIP' | 'PKH' | 'KKS' | 'KPS' | 'Tidak Ada';
+export type UserRole = 'Admin' | 'Pegawai' | 'Guru';
 
 export interface Applicant {
   id: string;
@@ -84,7 +85,36 @@ export interface Staff {
   id: string;
   fullName: string;
   email: string;
-  role: 'Admin' | 'Pegawai';
+  role: UserRole;
   phone?: string;
   createdAt: string;
+}
+
+export interface Subject {
+  id: string;
+  name: string;
+  code: string;
+  grade: number;
+}
+
+export interface TeacherAssignment {
+  id: string;
+  teacherId: string;
+  teacherName: string;
+  classId: string;
+  className: string;
+  subjectId: string;
+  subjectName: string;
+}
+
+export interface Assessment {
+  id: string;
+  studentId: string;
+  assignmentId: string;
+  attendance: number;
+  homework: number;
+  midExam: number;
+  finalExam: number;
+  finalScore: number;
+  updatedAt: string;
 }
