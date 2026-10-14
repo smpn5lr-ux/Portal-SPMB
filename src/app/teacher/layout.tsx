@@ -66,7 +66,8 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
     </div>
   )
 
-  const appName = config?.appName || "SIS TERPADU"
+  // Logika Filter: Paksa SIS TERPADU jika di DB masih tersimpan nama lama
+  const appName = (config?.appName && config.appName !== "PORTAL SPMB") ? config.appName : "SIS TERPADU"
   const appLogoUrl = config?.appLogoUrl || "/icon-logo.webp"
 
   return (
@@ -75,12 +76,18 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
         <Sidebar className="border-r border-border">
           <SidebarHeader className="p-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 overflow-hidden shrink-0">
-                {appLogoUrl ? <img src={appLogoUrl} alt="Logo" className="w-full h-full object-contain" /> : <GraduationCap className="w-full h-full text-primary" />}
+              <div className="w-10 h-10 overflow-hidden shrink-0 bg-transparent flex items-center justify-center">
+                {appLogoUrl ? (
+                  <img src={appLogoUrl} alt="Logo" className="w-full h-full object-contain" />
+                ) : (
+                  <div className="bg-primary/20 p-2 rounded-lg flex items-center justify-center w-full h-full">
+                    <GraduationCap className="w-full h-full text-primary" />
+                  </div>
+                )}
               </div>
-              <div className="flex flex-col">
-                <span className="font-headline font-bold text-lg leading-tight">{appName}</span>
-                <span className="text-[10px] text-primary font-bold uppercase tracking-tighter">Portal Guru</span>
+              <div className="flex flex-col overflow-hidden">
+                <span className="font-headline font-bold text-lg leading-tight uppercase truncate">{appName}</span>
+                <span className="text-[10px] text-primary font-bold uppercase tracking-tighter">Portal Pengajar</span>
               </div>
             </div>
           </SidebarHeader>
@@ -96,12 +103,14 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarContent>
-          <SidebarFooter className="p-4 border-t">
+          <SidebarFooter className="p-4 border-t border-border">
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton onClick={handleLogout} className="text-destructive">
-                  <LogOut className="w-5 h-5 mr-3" />
-                  <span>Keluar</span>
+                <SidebarMenuButton onClick={handleLogout} className="text-destructive hover:text-destructive hover:bg-destructive/10 h-10">
+                  <div className="flex items-center gap-3 w-full">
+                    <LogOut className="w-5 h-5" />
+                    <span className="font-medium">Keluar</span>
+                  </div>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -117,9 +126,11 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
             <div className="flex items-center gap-3">
                <div className="text-right hidden md:block">
                  <p className="text-xs font-bold leading-none">{user?.displayName}</p>
-                 <p className="text-[10px] text-muted-foreground uppercase">NIP/NIK: {staffData?.[0]?.email.split('@')[0]}</p>
+                 <p className="text-[10px] text-muted-foreground uppercase">NIP/ID: {staffData?.[0]?.email.split('@')[0]}</p>
                </div>
-               <UserCircle className="w-8 h-8 text-primary" />
+               <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary border border-primary/30">
+                 <UserCircle className="w-6 h-6" />
+               </div>
             </div>
           </header>
           <main className="flex-1 overflow-y-auto p-6 bg-background/50">
