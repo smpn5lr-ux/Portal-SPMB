@@ -11,7 +11,11 @@ import {
   LayoutDashboard,
   UserCircle,
   CalendarDays,
-  ChevronRight
+  ChevronRight,
+  Download,
+  FileSpreadsheet,
+  BookOpen,
+  Users
 } from "lucide-react"
 import { 
   Sidebar, 
@@ -31,8 +35,10 @@ import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase"
 import { signOut } from "firebase/auth"
-import { doc, collection, query, where } from "firebase/firestore"
-import { Staff } from "@/lib/types"
+import { doc, collection, query, where, getDocs } from "firebase/firestore"
+import { Staff, TeacherAssignment, Journal, Assessment, Applicant } from "@/lib/types"
+import { useToast } from "@/hooks/use-toast"
+import * as XLSX from 'xlsx'
 
 export default function TeacherLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -40,6 +46,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
   const searchParams = useSearchParams()
   const auth = useAuth()
   const db = useFirestore()
+  const { toast } = useToast()
   const { user, loading: userLoading } = useUser()
 
   const settingsRef = useMemoFirebase(() => db ? doc(db, 'settings', 'system') : null, [db])
@@ -53,6 +60,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
   const { data: staffData, loading: staffLoading } = useCollection<Staff>(staffQuery)
 
   const selectedSemester = searchParams.get('semester') || config?.activeSemester?.toString() || "1"
+  const teacherId = staffData?.[0]?.id
 
   React.useEffect(() => {
     if (!userLoading && !user) router.push('/login')
@@ -66,13 +74,118 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
     router.push('/login')
   }
 
+  // LOGIKA UNDUH
+  const fetchAllTeacherData = async () => {
+    if (!db || !teacherId) return null
+    
+    const assignmentsSnap = await getDocs(query(collection(db, 'teacherAssignments'), where('teacherId', '==', teacherId)))
+    const assignments = assignmentsSnap.docs.map(d => ({ id: d.id, ...d.data() } as TeacherAssignment))
+    
+    const assignmentIds = assignments.map(a => a.id)
+    if (assignmentIds.length === 0) return { assignments: [], journals: [], assessments: [], students: [] }
+
+    const journalsSnap = await getDocs(query(collection(db, 'journals'), where('assignmentId', 'in', assignmentIds)))
+    const journals = journalsSnap.docs.map(d => d.data() as Journal).filter(j => j.semester === parseInt(selectedSemester))
+
+    const assessmentsSnap = await getDocs(query(collection(db, 'assessments'), where('assignmentId', 'in', assignmentIds)))
+    const assessments = assessmentsSnap.docs.map(d => d.data() as Assessment).filter(a => a.semester === parseInt(selectedSemester))
+
+    const studentsSnap = await getDocs(query(collection(db, 'applicants'), where('admissionStatus', '==', 'accepted')))
+    const allStudents = studentsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Applicant))
+
+    return { assignments, journals, assessments, allStudents }
+  }
+
+  const handleDownloadTemplate = async () => {
+    const data = [
+      ["No", "Nama Siswa", "NISN", "Absensi (%)", "Tugas 1", "Tugas 2", "Tugas 3", "Kelompok", "UTS", "UAS"]
+    ]
+    const ws = XLSX.utils.aoa_to_sheet(data)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "Template Nilai")
+    XLSX.writeFile(wb, "Template_Buku_Nilai.xlsx")
+    toast({ title: "Template Berhasil Diunduh" })
+  }
+
+  const handleDownloadJurnal = async () => {
+    toast({ title: "Menyiapkan data jurnal..." })
+    const data = await fetchAllTeacherData()
+    if (!data) return
+
+    const journalData = data.journals.map(j => {
+      const assignment = data.assignments.find(a => a.id === j.assignmentId)
+      return {
+        "Mata Pelajaran": assignment?.subjectName,
+        "Kelas": assignment?.className,
+        "Pertemuan": j.meetingNumber,
+        "Tanggal": j.date,
+        "Jam": j.jamKe,
+        "Materi": j.material,
+        "Tujuan": j.learningGoal,
+        "KKTP": j.kktpAchievement,
+        "Keterangan": j.notes
+      }
+    })
+
+    const ws = XLSX.utils.json_to_sheet(journalData)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "Jurnal Mengajar")
+    XLSX.writeFile(wb, `Rekap_Jurnal_Sem${selectedSemester}.xlsx`)
+  }
+
+  const handleDownloadKelas = async () => {
+    toast({ title: "Menyiapkan data kelas..." })
+    const data = await fetchAllTeacherData()
+    if (!data) return
+
+    const wb = XLSX.utils.book_new()
+    data.assignments.forEach(asg => {
+      const classStudents = data.allStudents.filter(s => {
+        // Logika sederhana: guru biasanya mengajar rombel tertentu. 
+        // Untuk MVP ini, kita ambil data dari daftar murid aktif.
+        return true // Di sini harusnya filter by classId jika data classroom terhubung
+      })
+      const sheetData = classStudents.map((s, idx) => ({
+        "No": idx + 1,
+        "Nama": s.fullName,
+        "NISN": s.NISN,
+        "JK": s.gender,
+        "Asal Sekolah": s.originSchool
+      }))
+      const ws = XLSX.utils.json_to_sheet(sheetData)
+      XLSX.utils.book_append_sheet(wb, ws, `Kelas ${asg.className}`)
+    })
+    XLSX.writeFile(wb, "Daftar_Murid_Per_Kelas.xlsx")
+  }
+
+  const handleDownloadSemua = async () => {
+    toast({ title: "Mengekspor seluruh data..." })
+    const data = await fetchAllTeacherData()
+    if (!data) return
+
+    const wb = XLSX.utils.book_new()
+    
+    // Sheet 1: Ringkasan Penugasan
+    const asgWs = XLSX.utils.json_to_sheet(data.assignments.map(a => ({ "Mapel": a.subjectName, "Kelas": a.className })))
+    XLSX.utils.book_append_sheet(wb, asgWs, "Daftar Mapel")
+
+    // Sheet 2: Jurnal
+    const jurWs = XLSX.utils.json_to_sheet(data.journals.map(j => ({ "Tgl": j.date, "Materi": j.material })))
+    XLSX.utils.book_append_sheet(wb, jurWs, "Rekap Jurnal")
+
+    // Sheet 3: Nilai
+    const nilWs = XLSX.utils.json_to_sheet(data.assessments.map(a => ({ "ID Siswa": a.studentId, "Skor Akhir": a.finalScore })))
+    XLSX.utils.book_append_sheet(wb, nilWs, "Rekap Nilai")
+
+    XLSX.writeFile(wb, `Ekspor_Lengkap_Guru_Sem${selectedSemester}.xlsx`)
+  }
+
   if (userLoading || staffLoading) return (
     <div className="flex h-screen w-full items-center justify-center bg-background">
       <Loader2 className="h-8 w-8 animate-spin text-primary" />
     </div>
   )
 
-  // Force renaming logic: Bersihkan identitas SPMB
   const rawAppName = config?.appName || "SIS TERPADU"
   const appName = rawAppName.toUpperCase().includes("SPMB") ? "SIS TERPADU" : rawAppName
   const appLogoUrl = config?.appLogoUrl || "/icon-logo.webp"
@@ -137,6 +250,36 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
                         </div>
                         {selectedSemester === "2" && <ChevronRight className="w-3 h-3 text-primary" />}
                       </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </div>
+
+              <div>
+                <p className="px-3 mb-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Unduh Laporan</p>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton onClick={handleDownloadTemplate} className="gap-3">
+                      <FileSpreadsheet className="w-5 h-5 text-green-500" />
+                      <span className="text-xs">Template Buku Nilai</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton onClick={handleDownloadJurnal} className="gap-3">
+                      <BookOpen className="w-5 h-5 text-blue-500" />
+                      <span className="text-xs">Unduh Jurnal</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton onClick={handleDownloadKelas} className="gap-3">
+                      <Users className="w-5 h-5 text-orange-500" />
+                      <span className="text-xs">Unduh Daftar Kelas</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton onClick={handleDownloadSemua} className="gap-3">
+                      <Download className="w-5 h-5 text-primary" />
+                      <span className="text-xs">Unduh Semua (Excel)</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 </SidebarMenu>
