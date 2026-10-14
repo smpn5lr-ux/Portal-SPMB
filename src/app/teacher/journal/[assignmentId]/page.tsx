@@ -144,7 +144,6 @@ export default function TeachingJournalPage() {
       setNewJournal(prev => ({ ...prev, meetingNumber: journals.length + 1 }))
     }
     
-    // Inisialisasi detail kehadiran untuk semua siswa ke Hadir (H)
     if (students.length > 0) {
       const initialAttendance: Record<string, any> = {}
       students.forEach(s => {
@@ -157,7 +156,6 @@ export default function TeachingJournalPage() {
   const handleAttendanceChange = (studentId: string, status: 'H' | 'S' | 'I' | 'A') => {
     setNewJournal(prev => {
       const updatedDetail = { ...prev.attendanceDetail, [studentId]: status }
-      // Update absentStudents (hanya yang Alfa/A yang mengurangi nilai absensi)
       const alfas = Object.entries(updatedDetail)
         .filter(([_, val]) => val === 'A')
         .map(([id, _]) => id)
@@ -261,11 +259,12 @@ export default function TeachingJournalPage() {
       
       const dinasName = config?.dinasName || "DINAS PENDIDIKAN"
       const schoolName = config?.schoolName || "SIS TERPADU"
+      const brandBlue = [67, 97, 238] as [number, number, number]
       
-      doc.setFontSize(12).setFont("helvetica", "bold").setTextColor(67, 97, 238)
+      doc.setFontSize(12).setFont("helvetica", "bold").setTextColor(brandBlue[0], brandBlue[1], brandBlue[2])
       doc.text(dinasName.toUpperCase(), 148.5, 15, { align: "center" })
       doc.text(schoolName.toUpperCase(), 148.5, 22, { align: "center" })
-      doc.setDrawColor(67, 97, 238).setLineWidth(0.5).line(14, 26, 283, 26)
+      doc.setDrawColor(brandBlue[0], brandBlue[1], brandBlue[2]).setLineWidth(0.5).line(14, 26, 283, 26)
 
       doc.setFontSize(14).setTextColor(0).text(`JURNAL MENGAJAR GURU - SEMESTER ${activeSemester}`, 14, 35)
       doc.setFontSize(10).setTextColor(100)
@@ -273,7 +272,6 @@ export default function TeachingJournalPage() {
       doc.text(`Guru Pengajar: ${user?.displayName || '-'}`, 14, 48)
       
       const tableData = journals.map((j) => {
-        // Format Absensi Nama (S/I/A)
         const absents = Object.entries(j.attendanceDetail || {})
           .filter(([_, status]) => status !== 'H')
           .map(([id, status]) => {
@@ -281,7 +279,6 @@ export default function TeachingJournalPage() {
             return `${name} (${status})`
           }).join(", ")
 
-        // Hitung rekap S, I, A
         const sCount = Object.values(j.attendanceDetail || {}).filter(v => v === 'S').length
         const iCount = Object.values(j.attendanceDetail || {}).filter(v => v === 'I').length
         const aCount = Object.values(j.attendanceDetail || {}).filter(v => v === 'A').length
@@ -307,40 +304,45 @@ export default function TeachingJournalPage() {
       autoTable(doc, {
         head: [
           [
-            { content: 'Hari/Tanggal', rowSpan: 2 },
-            { content: 'Jam Ke', rowSpan: 2 },
-            { content: 'JP', rowSpan: 2 },
-            { content: 'Pertemuan Ke', rowSpan: 2 },
-            { content: 'Tujuan Pembelajaran', rowSpan: 2 },
-            { content: 'Materi Pembelajaran', rowSpan: 2 },
-            { content: 'Pencapaian KKTP', rowSpan: 2 },
+            { content: 'Hari/Tanggal', rowSpan: 2, halign: 'center', valign: 'middle' },
+            { content: 'Jam Ke', rowSpan: 2, halign: 'center', valign: 'middle' },
+            { content: 'JP', rowSpan: 2, halign: 'center', valign: 'middle' },
+            { content: 'Pertemuan Ke', rowSpan: 2, halign: 'center', valign: 'middle' },
+            { content: 'Tujuan Pembelajaran', rowSpan: 2, halign: 'center', valign: 'middle' },
+            { content: 'Materi Pembelajaran', rowSpan: 2, halign: 'center', valign: 'middle' },
+            { content: 'Pencapaian KKTP', rowSpan: 2, halign: 'center', valign: 'middle' },
             { content: 'Absensi', colSpan: 4, halign: 'center' },
-            { content: 'Keterangan', rowSpan: 2 }
+            { content: 'Keterangan', rowSpan: 2, halign: 'center', valign: 'middle' }
           ],
-          ['Nama', 'S', 'I', 'A']
+          [
+            { content: 'Nama', halign: 'center' },
+            { content: 'S', halign: 'center' },
+            { content: 'I', halign: 'center' },
+            { content: 'A', halign: 'center' }
+          ]
         ],
         body: tableData,
         startY: 55,
         theme: 'grid',
-        headStyles: { fillColor: [85, 107, 47], textColor: [255, 255, 255], fontSize: 8, fontStyle: 'bold' },
-        styles: { fontSize: 7, cellPadding: 2 },
+        headStyles: { fillColor: brandBlue, textColor: [255, 255, 255], fontSize: 8, fontStyle: 'bold' },
+        styles: { fontSize: 7, cellPadding: 2, valign: 'middle' },
         columnStyles: { 
           0: { cellWidth: 25 }, 
-          1: { cellWidth: 12 },
-          2: { cellWidth: 8 }, 
-          3: { cellWidth: 15 },
-          4: { cellWidth: 40 },
-          5: { cellWidth: 40 },
+          1: { cellWidth: 12, halign: 'center' },
+          2: { cellWidth: 8, halign: 'center' }, 
+          3: { cellWidth: 15, halign: 'center' },
+          4: { cellWidth: 35 },
+          5: { cellWidth: 35 },
           6: { cellWidth: 30 },
           7: { cellWidth: 40 }, // Nama
-          8: { cellWidth: 6 },  // S
-          9: { cellWidth: 6 },  // I
-          10: { cellWidth: 6 }, // A
+          8: { cellWidth: 7, halign: 'center' },  // S
+          9: { cellWidth: 7, halign: 'center' },  // I
+          10: { cellWidth: 7, halign: 'center' }, // A
           11: { cellWidth: 'auto' }
         }
       })
 
-      doc.save(`Jurnal_${assignment.subjectName}_Kelas_${assignment.className}.pdf`)
+      doc.save(`Jurnal_${assignment.subjectName}_Kelas_${assignment.className}_Sem${activeSemester}.pdf`)
       toast({ title: "Unduhan Berhasil" })
     } catch (e) {
       toast({ variant: "destructive", title: "Gagal ekspor PDF" })
@@ -376,9 +378,9 @@ export default function TeachingJournalPage() {
           </div>
         </div>
         <div className="flex gap-2">
-           <Button variant="outline" onClick={handleDownloadPDF} disabled={isExporting} className="gap-2 text-xs h-9">
+           <Button variant="outline" onClick={handleDownloadPDF} disabled={isExporting} className="gap-2 text-xs h-9 border-primary/30">
               {isExporting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
-              Cetak Jurnal (Contoh Kolom)
+              Cetak Jurnal
            </Button>
            <Button variant="outline" onClick={handleRefreshSession} className="gap-2 text-xs h-9">
               <RefreshCw className="w-3 h-3" /> Sesi
