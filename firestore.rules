@@ -2,55 +2,46 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // RESTRUKTURISASI KEAMANAN TOTAL - SIS TERPADU (Update: 2024-05-22 02:00)
-    // Solusi: Menggunakan izin langsung tanpa fungsi perantara untuk koleksi akademik.
-
-    // 1. PRIORITAS UTAMA: Jurnal & Penilaian (Izin Eksplisit)
-    match /journals/{journalId} {
+    // ATURAN KEAMANAN SEDERHANA & KUAT - SIS TERPADU
+    
+    // Izin untuk seluruh koleksi akademik bagi pengguna terautentikasi
+    match /journals/{document=**} {
       allow read, write: if request.auth != null;
     }
-    match /journals {
+    
+    match /assessments/{document=**} {
       allow read, write: if request.auth != null;
     }
-
-    match /assessments/{assessmentId} {
-      allow read, write: if request.auth != null;
-    }
-    match /assessments {
-      allow read, write: if request.auth != null;
-    }
-
-    // 2. Manajemen Akademik
+    
     match /classes/{document=**} {
       allow read, write: if request.auth != null;
     }
+    
     match /staff/{document=**} {
       allow read, write: if request.auth != null;
     }
+    
     match /subjects/{document=**} {
       allow read, write: if request.auth != null;
     }
+    
     match /teacherAssignments/{document=**} {
       allow read, write: if request.auth != null;
     }
     
-    // 3. Pendaftar (Read publik untuk cek status)
-    match /applicants/{applicantId} {
-      allow read: if true;
-      allow write: if request.auth != null;
-    }
-    match /applicants {
+    // Pendaftar (Read publik untuk cek status)
+    match /applicants/{document=**} {
       allow read: if true;
       allow write: if request.auth != null;
     }
     
-    // 4. Pengaturan Sistem
-    match /settings/{settingId} {
+    // Pengaturan Sistem
+    match /settings/{document=**} {
       allow read: if true;
       allow write: if request.auth != null;
     }
 
-    // 5. Fallback Default
+    // Fallback
     match /{document=**} {
       allow read, write: if request.auth != null;
     }

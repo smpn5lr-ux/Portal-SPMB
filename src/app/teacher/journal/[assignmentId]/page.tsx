@@ -48,7 +48,7 @@ import { Switch } from "@/components/ui/switch"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { useUser, useFirestore, useMemoFirebase, useCollection, useDoc, useAuth } from "@/firebase"
-import { collection, query, where, doc, writeBatch, addDoc, deleteDoc, orderBy } from "firebase/firestore"
+import { collection, query, where, doc, writeBatch, deleteDoc } from "firebase/firestore"
 import { TeacherAssignment, Applicant, Classroom, Journal } from "@/lib/types"
 import { useToast } from '@/hooks/use-toast'
 
@@ -67,7 +67,6 @@ export default function TeachingJournalPage() {
   
   const activeSemester = parseInt(searchParams.get('semester') || "1")
 
-  // Refs stabilized with strict auth guard
   const assignmentRef = useMemoFirebase(() => {
     if (!db || !assignmentId || !user) return null
     return doc(db, 'teacherAssignments', assignmentId as string)
@@ -95,18 +94,24 @@ export default function TeachingJournalPage() {
       .sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""))
   }, [allAcceptedStudents, classroom])
 
-  // CRITICAL: Double guard for journal query to prevent list permission errors
+  // OPTIMASI: Sederhanakan kueri untuk menghindari kebutuhan Composite Index
   const journalQuery = useMemoFirebase(() => {
     if (!db || !assignmentId || !user) return null
     return query(
       collection(db, 'journals'), 
-      where('assignmentId', '==', assignmentId),
-      where('semester', '==', activeSemester),
-      orderBy('meetingNumber', 'asc')
+      where('assignmentId', '==', assignmentId)
     )
-  }, [db, assignmentId, activeSemester, user])
+  }, [db, assignmentId, user])
   
-  const { data: journals, loading: loadingJ, error } = useCollection<Journal>(journalQuery)
+  const { data: rawJournals, loading: loadingJ, error } = useCollection<Journal>(journalQuery)
+
+  // FILTER & SORT DI MEMORI (SISI KLIEN)
+  const journals = useMemo(() => {
+    if (!rawJournals) return []
+    return rawJournals
+      .filter(j => j.semester === activeSemester)
+      .sort((a, b) => (a.meetingNumber || 0) - (b.meetingNumber || 0))
+  }, [rawJournals, activeSemester])
 
   const [newJournal, setNewJournal] = useState<Partial<Journal>>({
     meetingNumber: 1,
@@ -145,14 +150,13 @@ export default function TeachingJournalPage() {
   const handleRefreshSession = async () => {
     setIsRefreshing(true)
     try {
-      // Memaksa refresh token auth untuk memastikan izin terbaru terbaca oleh Firestore
       if (auth.currentUser) {
         await auth.currentUser.getIdToken(true)
-        toast({ title: "Izin Diperbarui", description: "Sesi database telah disegarkan." })
-        window.location.reload() // Reload untuk memicu ulang semua kueri
+        toast({ title: "Sesi Disegarkan" })
+        window.location.reload()
       }
     } catch (e) {
-      toast({ variant: "destructive", title: "Gagal menyegarkan sesi" })
+      toast({ variant: "destructive", title: "Gagal" })
     } finally {
       setIsRefreshing(false)
     }
@@ -207,7 +211,7 @@ export default function TeachingJournalPage() {
       })
 
       await batch.commit()
-      toast({ title: "Jurnal Tersimpan", description: `Pertemuan ke-${newJournal.meetingNumber} telah dicatat.` })
+      toast({ title: "Berhasil", description: "Jurnal telah disimpan." })
       setIsAddOpen(false)
       setNewJournal({
         meetingNumber: (journals?.length || 0) + 2,
@@ -219,7 +223,7 @@ export default function TeachingJournalPage() {
         taskScores: {}
       })
     } catch (e) {
-      toast({ variant: "destructive", title: "Gagal menyimpan jurnal" })
+      toast({ variant: "destructive", title: "Gagal menyimpan" })
     } finally {
       setSubmitting(false)
     }
@@ -228,27 +232,13 @@ export default function TeachingJournalPage() {
   const handleDeleteJournal = async (id: string) => {
     if (!db) return
     await deleteDoc(doc(db, 'journals', id))
-    toast({ title: "Jurnal Dihapus" })
+    toast({ title: "Dihapus" })
   }
 
-  if (userLoading || loadingA || (loadingJ && !journals)) return (
+  if (userLoading || loadingA) return (
     <div className="flex flex-col items-center justify-center py-24 gap-4">
       <Loader2 className="animate-spin text-primary w-8 h-8" />
-      <p className="text-sm text-muted-foreground animate-pulse">Menghubungkan ke database jurnal...</p>
-    </div>
-  )
-
-  if (error) return (
-    <div className="flex flex-col items-center justify-center py-24 gap-6 text-center">
-      <AlertCircle className="w-12 h-12 text-destructive" />
-      <div>
-        <h3 className="text-xl font-bold">Masalah Izin Database</h3>
-        <p className="text-muted-foreground max-w-md mt-2">Server menolak akses ke jurnal. Silakan segarkan sesi izin Anda untuk memperbaiki ini.</p>
-      </div>
-      <Button onClick={handleRefreshSession} disabled={isRefreshing} className="gap-2">
-        {isRefreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-        Refresh Sesi Izin
-      </Button>
+      <p className="text-sm text-muted-foreground animate-pulse">Menghubungkan ke sistem...</p>
     </div>
   )
 
@@ -259,7 +249,7 @@ export default function TeachingJournalPage() {
           <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full border"><ArrowLeft className="w-4 h-4" /></Button>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold">Jurnal Mengajar: {assignment?.subjectName}</h1>
+              <h1 className="text-2xl font-bold">Jurnal: {assignment?.subjectName}</h1>
               <Badge variant="outline">Sem {activeSemester}</Badge>
             </div>
             <p className="text-muted-foreground text-sm font-bold text-primary">Kelas {assignment?.className}</p>
@@ -267,23 +257,25 @@ export default function TeachingJournalPage() {
         </div>
         <div className="flex gap-2">
            <Button variant="outline" onClick={handleRefreshSession} className="gap-2 text-xs h-9">
-              <RefreshCw className="w-3 h-3" /> Segarkan
+              <RefreshCw className="w-3 h-3" /> Refresh Izin
            </Button>
            <Button onClick={() => setIsAddOpen(true)} className="gap-2 shadow-lg shadow-primary/20 h-9">
-             <Plus className="w-4 h-4" /> Catat Pertemuan
+             <Plus className="w-4 h-4" /> Tambah Pertemuan
            </Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4">
-        {journals?.length === 0 ? (
+        {loadingJ && !journals.length ? (
+          <div className="text-center py-12"><Loader2 className="animate-spin mx-auto text-primary" /></div>
+        ) : journals.length === 0 ? (
           <Card className="border-dashed border-2 py-20 flex flex-col items-center justify-center text-muted-foreground">
             <BookOpen className="w-12 h-12 opacity-20 mb-4" />
-            <p>Belum ada catatan pertemuan untuk semester ini.</p>
+            <p>Belum ada catatan jurnal untuk semester ini.</p>
           </Card>
         ) : (
           <div className="space-y-4">
-            {journals?.map((j) => (
+            {journals.map((j) => (
               <Card key={j.id} className="border-border/50 overflow-hidden bg-card/30">
                 <CardHeader className="bg-muted/10 p-4 border-b">
                   <div className="flex items-center justify-between">
@@ -308,11 +300,11 @@ export default function TeachingJournalPage() {
                 </CardHeader>
                 <CardContent className="p-4 space-y-4">
                   <div>
-                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">Materi Pembelajaran:</Label>
-                    <p className="text-sm mt-1">{j.material || "Tidak ada rincian materi."}</p>
+                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">Materi:</Label>
+                    <p className="text-sm mt-1">{j.material || "-"}</p>
                   </div>
                   <div className="flex flex-wrap gap-2 pt-2 border-t border-border/20">
-                    <div className="text-[10px] font-bold uppercase text-muted-foreground w-full">Absensi (Siswa Tidak Hadir):</div>
+                    <div className="text-[10px] font-bold uppercase text-muted-foreground w-full">Absensi:</div>
                     {j.absentStudents.length === 0 ? (
                       <Badge variant="outline" className="text-green-500 bg-green-500/5">Hadir Semua</Badge>
                     ) : (
@@ -331,84 +323,37 @@ export default function TeachingJournalPage() {
 
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
         <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-primary" /> Catat Jurnal & Absensi
-            </DialogTitle>
-            <DialogDescription>Input materi dan kehadiran untuk Pertemuan ke-{newJournal.meetingNumber}</DialogDescription>
-          </DialogHeader>
-          
+          <DialogHeader><DialogTitle>Input Jurnal & Absensi</DialogTitle></DialogHeader>
           <div className="space-y-6 py-4">
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Pertemuan Ke-</Label>
-                <Input type="number" value={newJournal.meetingNumber} onChange={e => setNewJournal({...newJournal, meetingNumber: parseInt(e.target.value)})} />
-              </div>
-              <div className="space-y-2">
-                <Label>Tanggal</Label>
-                <Input type="date" value={newJournal.date} onChange={e => setNewJournal({...newJournal, date: e.target.value})} />
-              </div>
+              <div className="space-y-2"><Label>Pertemuan Ke-</Label><Input type="number" value={newJournal.meetingNumber} onChange={e => setNewJournal({...newJournal, meetingNumber: parseInt(e.target.value)})} /></div>
+              <div className="space-y-2"><Label>Tanggal</Label><Input type="date" value={newJournal.date} onChange={e => setNewJournal({...newJournal, date: e.target.value})} /></div>
             </div>
-
-            <div className="space-y-2">
-              <Label>Ringkasan Materi</Label>
-              <Textarea placeholder="Tuliskan pokok bahasan hari ini..." value={newJournal.material} onChange={e => setNewJournal({...newJournal, material: e.target.value})} />
-            </div>
-
+            <div className="space-y-2"><Label>Materi</Label><Textarea placeholder="Bahasan hari ini..." value={newJournal.material} onChange={e => setNewJournal({...newJournal, material: e.target.value})} /></div>
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm font-bold flex items-center gap-2">
-                  <Users className="w-4 h-4 text-primary" /> Daftar Hadir & Nilai Tugas
-                </Label>
-                <div className="flex items-center gap-2">
-                   <Label className="text-xs">Ada Tugas?</Label>
-                   <Switch checked={newJournal.hasTask} onCheckedChange={v => setNewJournal({...newJournal, hasTask: v})} />
-                </div>
-              </div>
-
+              <div className="flex items-center justify-between"><Label className="font-bold">Kehadiran & Nilai Tugas</Label><div className="flex items-center gap-2"><Label className="text-xs">Ada Tugas?</Label><Switch checked={newJournal.hasTask} onCheckedChange={v => setNewJournal({...newJournal, hasTask: v})} /></div></div>
               {newJournal.hasTask && (
                 <div className="bg-muted/30 p-3 rounded-lg border border-border/50 mb-2">
-                  <Label className="text-xs font-bold mb-2 block">Pilih Slot Tugas:</Label>
                   <Select value={newJournal.taskType!} onValueChange={v => setNewJournal({...newJournal, taskType: v as any})}>
                     <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="task1">Tugas 1 (Individu)</SelectItem>
-                      <SelectItem value="task2">Tugas 2 (Individu)</SelectItem>
-                      <SelectItem value="task3">Tugas 3 (Individu)</SelectItem>
+                      <SelectItem value="task1">Tugas 1</SelectItem>
+                      <SelectItem value="task2">Tugas 2</SelectItem>
+                      <SelectItem value="task3">Tugas 3</SelectItem>
                       <SelectItem value="groupTask">Tugas Kelompok</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               )}
-
               <div className="border rounded-lg overflow-hidden">
                 <Table>
-                  <TableHeader className="bg-muted/50">
-                    <TableRow>
-                      <TableHead className="w-[80px] text-center">Alfa?</TableHead>
-                      <TableHead>Nama Siswa</TableHead>
-                      {newJournal.hasTask && <TableHead className="w-24 text-center">Nilai</TableHead>}
-                    </TableRow>
-                  </TableHeader>
+                  <TableHeader className="bg-muted/50"><TableRow><TableHead className="w-[80px] text-center">Alfa?</TableHead><TableHead>Siswa</TableHead>{newJournal.hasTask && <TableHead className="w-24 text-center">Nilai</TableHead>}</TableRow></TableHeader>
                   <TableBody>
                     {students.map(s => (
                       <TableRow key={s.id}>
-                        <TableCell className="text-center">
-                          <Checkbox checked={newJournal.absentStudents?.includes(s.id)} onCheckedChange={() => handleToggleAbsent(s.id)} />
-                        </TableCell>
+                        <TableCell className="text-center"><Checkbox checked={newJournal.absentStudents?.includes(s.id)} onCheckedChange={() => handleToggleAbsent(s.id)} /></TableCell>
                         <TableCell className="text-sm font-medium">{s.fullName}</TableCell>
-                        {newJournal.hasTask && (
-                          <TableCell>
-                            <Input 
-                              type="number" 
-                              className="h-8 text-center" 
-                              placeholder="0" 
-                              disabled={newJournal.absentStudents?.includes(s.id)}
-                              value={newJournal.taskScores?.[s.id] || ""}
-                              onChange={e => handleScoreChange(s.id, e.target.value)}
-                            />
-                          </TableCell>
-                        )}
+                        {newJournal.hasTask && <TableCell><Input type="number" className="h-8 text-center" placeholder="0" disabled={newJournal.absentStudents?.includes(s.id)} value={newJournal.taskScores?.[s.id] || ""} onChange={e => handleScoreChange(s.id, e.target.value)} /></TableCell>}
                       </TableRow>
                     ))}
                   </TableBody>
@@ -416,14 +361,7 @@ export default function TeachingJournalPage() {
               </div>
             </div>
           </div>
-
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsAddOpen(false)}>Batal</Button>
-            <Button onClick={saveJournal} disabled={submitting} className="gap-2">
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Simpan Jurnal
-            </Button>
-          </DialogFooter>
+          <DialogFooter><Button onClick={saveJournal} disabled={submitting}>{submitting ? 'Menyimpan...' : 'Simpan Jurnal'}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

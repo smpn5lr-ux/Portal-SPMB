@@ -30,7 +30,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { useUser, useFirestore, useMemoFirebase, useCollection, useDoc } from "@/firebase"
 import { collection, query, where, doc, writeBatch } from "firebase/firestore"
-import { TeacherAssignment, Applicant, Classroom, Assessment, Journal } from "@/lib/types"
+import { TeacherAssignment, Applicant, Classroom, Assessment } from "@/lib/types"
 import { useToast } from '@/hooks/use-toast'
 import Link from 'next/link'
 
@@ -81,28 +81,29 @@ export default function GradingPage() {
       .sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""))
   }, [allAcceptedStudents, classroom, searchTerm])
 
+  // OPTIMASI: Sederhanakan kueri agar tidak butuh indeks
   const assessmentsQuery = useMemoFirebase(() => {
     if (!db || userLoading || !user || !assignmentId) return null
     return query(
       collection(db, 'assessments'), 
-      where('assignmentId', '==', assignmentId),
-      where('semester', '==', activeSemester)
+      where('assignmentId', '==', assignmentId)
     )
-  }, [db, user, userLoading, assignmentId, activeSemester])
+  }, [db, user, userLoading, assignmentId])
   
-  const { data: existingAssessments } = useCollection<Assessment>(assessmentsQuery)
+  const { data: rawAssessments } = useCollection<Assessment>(assessmentsQuery)
 
   const [grades, setGrades] = useState<Record<string, Partial<Assessment>>>({})
 
   useEffect(() => {
-    if (existingAssessments) {
+    if (rawAssessments) {
       const gMap: Record<string, Partial<Assessment>> = {}
-      existingAssessments.forEach(a => {
+      // Filter semester di memori
+      rawAssessments.filter(a => a.semester === activeSemester).forEach(a => {
         gMap[a.studentId] = a
       })
       setGrades(gMap)
     }
-  }, [existingAssessments])
+  }, [rawAssessments, activeSemester])
 
   const handleGradeChange = (studentId: string, field: keyof Assessment, value: string) => {
     const numValue = Math.min(100, Math.max(0, parseInt(value) || 0))
@@ -144,7 +145,7 @@ export default function GradingPage() {
       })
       
       await batch.commit()
-      toast({ title: "Buku Nilai Disimpan", description: `Nilai semester ${activeSemester} berhasil diperbarui.` })
+      toast({ title: "Buku Nilai Disimpan" })
     } catch (e) {
       toast({ variant: "destructive", title: "Gagal menyimpan" })
     } finally {
@@ -251,24 +252,24 @@ export default function GradingPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-[10px] leading-relaxed">
-              <div className="flex justify-between"><span>Kehadiran (Jurnal)</span><span className="font-bold">10%</span></div>
-              <div className="flex justify-between"><span>Rata-rata Tugas</span><span className="font-bold">40%</span></div>
+              <div className="flex justify-between"><span>Kehadiran</span><span className="font-bold">10%</span></div>
+              <div className="flex justify-between"><span>Tugas (Rata-rata)</span><span className="font-bold">40%</span></div>
               <div className="flex justify-between"><span>UTS</span><span className="font-bold">20%</span></div>
               <div className="flex justify-between"><span>UAS</span><span className="font-bold">30%</span></div>
               <Separator className="my-2" />
-              <p className="text-muted-foreground italic">"Nilai Absensi & Tugas dapat otomatis terisi jika Anda mencatatnya melalui menu Jurnal Mengajar."</p>
+              <p className="text-muted-foreground italic">"Nilai Tugas & Absensi diisi melalui Jurnal."</p>
             </CardContent>
           </Card>
           
           <Card className="border-border/50 bg-card/30">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <Users className="w-4 h-4 text-accent" /> Ringkasan Kelas
+                <Users className="w-4 h-4 text-accent" /> Statistik Kelas
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Tuntas (KKM 75)</span>
+                <span className="text-muted-foreground">Tuntas (75+)</span>
                 <span className="font-bold text-green-500">{Object.values(grades).filter(g => (g.finalScore || 0) >= 75 && students.some(s => s.id === g.studentId)).length}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
