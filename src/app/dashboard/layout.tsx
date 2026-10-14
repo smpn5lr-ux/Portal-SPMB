@@ -20,7 +20,8 @@ import {
   UserPlus,
   Menu,
   BookOpen,
-  UserCheck
+  UserCheck,
+  GraduationCap
 } from "lucide-react"
 import { 
   Sidebar, 
@@ -53,19 +54,6 @@ import { signOut, updateProfile } from "firebase/auth"
 import { doc, collection, query, where } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
 import { Staff } from "@/lib/types"
-
-const navigation = [
-  { name: 'Ringkasan', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Data Murid', href: '/dashboard/applicants', icon: Users },
-  { name: 'Verifikasi Berkas', href: '/dashboard/verification', icon: CheckSquare },
-  { name: 'Sistem Seleksi', href: '/dashboard/selection', icon: Target },
-  { name: 'Manajemen Kelas', href: '/dashboard/classes', icon: School },
-  { name: 'Kurikulum', href: '/dashboard/subjects', icon: BookOpen },
-  { name: 'Penugasan Guru', href: '/dashboard/assignments', icon: UserCheck },
-  { name: 'Manajemen Pegawai', href: '/dashboard/staff', icon: UserPlus },
-  { name: 'Laporan', href: '/dashboard/reports', icon: BarChart3 },
-  { name: 'Sampah', href: '/dashboard/trash', icon: Trash2 },
-]
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -156,8 +144,26 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   if (!user) return null
 
-  const appName = config?.appName || "Portal SPMB"
+  const appName = config?.appName || "SIS Terpadu"
   const appLogoUrl = config?.appLogoUrl || "/icon-logo.webp"
+  const isSPMBEnabled = config?.enableSPMB !== false; // Default true if not set
+
+  // Grouped Navigation
+  const academicNav = [
+    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'Manajemen Kelas', href: '/dashboard/classes', icon: School },
+    { name: 'Kurikulum & Mapel', href: '/dashboard/subjects', icon: BookOpen },
+    { name: 'Penugasan Guru', href: '/dashboard/assignments', icon: UserCheck },
+    { name: 'Manajemen Pegawai', href: '/dashboard/staff', icon: UserPlus },
+    { name: 'Laporan', href: '/dashboard/reports', icon: BarChart3 },
+  ]
+
+  const spmbNav = [
+    { name: 'Data Calon Murid', href: '/dashboard/applicants', icon: Users },
+    { name: 'Verifikasi Berkas', href: '/dashboard/verification', icon: CheckSquare },
+    { name: 'Sistem Seleksi', href: '/dashboard/selection', icon: Target },
+    { name: 'Sampah', href: '/dashboard/trash', icon: Trash2 },
+  ]
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
@@ -169,38 +175,70 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 <img src={appLogoUrl} alt="App Logo" className="w-full h-full object-contain bg-transparent" />
               ) : (
                 <div className="bg-primary p-2 rounded-lg shadow-lg shadow-primary/20 flex items-center justify-center w-full h-full">
-                  <School className="w-6 h-6 text-primary-foreground" />
+                  <GraduationCap className="w-6 h-6 text-primary-foreground" />
                 </div>
               )}
             </div>
             <div className="flex flex-col overflow-hidden">
               <span className="font-headline font-bold text-lg tracking-tight uppercase line-clamp-1">{appName}</span>
-              <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Admin Panel</span>
+              <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Administrator</span>
             </div>
           </div>
         </SidebarHeader>
         <SidebarContent className="px-2 py-4">
-          <SidebarMenu>
-            {navigation.map((item) => (
-              <SidebarMenuItem key={item.name}>
-                <SidebarMenuButton 
-                  asChild 
-                  isActive={pathname === item.href}
-                  tooltip={item.name}
-                  className="h-11"
-                >
-                  <Link 
-                    href={item.href} 
-                    className="flex items-center gap-3 w-full"
-                    onClick={handleMenuClick}
-                  >
-                    <item.icon className="w-5 h-5" />
-                    <span className="font-medium">{item.name}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
+          <div className="space-y-6">
+            <div>
+              <p className="px-3 mb-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Manajemen Akademik</p>
+              <SidebarMenu>
+                {academicNav.map((item) => (
+                  <SidebarMenuItem key={item.name}>
+                    <SidebarMenuButton 
+                      asChild 
+                      isActive={pathname === item.href}
+                      tooltip={item.name}
+                      className="h-10"
+                    >
+                      <Link 
+                        href={item.href} 
+                        className="flex items-center gap-3 w-full"
+                        onClick={handleMenuClick}
+                      >
+                        <item.icon className="w-4 h-4" />
+                        <span className="font-medium text-sm">{item.name}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </div>
+
+            {isSPMBEnabled && (
+              <div>
+                <p className="px-3 mb-2 text-[10px] font-bold text-primary uppercase tracking-widest">Portal SPMB (PPDB)</p>
+                <SidebarMenu>
+                  {spmbNav.map((item) => (
+                    <SidebarMenuItem key={item.name}>
+                      <SidebarMenuButton 
+                        asChild 
+                        isActive={pathname === item.href}
+                        tooltip={item.name}
+                        className="h-10"
+                      >
+                        <Link 
+                          href={item.href} 
+                          className="flex items-center gap-3 w-full"
+                          onClick={handleMenuClick}
+                        >
+                          <item.icon className="w-4 h-4" />
+                          <span className="font-medium text-sm">{item.name}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </div>
+            )}
+          </div>
         </SidebarContent>
         <SidebarFooter className="p-4 mt-auto border-t border-border">
           <SidebarMenu>
@@ -216,7 +254,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                   onClick={handleMenuClick}
                 >
                   <Settings className="w-5 h-5" />
-                  <span className="font-medium">Pengaturan</span>
+                  <span className="font-medium">Pengaturan Sistem</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -244,7 +282,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             <div className="hidden md:flex items-center bg-muted/30 px-3 py-1.5 rounded-full border border-border/50 w-80">
               <Search className="w-4 h-4 text-muted-foreground mr-2" />
               <input 
-                placeholder="Cari NISN atau Nama Murid..." 
+                placeholder="Cari Data Sistem..." 
                 className="bg-transparent border-none text-sm focus:outline-none w-full placeholder:text-muted-foreground/50"
               />
             </div>

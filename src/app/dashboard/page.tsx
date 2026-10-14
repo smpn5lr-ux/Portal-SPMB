@@ -13,7 +13,10 @@ import {
   Truck,
   User,
   CalendarDays,
-  School
+  School,
+  BookOpen,
+  UserCheck,
+  GraduationCap
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { 
@@ -30,7 +33,7 @@ import {
 } from "recharts"
 import { useCollection, useFirestore, useMemoFirebase, useDoc } from "@/firebase"
 import { collection, query, limit, doc } from "firebase/firestore"
-import { Applicant } from "@/lib/types"
+import { Applicant, Classroom, Staff, Subject } from "@/lib/types"
 import { Skeleton } from "@/components/ui/skeleton"
 import { format, subDays, isSameDay } from "date-fns"
 import { id } from "date-fns/locale"
@@ -44,117 +47,49 @@ export default function OverviewPage() {
     return query(collection(db, 'applicants'), limit(2000))
   }, [db])
 
+  const classesQuery = useMemoFirebase(() => db ? collection(db, 'classes') : null, [db])
+  const staffQuery = useMemoFirebase(() => db ? collection(db, 'staff') : null, [db])
+  const subjectsQuery = useMemoFirebase(() => db ? collection(db, 'subjects') : null, [db])
+
   const settingsRef = useMemoFirebase(() => {
     if (!db) return null
     return doc(db, 'settings', 'system')
   }, [db])
 
   const { data: allApplicants, loading: loadingApplicants } = useCollection<Applicant>(applicantsQuery)
+  const { data: classes } = useCollection<Classroom>(classesQuery)
+  const { data: staff } = useCollection<Staff>(staffQuery)
+  const { data: subjects } = useCollection<Subject>(subjectsQuery)
   const { data: config, loading: loadingConfig } = useDoc<any>(settingsRef)
+
+  const isSPMBEnabled = config?.enableSPMB !== false;
 
   const applicants = useMemo(() => {
     if (!allApplicants) return []
     return allApplicants.filter(a => !a.isDeleted)
   }, [allApplicants])
 
-  const stats = useMemo(() => {
+  const academicStats = [
+    { name: 'Total Rombel', value: classes?.length || 0, icon: School, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/classes' },
+    { name: 'Staf & Guru', value: staff?.length || 0, icon: GraduationCap, color: 'text-accent', bg: 'bg-accent/10', href: '/dashboard/staff' },
+    { name: 'Mata Pelajaran', value: subjects?.length || 0, icon: BookOpen, color: 'text-amber-500', bg: 'bg-amber-500/10', href: '/dashboard/subjects' },
+    { name: 'Murid Aktif', value: applicants.filter(a => a.admissionStatus === 'accepted').length, icon: Users, color: 'text-green-500', bg: 'bg-green-500/10', href: '/dashboard/classes' },
+  ]
+
+  const spmbStats = useMemo(() => {
     if (!applicants) return []
     const total = applicants.length
-    const accepted = applicants.filter(a => a.admissionStatus === 'accepted').length
     const pending = applicants.filter(a => a.verificationStatus === 'Belum Diverifikasi').length
     const rejected = applicants.filter(a => a.verificationStatus === 'Ditolak').length
-    
     const totalQuota = config?.totalQuota || 0
-    const remainingQuota = Math.max(0, totalQuota - total)
 
     return [
-      { 
-        name: 'Sisa Kuota Sekolah', 
-        value: `${remainingQuota} dari ${totalQuota}`, 
-        subValue: `Terisi: ${accepted} Murid`,
-        icon: CalendarDays, 
-        color: 'text-primary', 
-        bg: 'bg-primary/10', 
-        href: '/dashboard/selection' 
-      },
-      { 
-        name: 'Total Pendaftar', 
-        value: total.toLocaleString(), 
-        icon: Users, 
-        color: 'text-accent', 
-        bg: 'bg-accent/10', 
-        href: '/dashboard/applicants' 
-      },
-      { 
-        name: 'Menunggu Verifikasi', 
-        value: pending.toLocaleString(), 
-        icon: Clock, 
-        color: 'text-amber-500', 
-        bg: 'bg-amber-500/10', 
-        href: '/dashboard/verification' 
-      },
-      { 
-        name: 'Pendaftaran Ditolak', 
-        value: rejected.toLocaleString(), 
-        icon: AlertCircle, 
-        color: 'text-destructive', 
-        bg: 'bg-destructive/10', 
-        href: '/dashboard/verification' 
-      },
+      { name: 'Total Pendaftar', value: total, icon: Users, color: 'text-primary', bg: 'bg-primary/10', href: '/dashboard/applicants' },
+      { name: 'Menunggu Verifikasi', value: pending, icon: Clock, color: 'text-amber-500', bg: 'bg-amber-500/10', href: '/dashboard/verification' },
+      { name: 'Pendaftaran Ditolak', value: rejected, icon: AlertCircle, color: 'text-destructive', bg: 'bg-destructive/10', href: '/dashboard/verification' },
+      { name: 'Kapasitas Sekolah', value: totalQuota, icon: CalendarDays, color: 'text-accent', bg: 'bg-accent/10', href: '/dashboard/selection' },
     ]
   }, [applicants, config])
-
-  const schoolData = useMemo(() => {
-    if (!applicants || applicants.length === 0) return []
-    const counts: Record<string, number> = {}
-    
-    applicants.forEach(a => {
-      // Normalisasi: Trim dan Ubah ke Kapital agar SDK POKA dan SDK poka digabung
-      const school = (a.originSchool || "TIDAK DIKETAHUI").trim().toUpperCase()
-      counts[school] = (counts[school] || 0) + 1
-    })
-
-    return Object.entries(counts)
-      .map(([name, count]) => ({ 
-        name: name.length > 20 ? name.substring(0, 17) + "..." : name, 
-        fullName: name,
-        count 
-      }))
-      .sort((a, b) => b.count - a.count)
-  }, [applicants])
-
-  const pathStats = useMemo(() => {
-    if (!applicants || applicants.length === 0) return []
-    const paths: Record<string, { count: number, color: string, icon: any }> = {
-      'Zonasi': { count: 0, color: '#4361EE', icon: MapPin },
-      'Prestasi': { count: 0, color: '#00B4D8', icon: Trophy },
-      'Afirmasi': { count: 0, color: '#F72585', icon: Heart },
-      'Perpindahan Orang Tua': { count: 0, color: '#7209B7', icon: Truck }
-    }
-
-    applicants.forEach(a => {
-      if (paths[a.applicationPath]) {
-        paths[a.applicationPath].count++
-      }
-    })
-
-    return Object.entries(paths).map(([name, data]) => ({
-      name,
-      value: Math.round((data.count / applicants.length) * 100),
-      color: data.color,
-      icon: data.icon
-    }))
-  }, [applicants])
-
-  const genderStats = useMemo(() => {
-    if (!applicants) return []
-    const male = applicants.filter(a => a.gender === 'Laki-laki').length
-    const female = applicants.filter(a => a.gender === 'Perempuan').length
-    return [
-      { name: 'Laki-laki', value: male, color: '#4361EE' },
-      { name: 'Perempuan', value: female, color: '#F72585' },
-    ]
-  }, [applicants])
 
   const chartData = useMemo(() => {
     if (!applicants) return []
@@ -185,212 +120,120 @@ export default function OverviewPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline font-bold">Ringkasan Sistem</h1>
-          <p className="text-muted-foreground mt-1">Status penerimaan murid berdasarkan data Firestore terbaru.</p>
+          <p className="text-muted-foreground mt-1">Status operasional akademik dan pendaftaran sekolah.</p>
         </div>
         <div className="flex items-center gap-2 bg-card p-1.5 rounded-lg border border-border">
-          <span className="px-3 py-1 text-xs font-bold uppercase tracking-widest text-primary bg-primary/10 rounded-md">Live Database</span>
-          <span className="text-[10px] text-muted-foreground mr-2 font-mono uppercase tracking-tighter">Sinkronisasi Real-time</span>
+          <Badge variant={isSPMBEnabled ? "default" : "secondary"} className="gap-1 font-bold">
+             <div className={`w-2 h-2 rounded-full ${isSPMBEnabled ? 'bg-green-400 animate-pulse' : 'bg-slate-400'}`}></div>
+             MODUL SPMB: {isSPMBEnabled ? 'AKTIF' : 'NONAKTIF'}
+          </Badge>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {loading ? (
-          Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-32 w-full rounded-xl" />
-          ))
-        ) : (
-          stats.map((stat) => (
-            <Link key={stat.name} href={stat.href} className="block">
-              <Card className="border-border/50 hover:border-primary/50 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 group cursor-pointer h-full">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
+      {/* Ringkasan Akademik */}
+      <section className="space-y-4">
+        <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+          <GraduationCap className="w-4 h-4" /> Manajemen Akademik
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {loading ? (
+            Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 w-full rounded-xl" />)
+          ) : (
+            academicStats.map((stat) => (
+              <Link key={stat.name} href={stat.href} className="block">
+                <Card className="border-border/50 hover:border-primary/50 transition-all group cursor-pointer h-full bg-card/50 backdrop-blur-sm">
+                  <CardContent className="p-5 flex items-center gap-4">
+                    <div className={`${stat.bg} p-3 rounded-xl`}>
+                      <stat.icon className={`w-5 h-5 ${stat.color}`} />
+                    </div>
                     <div>
-                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider group-hover:text-primary transition-colors">{stat.name}</p>
-                      <h3 className="text-2xl font-bold mt-2">{stat.value}</h3>
-                      {stat.subValue && <p className="text-[10px] text-green-500 font-bold mt-1 uppercase tracking-tighter">{stat.subValue}</p>}
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{stat.name}</p>
+                      <h3 className="text-xl font-bold">{stat.value}</h3>
                     </div>
-                    <div className={`${stat.bg} p-3 rounded-xl group-hover:scale-110 transition-transform`}>
-                      <stat.icon className={`w-6 h-6 ${stat.color}`} />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))
-        )}
-      </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))
+          )}
+        </div>
+      </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 border-border/50 bg-card overflow-hidden">
-          <CardHeader>
-            <CardTitle className="font-headline text-lg">Tren Pendaftaran 7 Hari Terakhir</CardTitle>
-            <CardDescription>Grafik pendaftaran harian yang masuk ke database.</CardDescription>
-          </CardHeader>
-          <CardContent className="h-[300px]">
+      {/* Ringkasan SPMB (Jika Aktif) */}
+      {isSPMBEnabled && (
+        <section className="space-y-4 pt-4">
+          <h2 className="text-sm font-bold uppercase tracking-widest text-primary flex items-center gap-2">
+            <Users className="w-4 h-4" /> Penerimaan Murid Baru (SPMB)
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {loading ? (
-              <Skeleton className="w-full h-full" />
+              Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 w-full rounded-xl" />)
             ) : (
+              spmbStats.map((stat) => (
+                <Link key={stat.name} href={stat.href} className="block">
+                  <Card className="border-primary/10 hover:border-primary/50 transition-all group cursor-pointer h-full bg-primary/5">
+                    <CardContent className="p-5 flex items-center gap-4">
+                      <div className={`${stat.bg} p-3 rounded-xl`}>
+                        <stat.icon className={`w-5 h-5 ${stat.color}`} />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{stat.name}</p>
+                        <h3 className="text-xl font-bold">{stat.value}</h3>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))
+            )}
+          </div>
+        </section>
+      )}
+
+      {isSPMBEnabled && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-4">
+          <Card className="lg:col-span-2 border-border/50 bg-card/30 overflow-hidden">
+            <CardHeader>
+              <CardTitle className="font-headline text-lg">Tren Pendaftaran</CardTitle>
+              <CardDescription>Grafik pendaftaran harian yang masuk ke database.</CardDescription>
+            </CardHeader>
+            <CardContent className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                  <XAxis 
-                    dataKey="day" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} 
-                  />
-                  <YAxis 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                  />
-                  <Tooltip 
-                    cursor={{ fill: 'hsl(var(--muted)/0.3)' }}
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
-                      borderColor: 'hsl(var(--border))',
-                      borderRadius: '8px',
-                      fontSize: '12px'
-                    }} 
-                  />
+                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
+                  <Tooltip cursor={{ fill: 'hsl(var(--muted)/0.3)' }} contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }} />
                   <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} barSize={40} />
                 </BarChart>
               </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-
-        <div className="space-y-6">
-          <Card className="border-border/50 bg-card">
-            <CardHeader>
-              <CardTitle className="font-headline text-lg">Distribusi Jalur Masuk</CardTitle>
-              <CardDescription>Persentase pendaftar per jalur saat ini.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[200px]">
-                {loading ? (
-                  <Skeleton className="h-full w-full rounded-full" />
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={pathStats}
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {pathStats.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-              <div className="space-y-2 mt-4">
-                {pathStats.map((path) => (
-                  <div key={path.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: path.color }}></div>
-                      <span className="text-[10px] font-medium">{path.name}</span>
-                    </div>
-                    <span className="text-[10px] font-bold text-muted-foreground">{path.value}%</span>
-                  </div>
-                ))}
-              </div>
             </CardContent>
           </Card>
 
-          <Card className="border-border/50 bg-card">
-            <CardHeader className="pb-2">
-              <CardTitle className="font-headline text-lg flex items-center gap-2">
-                <User className="w-4 h-4 text-primary" /> Distribusi Jenis Kelamin
-              </CardTitle>
+          <Card className="border-border/50 bg-card/30">
+            <CardHeader>
+              <CardTitle className="font-headline text-lg">Cek Status SPMB</CardTitle>
+              <CardDescription>Status terkini operasional pendaftaran.</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-4 mt-2">
-                {loading ? (
-                  <>
-                    <Skeleton className="h-16 w-full" />
-                    <Skeleton className="h-16 w-full" />
-                  </>
-                ) : (
-                  genderStats.map((stat) => (
-                    <div key={stat.name} className="bg-muted/30 p-3 rounded-xl border border-border/50">
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase">{stat.name}</p>
-                      <p className="text-xl font-bold mt-1">{stat.value} <span className="text-[10px] font-normal text-muted-foreground">Murid</span></p>
-                      <div className="w-full bg-muted h-1 mt-2 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full" 
-                          style={{ 
-                            backgroundColor: stat.color, 
-                            width: `${applicants?.length ? (stat.value / applicants.length) * 100 : 0}%` 
-                          }}
-                        ></div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
+            <CardContent className="space-y-4">
+               <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-3">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Kapasitas Terisi</span>
+                    <span className="font-bold">{applicants.filter(a => a.admissionStatus === 'accepted').length} / {config?.totalQuota || 0}</span>
+                  </div>
+                  <div className="w-full bg-muted h-2 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-primary h-full transition-all" 
+                      style={{ width: `${Math.min(100, (applicants.filter(a => a.admissionStatus === 'accepted').length / (config?.totalQuota || 1)) * 100)}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-[10px] text-center text-muted-foreground italic">"Sistem otomatis menyeimbangkan kuota setiap kali ada pendaftar baru masuk."</p>
+               </div>
+               <Button asChild variant="outline" className="w-full">
+                  <Link href="/dashboard/settings">Kelola Mode Sistem</Link>
+               </Button>
             </CardContent>
           </Card>
         </div>
-      </div>
-
-      <Card className="border-border/50 bg-card overflow-hidden">
-        <CardHeader>
-          <CardTitle className="font-headline text-lg flex items-center gap-2">
-            <School className="w-5 h-5 text-primary" /> Distribusi Asal Sekolah Dasar
-          </CardTitle>
-          <CardDescription>Statistik pendaftar berdasarkan sekolah asal (Semua Data).</CardDescription>
-        </CardHeader>
-        <CardContent className="h-[400px]">
-          {loading ? (
-            <Skeleton className="w-full h-full" />
-          ) : schoolData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={schoolData} margin={{ top: 20, right: 30, left: 0, bottom: 60 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                <XAxis 
-                  dataKey="name" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  angle={-45}
-                  textAnchor="end"
-                  interval={0}
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                />
-                <Tooltip 
-                  cursor={{ fill: 'hsl(var(--muted)/0.3)' }} 
-                  contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }} 
-                  labelFormatter={(value, payload) => payload[0]?.payload?.fullName || value}
-                />
-                <Bar 
-                  dataKey="count" 
-                  fill="#4361EE" 
-                  radius={[4, 4, 0, 0]} 
-                  barSize={30} 
-                >
-                  {schoolData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#4361EE' : '#4CC9F0'} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex items-center justify-center h-full text-muted-foreground italic">
-              Belum ada data sekolah asal.
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      )}
     </div>
   )
 }

@@ -23,7 +23,8 @@ import {
   Type,
   Upload,
   Fingerprint,
-  ShieldAlert
+  ShieldAlert,
+  Power
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -31,6 +32,8 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Slider } from "@/components/ui/slider"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -71,7 +74,7 @@ export default function SettingsPage() {
   const { data: schoolsData, loading: loadingSchools } = useDoc<any>(schoolsRef)
 
   const [localConfig, setLocalConfig] = useState<any>({
-    appName: "PORTAL SPMB",
+    appName: "SISTEM INFORMASI SEKOLAH",
     appLogoUrl: "",
     schoolName: "SMP Negeri 1 Jakarta",
     dinasName: "DINAS PENDIDIKAN PROVINSI DKI JAKARTA",
@@ -84,7 +87,8 @@ export default function SettingsPage() {
     quotaPerpindahan: 5,
     maxDistance: 3.5,
     minScore: 75,
-    regPrefix: "REG-2026-"
+    regPrefix: "REG-2026-",
+    enableSPMB: true
   })
 
   const [localSchools, setLocalSchools] = useState<string[]>([])
@@ -213,7 +217,7 @@ export default function SettingsPage() {
     setDoc(schoolsRef, { list }, { merge: true })
       .catch(async () => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: schoolsRef.path,
+          path: schoolsRef.list,
           operation: 'write',
           requestResourceData: { list }
         }))
@@ -232,7 +236,7 @@ export default function SettingsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline font-bold">Pengaturan Sistem</h1>
-          <p className="text-muted-foreground mt-1">Konfigurasi global untuk identitas sekolah dan aturan seleksi.</p>
+          <p className="text-muted-foreground mt-1">Konfigurasi global untuk identitas sekolah dan mode operasional.</p>
         </div>
         <Button 
           onClick={handleSaveConfig} 
@@ -240,12 +244,35 @@ export default function SettingsPage() {
           className="bg-primary hover:bg-primary/90 gap-2 shadow-lg shadow-primary/20"
         >
           {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          Simpan Profil & Kuota
+          Simpan Perubahan
         </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
+          {/* Mode Kontrol */}
+          <Card className="border-primary/20 bg-primary/5">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Power className="w-5 h-5 text-primary" />
+                <CardTitle className="font-headline text-lg">Mode Aplikasi</CardTitle>
+              </div>
+              <CardDescription>Aktifkan atau nonaktifkan fitur penerimaan murid baru (SPMB).</CardDescription>
+            </CardHeader>
+            <CardContent>
+               <div className="flex items-center justify-between p-4 bg-card border rounded-xl">
+                  <div className="space-y-0.5">
+                    <Label className="text-base font-bold">Fitur SPMB (Pendaftaran Murid Baru)</Label>
+                    <p className="text-xs text-muted-foreground">Jika nonaktif, menu pendaftaran, verifikasi, dan seleksi akan disembunyikan.</p>
+                  </div>
+                  <Switch 
+                    checked={localConfig.enableSPMB} 
+                    onCheckedChange={(v) => setLocalConfig({...localConfig, enableSPMB: v})}
+                  />
+               </div>
+            </CardContent>
+          </Card>
+
           <Card className="border-border/50">
             <CardHeader>
               <div className="flex items-center gap-2">
@@ -369,110 +396,116 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-border/50">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Fingerprint className="w-5 h-5 text-primary" />
-                <CardTitle className="font-headline text-lg">Format Nomor Registrasi</CardTitle>
-              </div>
-              <CardDescription>Sesuaikan prefiks untuk penomoran otomatis pendaftar.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Prefiks Registrasi</label>
-                <Input 
-                  value={localConfig.regPrefix}
-                  onChange={(e) => setLocalConfig({...localConfig, regPrefix: e.target.value})}
-                  placeholder="Contoh: REK atau REG-2026-" 
-                />
-                <p className="text-[10px] text-muted-foreground italic">
-                  Contoh Hasil: <strong>{localConfig.regPrefix || ''}01</strong>, <strong>{localConfig.regPrefix || ''}02</strong>, dst.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          {localConfig.enableSPMB && (
+            <>
+              <Card className="border-border/50">
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <Fingerprint className="w-5 h-5 text-primary" />
+                    <CardTitle className="font-headline text-lg">Format Nomor Registrasi</CardTitle>
+                  </div>
+                  <CardDescription>Sesuaikan prefiks untuk penomoran otomatis pendaftar.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Prefiks Registrasi</label>
+                    <Input 
+                      value={localConfig.regPrefix}
+                      onChange={(e) => setLocalConfig({...localConfig, regPrefix: e.target.value})}
+                      placeholder="Contoh: REK atau REG-2026-" 
+                    />
+                    <p className="text-[10px] text-muted-foreground italic">
+                      Contoh Hasil: <strong>{localConfig.regPrefix || ''}01</strong>, <strong>{localConfig.regPrefix || ''}02</strong>, dst.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card className="border-border/50">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <School className="w-5 h-5 text-accent" />
-                <CardTitle className="font-headline text-lg">Daftar Sekolah Zonasi (SD/MI)</CardTitle>
-              </div>
-              <CardDescription>Kelola daftar sekolah yang dianggap berada di dalam zonasi sekolah ini.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-2">
-                <Input 
-                  value={newSchool}
-                  onChange={(e) => setNewSchool(e.target.value)}
-                  placeholder="Masukkan nama sekolah zonasi..."
-                  className="flex-1"
-                />
-                <Button onClick={handleAddSchool} variant="outline" className="gap-2">
-                  <Plus className="w-4 h-4" /> Tambah
-                </Button>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[300px] overflow-y-auto p-2 border rounded-lg bg-muted/20">
-                {localSchools.map((school) => (
-                  <div key={school} className="flex items-center justify-between p-2 rounded bg-card border group">
-                    <span className="text-sm truncate mr-2">{school}</span>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => handleRemoveSchoolConfirm(school)}
-                    >
-                      <Trash2 className="w-3 h-3" />
+              <Card className="border-border/50">
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <School className="w-5 h-5 text-accent" />
+                    <CardTitle className="font-headline text-lg">Daftar Sekolah Zonasi (SD/MI)</CardTitle>
+                  </div>
+                  <CardDescription>Kelola daftar sekolah yang dianggap berada di dalam zonasi sekolah ini.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex gap-2">
+                    <Input 
+                      value={newSchool}
+                      onChange={(e) => setNewSchool(e.target.value)}
+                      placeholder="Masukkan nama sekolah zonasi..."
+                      className="flex-1"
+                    />
+                    <Button onClick={handleAddSchool} variant="outline" className="gap-2">
+                      <Plus className="w-4 h-4" /> Tambah
                     </Button>
                   </div>
-                ))}
-                {localSchools.length === 0 && (
-                  <p className="col-span-full text-center py-8 text-muted-foreground text-sm italic">Belum ada sekolah zonasi yang ditambahkan.</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[300px] overflow-y-auto p-2 border rounded-lg bg-muted/20">
+                    {localSchools.map((school) => (
+                      <div key={school} className="flex items-center justify-between p-2 rounded bg-card border group">
+                        <span className="text-sm truncate mr-2">{school}</span>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => handleRemoveSchoolConfirm(school)}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ))}
+                    {localSchools.length === 0 && (
+                      <p className="col-span-full text-center py-8 text-muted-foreground text-sm italic">Belum ada sekolah zonasi yang ditambahkan.</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
 
         <div className="space-y-6">
-          <Card className="border-border/50">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Percent className="w-5 h-5 text-accent" />
-                <CardTitle className="font-headline text-lg">Distribusi Kuota</CardTitle>
-                <CardDescription>Total distribusi harus 100%.</CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-               {[
-                  { label: "Zonasi (%)", key: "quotaZonasi", icon: MapPin },
-                  { label: "Prestasi (%)", key: "quotaPrestasi", icon: Trophy },
-                  { label: "Afirmasi (%)", key: "quotaAfirmasi", icon: Users },
-                  { label: "Pindahan (%)", key: "quotaPerpindahan", icon: School },
-                ].map((item) => (
-                  <div key={item.key} className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{item.label}</label>
-                      <span className="text-sm font-bold text-primary">{localConfig[item.key]}%</span>
-                    </div>
-                    <Slider 
-                      value={[localConfig[item.key]]} 
-                      max={100} 
-                      step={1}
-                      onValueChange={([v]) => handleQuotaChange(item.key, v)}
-                    />
-                  </div>
-                ))}
-                <div className="pt-4 border-t">
-                   <div className="flex justify-between items-center">
-                     <span className="text-xs font-bold uppercase text-muted-foreground">Total Kuota</span>
-                     <Badge variant={Object.keys(localConfig).filter(k => k.startsWith('quota')).reduce((s, k) => s + localConfig[k], 0) === 100 ? "default" : "destructive"} className="font-mono">
-                        {Object.keys(localConfig).filter(k => k.startsWith('quota')).reduce((s, k) => s + localConfig[k], 0)}%
-                     </Badge>
-                   </div>
+          {localConfig.enableSPMB && (
+            <Card className="border-border/50">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Percent className="w-5 h-5 text-accent" />
+                  <CardTitle className="font-headline text-lg">Distribusi Kuota</CardTitle>
+                  <CardDescription>Total distribusi harus 100%.</CardDescription>
                 </div>
-            </CardContent>
-          </Card>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                 {[
+                    { label: "Zonasi (%)", key: "quotaZonasi", icon: MapPin },
+                    { label: "Prestasi (%)", key: "quotaPrestasi", icon: Trophy },
+                    { label: "Afirmasi (%)", key: "quotaAfirmasi", icon: Users },
+                    { label: "Pindahan (%)", key: "quotaPerpindahan", icon: School },
+                  ].map((item) => (
+                    <div key={item.key} className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{item.label}</label>
+                        <span className="text-sm font-bold text-primary">{localConfig[item.key]}%</span>
+                      </div>
+                      <Slider 
+                        value={[localConfig[item.key]]} 
+                        max={100} 
+                        step={1}
+                        onValueChange={([v]) => handleQuotaChange(item.key, v)}
+                      />
+                    </div>
+                  ))}
+                  <div className="pt-4 border-t">
+                     <div className="flex justify-between items-center">
+                       <span className="text-xs font-bold uppercase text-muted-foreground">Total Kuota</span>
+                       <Badge variant={Object.keys(localConfig).filter(k => k.startsWith('quota')).reduce((s, k) => s + localConfig[k], 0) === 100 ? "default" : "destructive"} className="font-mono">
+                          {Object.keys(localConfig).filter(k => k.startsWith('quota')).reduce((s, k) => s + localConfig[k], 0)}%
+                       </Badge>
+                     </div>
+                  </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="border-border/50 bg-primary/5">
             <CardContent className="p-6">
