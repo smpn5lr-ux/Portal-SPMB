@@ -1,6 +1,7 @@
+
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { 
   Users, 
   Trash2, 
@@ -20,7 +21,8 @@ import {
   CheckCircle2,
   Settings2,
   ArrowLeftRight,
-  UserMinus
+  UserMinus,
+  GraduationCap
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -538,10 +540,26 @@ export default function ClassesPage() {
     return { total: students.length, male, female }
   }
 
+  // Group classes by gradeLevel
+  const groupedClasses = useMemo(() => {
+    if (!classes) return {}
+    const groups: Record<number, Classroom[]> = {}
+    classes.forEach(cls => {
+      const level = cls.gradeLevel
+      if (!groups[level]) groups[level] = []
+      groups[level].push(cls)
+    })
+    return groups
+  }, [classes])
+
+  const sortedLevels = useMemo(() => {
+    return Object.keys(groupedClasses).map(Number).sort((a, b) => a - b)
+  }, [groupedClasses])
+
   if (loadingClasses) return <div className="flex justify-center py-24"><Loader2 className="animate-spin text-primary" /></div>
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline font-bold">Manajemen Kelas</h1>
@@ -641,55 +659,76 @@ export default function ClassesPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {classes?.map((cls) => {
-          const summary = getSummary(cls.students)
-          return (
-            <Card key={cls.id} className="border-border/50 hover:border-primary/30 transition-all group relative">
-              <Button 
-                variant="outline" 
-                size="icon" 
-                className="absolute top-2 right-2 text-destructive border-destructive/20 hover:bg-destructive/10"
-                onClick={() => handleDeleteClassConfirm(cls)}
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between pr-8">
-                  <CardTitle className="font-headline text-2xl">Kelas {cls.name}</CardTitle>
-                  <Badge variant="outline">G-{cls.gradeLevel}</Badge>
-                </div>
-                <div className="flex flex-col gap-1 mt-2">
-                  <CardDescription className="flex items-center gap-2">
-                    <Users className="w-3 h-3" /> {cls.currentEnrollment} / {cls.capacity} Murid
-                  </CardDescription>
-                  <p className="text-[10px] font-bold text-primary/70 uppercase tracking-tighter">
-                    TOTAL: {summary.total} (L: {summary.male}, P: {summary.female})
-                  </p>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-primary h-full transition-all" style={{ width: `${Math.min(100, (cls.currentEnrollment / cls.capacity) * 100)}%` }}></div>
-                  </div>
-                  <div className="text-sm bg-muted/30 p-2 rounded border border-border/50">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase block">Wali Kelas</span>
-                    <span className="font-medium truncate block">{cls.homeroomTeacher || "-"}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button onClick={() => handleView(cls)} variant="outline" size="sm" className="flex-1 text-xs gap-2 border-primary/20 text-primary">
-                      <Eye className="w-3 h-3" /> Daftar
+      <div className="space-y-12">
+        {sortedLevels.length === 0 ? (
+          <div className="text-center py-20 border-2 border-dashed rounded-xl bg-muted/20">
+            <GraduationCap className="w-12 h-12 mx-auto text-muted-foreground opacity-20 mb-4" />
+            <h3 className="text-xl font-bold">Belum Ada Rombongan Belajar</h3>
+            <p className="text-muted-foreground">Klik 'Tambah Rombel' untuk mulai membuat kelas.</p>
+          </div>
+        ) : sortedLevels.map((level) => (
+          <section key={level} className="space-y-6">
+            <div className="flex items-center gap-4">
+               <div className="bg-primary px-4 py-1.5 rounded-lg shadow-lg shadow-primary/20 flex items-center gap-2">
+                 <GraduationCap className="w-5 h-5 text-white" />
+                 <h2 className="text-lg font-bold text-white uppercase tracking-wider">Tingkat {level}</h2>
+               </div>
+               <div className="h-px bg-border flex-1"></div>
+               <Badge variant="outline" className="font-mono">{groupedClasses[level].length} Kelas</Badge>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {groupedClasses[level].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })).map((cls) => {
+                const summary = getSummary(cls.students)
+                return (
+                  <Card key={cls.id} className="border-border/50 hover:border-primary/30 transition-all group relative">
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      className="absolute top-2 right-2 text-destructive border-destructive/20 hover:bg-destructive/10"
+                      onClick={() => handleDeleteClassConfirm(cls)}
+                    >
+                      <Trash2 className="w-4 h-4" />
                     </Button>
-                    <Button onClick={() => setEditingClass(cls)} variant="outline" size="sm" className="flex-1 text-xs gap-2">
-                      <Pencil className="w-3 h-3" /> Edit
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )
-        })}
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between pr-8">
+                        <CardTitle className="font-headline text-2xl">Kelas {cls.name}</CardTitle>
+                        <Badge variant="outline">G-{cls.gradeLevel}</Badge>
+                      </div>
+                      <div className="flex flex-col gap-1 mt-2">
+                        <CardDescription className="flex items-center gap-2">
+                          <Users className="w-3 h-3" /> {cls.currentEnrollment} / {cls.capacity} Murid
+                        </CardDescription>
+                        <p className="text-[10px] font-bold text-primary/70 uppercase tracking-tighter">
+                          TOTAL: {summary.total} (L: {summary.male}, P: {summary.female})
+                        </p>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
+                          <div className="bg-primary h-full transition-all" style={{ width: `${Math.min(100, (cls.currentEnrollment / cls.capacity) * 100)}%` }}></div>
+                        </div>
+                        <div className="text-sm bg-muted/30 p-2 rounded border border-border/50">
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase block">Wali Kelas</span>
+                          <span className="font-medium truncate block">{cls.homeroomTeacher || "-"}</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button onClick={() => handleView(cls)} variant="outline" size="sm" className="flex-1 text-xs gap-2 border-primary/20 text-primary">
+                            <Eye className="w-3 h-3" /> Daftar
+                          </Button>
+                          <Button onClick={() => setEditingClass(cls)} variant="outline" size="sm" className="flex-1 text-xs gap-2">
+                            <Pencil className="w-3 h-3" /> Edit
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          </section>
+        ))}
       </div>
 
       <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
