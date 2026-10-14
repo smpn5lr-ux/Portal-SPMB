@@ -96,6 +96,20 @@
       },
       "required": ["fullName", "email", "role"]
     },
+    "TeacherAssignment": {
+      "title": "TeacherAssignment",
+      "description": "Linking a teacher to a specific class and subject with required weekly JP.",
+      "type": "object",
+      "properties": {
+        "teacherId": { "type": "string" },
+        "teacherName": { "type": "string" },
+        "classId": { "type": "string" },
+        "className": { "type": "string" },
+        "subjectId": { "type": "string" },
+        "subjectName": { "type": "string" },
+        "totalJP": { "type": "number" }
+      }
+    },
     "RosterEntry": {
       "title": "RosterEntry",
       "description": "A single entry in the school schedule.",

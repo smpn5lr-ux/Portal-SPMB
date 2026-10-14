@@ -17,7 +17,9 @@ import {
   Timer,
   Trash,
   Coffee,
-  Sparkles
+  Sparkles,
+  Info,
+  Check
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -52,7 +54,7 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase'
 import { collection, query, doc, setDoc, addDoc, deleteDoc } from 'firebase/firestore'
-import { RosterEntry, Staff, Classroom, Subject } from '@/lib/types'
+import { RosterEntry, Staff, Classroom, Subject, TeacherAssignment } from '@/lib/types'
 import { useToast } from '@/hooks/use-toast'
 import { addMinutes, format, parse } from 'date-fns'
 
@@ -67,7 +69,6 @@ export default function RosterManagementPage() {
   const [submitting, setSubmitting] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   
-  // State for new entry
   const [newEntry, setNewEntry] = useState<Partial<RosterEntry>>({
     day: "Senin",
     period: 1,
@@ -80,12 +81,14 @@ export default function RosterManagementPage() {
 
   // Queries
   const rosterQuery = useMemoFirebase(() => db ? collection(db, 'rosterEntries') : null, [db])
+  const assignmentsQuery = useMemoFirebase(() => db ? collection(db, 'teacherAssignments') : null, [db])
   const staffQuery = useMemoFirebase(() => db ? collection(db, 'staff') : null, [db])
   const classesQuery = useMemoFirebase(() => db ? collection(db, 'classes') : null, [db])
   const subjectsQuery = useMemoFirebase(() => db ? collection(db, 'subjects') : null, [db])
   const configRef = useMemoFirebase(() => db ? doc(db, 'settings', 'roster') : null, [db])
 
   const { data: rosterEntries, loading: loadingR } = useCollection<RosterEntry>(rosterQuery)
+  const { data: assignments } = useCollection<TeacherAssignment>(assignmentsQuery)
   const { data: staff } = useCollection<Staff>(staffQuery)
   const { data: classes } = useCollection<Classroom>(classesQuery)
   const { data: subjects } = useCollection<Subject>(subjectsQuery)
@@ -93,7 +96,7 @@ export default function RosterManagementPage() {
 
   const teachers = staff?.filter(s => s.role === 'Guru') || []
 
-  // Roster Config Defaults
+  // Load Config
   const config = rosterConfig || {
     entryTime: "07:00",
     jpDuration: 40,
@@ -113,6 +116,23 @@ export default function RosterManagementPage() {
     const end = addMinutes(current, config.jpDuration)
     return `${format(current, 'HH:mm')} - ${format(end, 'HH:mm')}`
   }
+
+  // Workload tracking per assignment
+  const workloadStats = useMemo(() => {
+    if (!assignments || !rosterEntries) return []
+    return assignments.map(a => {
+      const scheduledCount = rosterEntries.filter(e => 
+        e.teacherId === a.teacherId && 
+        e.subjectId === a.subjectId && 
+        e.classId === a.classId
+      ).length
+      return {
+        ...a,
+        scheduled: scheduledCount,
+        isMet: scheduledCount >= (a.totalJP || 0)
+      }
+    })
+  }, [assignments, rosterEntries])
 
   const handleSaveConfig = async (e: any) => {
     e.preventDefault()
@@ -134,7 +154,6 @@ export default function RosterManagementPage() {
     const updatedBreaks = [...config.breakTimes, { periodAfter: 1, duration: 15 }]
       .sort((a, b) => a.periodAfter - b.periodAfter)
     await setDoc(configRef, { ...config, breakTimes: updatedBreaks }, { merge: true })
-    toast({ title: "Istirahat Ditambahkan" })
   }
 
   const handleUpdateBreak = async (index: number, field: string, value: any) => {
@@ -148,7 +167,6 @@ export default function RosterManagementPage() {
     if (!configRef) return
     const updatedBreaks = config.breakTimes.filter((_: any, i: number) => i !== index)
     await setDoc(configRef, { ...config, breakTimes: updatedBreaks }, { merge: true })
-    toast({ title: "Istirahat Dihapus" })
   }
 
   const handleAddEntry = async () => {
@@ -162,41 +180,23 @@ export default function RosterManagementPage() {
       return
     }
 
-    if (newEntry.isActivity && !newEntry.activityName) {
-      toast({ variant: "destructive", title: "Tuliskan Nama Kegiatan" })
-      return
-    }
-
-    // ANTI-TABRAK LOGIC (Only for non-activities or if teacher is involved)
+    // Bentrokan Guru
     if (!newEntry.isActivity) {
       const teacherConflict = rosterEntries?.find(e => 
         e.day === newEntry.day && 
         e.period === newEntry.period && 
         e.teacherId === newEntry.teacherId
       )
-
       if (teacherConflict) {
-        toast({ 
-          variant: "destructive", 
-          title: "Bentrokan Jadwal Guru", 
-          description: `Guru ${teacherConflict.teacherName} sudah mengajar di kelas ${teacherConflict.className} pada jam ini.` 
-        })
+        toast({ variant: "destructive", title: "Bentrok!", description: `Guru tersebut sudah ada jadwal di kelas ${teacherConflict.className}.` })
         return
       }
     }
 
-    const classConflict = rosterEntries?.find(e => 
-      e.day === newEntry.day && 
-      e.period === newEntry.period && 
-      e.classId === newEntry.classId
-    )
-
+    // Bentrokan Kelas
+    const classConflict = rosterEntries?.find(e => e.day === newEntry.day && e.period === newEntry.period && e.classId === newEntry.classId)
     if (classConflict) {
-      toast({ 
-        variant: "destructive", 
-        title: "Bentrokan Ruang Kelas", 
-        description: `Kelas ${classConflict.className} sudah memiliki jadwal (${classConflict.isActivity ? classConflict.activityName : classConflict.subjectName}).` 
-      })
+      toast({ variant: "destructive", title: "Bentrok!", description: `Kelas ini sudah terisi jadwal pada jam ini.` })
       return
     }
 
@@ -213,10 +213,10 @@ export default function RosterManagementPage() {
         subjectName: newEntry.isActivity ? null : s?.name,
         createdAt: new Date().toISOString()
       })
-      toast({ title: "Jadwal Berhasil Ditambahkan" })
+      toast({ title: "Jadwal Ditambahkan" })
       setIsAddOpen(false)
     } catch (e) {
-      toast({ variant: "destructive", title: "Gagal menyimpan" })
+      toast({ variant: "destructive", title: "Gagal" })
     } finally {
       setSubmitting(false)
     }
@@ -225,7 +225,6 @@ export default function RosterManagementPage() {
   const handleDeleteEntry = async (id: string) => {
     if (!db) return
     await deleteDoc(doc(db, 'rosterEntries', id))
-    toast({ title: "Slot Jadwal Dikosongkan" })
   }
 
   const getEntry = (day: string, period: number, classId: string) => {
@@ -239,7 +238,7 @@ export default function RosterManagementPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline font-bold">Manajemen Roster</h1>
-          <p className="text-muted-foreground mt-1">Desain jadwal harian, waktu istirahat, dan kegiatan sekolah terpadu.</p>
+          <p className="text-muted-foreground mt-1">Plotting jadwal mengajar sesuai beban JP Dapodik.</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => setIsAddOpen(true)} className="gap-2 shadow-lg shadow-primary/20">
@@ -248,254 +247,211 @@ export default function RosterManagementPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="builder" onValueChange={setActiveTab}>
-        <TabsList className="bg-muted/50 border border-border/50">
-          <TabsTrigger value="builder" className="gap-2"><CalendarClock className="w-4 h-4" /> Jadwal Mingguan</TabsTrigger>
-          <TabsTrigger value="settings" className="gap-2"><Settings2 className="w-4 h-4" /> Konfigurasi Waktu</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="builder" className="space-y-6 mt-6">
-          {classes?.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })).map(cls => (
-            <Card key={cls.id} className="border-border/50 overflow-hidden">
-              <CardHeader className="bg-muted/10 border-b py-3 px-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center">
-                      <Users className="w-4 h-4 text-primary" />
-                    </div>
-                    <CardTitle className="text-lg">Jadwal Kelas {cls.name}</CardTitle>
-                  </div>
-                  <Badge variant="outline">Tingkat {cls.gradeLevel}</Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="p-0 overflow-x-auto">
-                <Table>
-                  <TableHeader className="bg-muted/5">
-                    <TableRow>
-                      <TableHead className="w-32 border-r bg-muted/20">Waktu / Jam</TableHead>
-                      {DAYS.map(day => <TableHead key={day} className="text-center min-w-[150px]">{day}</TableHead>)}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {Array.from({ length: MAX_PERIODS }).map((_, i) => {
-                      const period = i + 1
-                      return (
-                        <TableRow key={period}>
-                          <TableCell className="border-r font-medium text-xs bg-muted/10">
-                             <div className="flex flex-col">
-                               <span className="text-primary font-bold">Jam ke-{period}</span>
-                               <span className="text-[10px] text-muted-foreground">{getTimeForPeriod(period)}</span>
-                             </div>
-                          </TableCell>
-                          {DAYS.map(day => {
-                            const entry = getEntry(day, period, cls.id)
-                            return (
-                              <TableCell key={day} className="p-2 border-r last:border-r-0 h-24 relative group">
-                                {entry ? (
-                                  <div className={`h-full border rounded-md p-2 flex flex-col justify-between transition-colors ${entry.isActivity ? 'bg-accent/10 border-accent/30' : 'bg-primary/5 border-primary/20 hover:bg-primary/10'}`}>
-                                    <div>
-                                      <div className={`font-bold text-[10px] truncate uppercase ${entry.isActivity ? 'text-accent' : 'text-primary'}`}>
-                                        {entry.isActivity ? entry.activityName : entry.subjectName}
-                                      </div>
-                                      {!entry.isActivity && <div className="text-[10px] text-muted-foreground mt-1 truncate">{entry.teacherName}</div>}
-                                      {entry.isActivity && <div className="text-[9px] text-accent/70 mt-1 uppercase flex items-center gap-1"><Sparkles className="w-2 h-2" /> Kegiatan</div>}
-                                    </div>
-                                    <Button 
-                                      variant="ghost" 
-                                      size="icon" 
-                                      className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 text-destructive"
-                                      onClick={() => handleDeleteEntry(entry.id)}
-                                    >
-                                      <Trash2 className="w-3 h-3" />
-                                    </Button>
-                                  </div>
-                                ) : (
-                                  <div className="h-full flex items-center justify-center opacity-20 group-hover:opacity-100 transition-opacity">
-                                     <Badge variant="outline" className="text-[10px] cursor-pointer" onClick={() => {
-                                       setNewEntry({ ...newEntry, day, period, classId: cls.id, isActivity: false })
-                                       setIsAddOpen(true)
-                                     }}>Kosong</Badge>
-                                  </div>
-                                )}
-                              </TableCell>
-                            )
-                          })}
-                        </TableRow>
-                      )
-                    })}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          ))}
-        </TabsContent>
-
-        <TabsContent value="settings" className="mt-6 space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="border-border/50">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2"><Clock className="w-5 h-5 text-primary" /> Jam Operasional Sekolah</CardTitle>
-                <CardDescription>Atur jam masuk dan durasi setiap Jam Pelajaran (JP).</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSaveConfig} className="space-y-6">
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="text-sm font-bold">Jam Masuk (Jam ke-1)</label>
-                      <Input name="entryTime" type="time" defaultValue={config.entryTime} />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-bold">Durasi per JP (Menit)</label>
-                      <Input name="jpDuration" type="number" defaultValue={config.jpDuration} />
-                    </div>
-                  </div>
-                  <Button type="submit" disabled={isSaving} className="w-full gap-2">
-                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                    Simpan Perubahan Utama
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border/50">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg flex items-center gap-2"><Coffee className="w-5 h-5 text-accent" /> Waktu Istirahat</CardTitle>
-                  <Button onClick={handleAddBreak} variant="outline" size="sm" className="gap-2 h-8">
-                    <Plus className="w-3 h-3" /> Tambah Jeda
-                  </Button>
-                </div>
-                <CardDescription>Atur jam istirahat sekolah di antara jam pelajaran.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {config.breakTimes.length === 0 ? (
-                  <p className="text-center py-6 text-xs text-muted-foreground italic">Belum ada waktu istirahat diatur.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {config.breakTimes.map((b: any, i: number) => (
-                      <div key={i} className="flex items-center gap-4 bg-muted/20 p-3 rounded-lg border border-border/50">
-                         <div className="flex-1 space-y-1">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Setelah Jam Ke</Label>
-                            <Select value={b.periodAfter.toString()} onValueChange={(v) => handleUpdateBreak(i, 'periodAfter', v)}>
-                              <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                {Array.from({length: MAX_PERIODS}).map((_, idx) => (
-                                  <SelectItem key={idx+1} value={(idx+1).toString()}>Jam ke-{idx+1}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="lg:col-span-1 space-y-6">
+          <Card className="border-border/50 bg-primary/5">
+             <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-primary" /> Tracking Beban Jam
+                </CardTitle>
+             </CardHeader>
+             <CardContent className="space-y-3 pt-2">
+                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mb-2">Target Dapodik per Kelas:</p>
+                <div className="max-height-[400px] overflow-y-auto space-y-2 pr-2">
+                   {workloadStats.map((w, idx) => (
+                      <div key={idx} className={`p-2 rounded border text-[10px] ${w.isMet ? 'bg-green-500/5 border-green-500/20' : 'bg-amber-500/5 border-amber-500/20'}`}>
+                         <div className="flex justify-between items-start">
+                            <span className="font-bold text-primary truncate max-w-[120px]">{w.teacherName}</span>
+                            <Badge variant={w.isMet ? 'default' : 'outline'} className="text-[8px] h-4 scale-90">
+                               {w.scheduled} / {w.totalJP} JP
+                            </Badge>
                          </div>
-                         <div className="flex-1 space-y-1">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Durasi (Menit)</Label>
-                            <Input 
-                              type="number" 
-                              className="h-8" 
-                              value={b.duration} 
-                              onChange={(e) => handleUpdateBreak(i, 'duration', e.target.value)} 
-                            />
+                         <div className="flex justify-between mt-1 text-muted-foreground">
+                            <span>{w.subjectName}</span>
+                            <span className="font-mono">Kelas {w.className}</span>
                          </div>
-                         <Button onClick={() => handleRemoveBreak(i)} variant="ghost" size="icon" className="text-destructive mt-4">
-                           <Trash className="w-4 h-4" />
-                         </Button>
                       </div>
-                    ))}
-                  </div>
-                )}
-                <div className="bg-amber-500/5 p-3 rounded-lg border border-amber-500/10 flex gap-2">
-                   <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                   <p className="text-[10px] text-amber-600 leading-relaxed italic">Waktu istirahat akan otomatis memundurkan jam mulai pada jam pelajaran berikutnya.</p>
+                   ))}
+                   {workloadStats.length === 0 && <p className="text-[10px] text-muted-foreground italic">Belum ada data penugasan.</p>}
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
+             </CardContent>
+          </Card>
 
-      {/* Dialog Plotting Jadwal */}
+          <Card className="border-border/50">
+             <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-bold flex items-center gap-2"><Clock className="w-4 h-4 text-accent" /> Operasional</CardTitle>
+             </CardHeader>
+             <CardContent className="space-y-4 pt-2">
+                <div className="space-y-1">
+                   <span className="text-[10px] font-bold text-muted-foreground">MULAI PELAJARAN</span>
+                   <p className="text-sm font-bold">{config.entryTime}</p>
+                </div>
+                <div className="space-y-1">
+                   <span className="text-[10px] font-bold text-muted-foreground">DURASI PER JP</span>
+                   <p className="text-sm font-bold">{config.jpDuration} Menit</p>
+                </div>
+                <Separator />
+                <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => setActiveTab("settings")}>Ubah Konfigurasi</Button>
+             </CardContent>
+          </Card>
+        </div>
+
+        <div className="lg:col-span-3">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="bg-muted/50 border border-border/50">
+              <TabsTrigger value="builder" className="gap-2">Jadwal Mingguan</TabsTrigger>
+              <TabsTrigger value="settings" className="gap-2">Konfigurasi Waktu</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="builder" className="space-y-6 mt-6">
+              {classes?.sort((a,b) => a.name.localeCompare(b.name)).map(cls => (
+                <Card key={cls.id} className="border-border/50 overflow-hidden">
+                  <CardHeader className="bg-muted/10 border-b py-3 px-6 flex flex-row items-center justify-between">
+                     <CardTitle className="text-lg flex items-center gap-2"><Users className="w-4 h-4" /> Jadwal Kelas {cls.name}</CardTitle>
+                     <Badge variant="outline">Tingkat {cls.gradeLevel}</Badge>
+                  </CardHeader>
+                  <CardContent className="p-0 overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/5">
+                          <TableHead className="w-24 border-r">Jam Ke</TableHead>
+                          {DAYS.map(day => <TableHead key={day} className="text-center min-w-[140px]">{day}</TableHead>)}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {Array.from({ length: MAX_PERIODS }).map((_, i) => {
+                          const period = i + 1
+                          return (
+                            <TableRow key={period}>
+                              <TableCell className="border-r font-medium text-[10px] bg-muted/10 text-center">
+                                 <div className="font-bold text-primary">Jam {period}</div>
+                                 <div className="text-[9px] text-muted-foreground">{getTimeForPeriod(period)}</div>
+                              </TableCell>
+                              {DAYS.map(day => {
+                                const entry = getEntry(day, period, cls.id)
+                                return (
+                                  <TableCell key={day} className="p-1 border-r last:border-r-0 h-20 group relative">
+                                    {entry ? (
+                                      <div className={`h-full border rounded-md p-2 flex flex-col justify-center transition-all ${entry.isActivity ? 'bg-accent/10 border-accent/20' : 'bg-primary/5 border-primary/20'}`}>
+                                        <div className="text-[10px] font-bold truncate uppercase">{entry.isActivity ? entry.activityName : entry.subjectName}</div>
+                                        {!entry.isActivity && <div className="text-[9px] text-muted-foreground truncate">{entry.teacherName}</div>}
+                                        <Button 
+                                          variant="ghost" 
+                                          size="icon" 
+                                          className="absolute top-0 right-0 h-5 w-5 opacity-0 group-hover:opacity-100 text-destructive"
+                                          onClick={() => handleDeleteEntry(entry.id)}
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </Button>
+                                      </div>
+                                    ) : (
+                                      <div className="h-full flex items-center justify-center opacity-0 group-hover:opacity-30 cursor-pointer" onClick={() => {
+                                        setNewEntry({...newEntry, day, period, classId: cls.id});
+                                        setIsAddOpen(true);
+                                      }}>
+                                        <Plus className="w-4 h-4" />
+                                      </div>
+                                    )}
+                                  </TableCell>
+                                )
+                              })}
+                            </TableRow>
+                          )
+                        })}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              ))}
+            </TabsContent>
+
+            <TabsContent value="settings" className="mt-6">
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <Card>
+                    <CardHeader><CardTitle className="text-lg">Jam Sekolah</CardTitle></CardHeader>
+                    <CardContent>
+                      <form onSubmit={handleSaveConfig} className="space-y-6">
+                        <div className="space-y-4">
+                           <div className="space-y-2">
+                             <Label>Jam Pelajaran Ke-1 Dimulai</Label>
+                             <Input name="entryTime" type="time" defaultValue={config.entryTime} />
+                           </div>
+                           <div className="space-y-2">
+                             <Label>Durasi Pelajaran (JP) - Menit</Label>
+                             <Input name="jpDuration" type="number" defaultValue={config.jpDuration} />
+                           </div>
+                        </div>
+                        <Button type="submit" disabled={isSaving} className="w-full">Simpan Konfigurasi</Button>
+                      </form>
+                    </CardContent>
+                 </Card>
+
+                 <Card>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                       <CardTitle className="text-lg">Waktu Istirahat</CardTitle>
+                       <Button size="sm" variant="outline" onClick={handleAddBreak}><Plus className="w-3 h-3 mr-1" /> Tambah</Button>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                       {config.breakTimes.map((b: any, i: number) => (
+                         <div key={i} className="flex items-center gap-2 bg-muted/20 p-2 rounded-lg border">
+                            <div className="flex-1 space-y-1">
+                               <Label className="text-[10px]">Setelah Jam Ke</Label>
+                               <Input type="number" value={b.periodAfter} onChange={e => handleUpdateBreak(i, 'periodAfter', e.target.value)} className="h-8" />
+                            </div>
+                            <div className="flex-1 space-y-1">
+                               <Label className="text-[10px]">Durasi (Menit)</Label>
+                               <Input type="number" value={b.duration} onChange={e => handleUpdateBreak(i, 'duration', e.target.value)} className="h-8" />
+                            </div>
+                            <Button variant="ghost" size="icon" className="mt-4 text-destructive" onClick={() => handleRemoveBreak(i)}><Trash2 className="w-4 h-4" /></Button>
+                         </div>
+                       ))}
+                    </CardContent>
+                 </Card>
+               </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
+
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
         <DialogContent className="sm:max-w-[450px]">
-          <DialogHeader>
-            <DialogTitle>Plotting Jadwal</DialogTitle>
-            <DialogDescription>Masukkan mata pelajaran atau kegiatan sekolah ke dalam slot waktu.</DialogDescription>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Plot Jadwal</DialogTitle></DialogHeader>
           <div className="space-y-6 py-4">
-            <div className="flex items-center justify-between p-4 bg-accent/5 border border-accent/20 rounded-xl">
+            <div className="flex items-center justify-between p-3 bg-accent/5 border rounded-xl">
                <div className="space-y-0.5">
-                  <Label className="font-bold flex items-center gap-2"><Sparkles className="w-4 h-4 text-accent" /> Mode Kegiatan</Label>
-                  <p className="text-[10px] text-muted-foreground">Aktifkan untuk agenda seperti Upacara, Senam, atau Sholat.</p>
+                  <Label className="font-bold">Mode Kegiatan Sekolah</Label>
+                  <p className="text-[10px] text-muted-foreground italic">Aktifkan untuk agenda non-KBM (Upacara, Sholat, dll)</p>
                </div>
-               <Switch 
-                 checked={newEntry.isActivity} 
-                 onCheckedChange={(v) => setNewEntry({...newEntry, isActivity: v})} 
-               />
+               <Switch checked={newEntry.isActivity} onCheckedChange={v => setNewEntry({...newEntry, isActivity: v})} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-               <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase text-muted-foreground">Hari</label>
-                  <Select value={newEntry.day} onValueChange={v => setNewEntry({...newEntry, day: v})}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>{DAYS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
-                  </Select>
-               </div>
-               <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase text-muted-foreground">Jam Ke-</label>
-                  <Select value={newEntry.period?.toString()} onValueChange={v => setNewEntry({...newEntry, period: parseInt(v)})}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>{Array.from({length: MAX_PERIODS}).map((_, i) => <SelectItem key={i+1} value={(i+1).toString()}>Jam ke-{i+1}</SelectItem>)}</SelectContent>
-                  </Select>
-               </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase text-muted-foreground">Ruang Kelas / Rombel</label>
-              <Select value={newEntry.classId} onValueChange={v => setNewEntry({...newEntry, classId: v})}>
-                <SelectTrigger><SelectValue placeholder="Pilih Rombel" /></SelectTrigger>
-                <SelectContent>{classes?.map(c => <SelectItem key={c.id} value={c.id}>Kelas {c.name}</SelectItem>)}</SelectContent>
-              </Select>
+               <div className="space-y-2"><Label>Hari</Label><Select value={newEntry.day} onValueChange={v => setNewEntry({...newEntry, day: v})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{DAYS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent></Select></div>
+               <div className="space-y-2"><Label>Jam Ke-</Label><Select value={newEntry.period?.toString()} onValueChange={v => setNewEntry({...newEntry, period: parseInt(v)})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Array.from({length: MAX_PERIODS}).map((_, i) => <SelectItem key={i+1} value={(i+1).toString()}>{i+1}</SelectItem>)}</SelectContent></Select></div>
             </div>
 
             {newEntry.isActivity ? (
-               <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
-                  <label className="text-xs font-bold uppercase text-accent">Nama Kegiatan Sekolah</label>
-                  <Input 
-                    placeholder="Contoh: Upacara Bendera, Sholat Duhur..." 
-                    value={newEntry.activityName} 
-                    onChange={e => setNewEntry({...newEntry, activityName: e.target.value})} 
-                  />
-               </div>
+               <div className="space-y-2"><Label>Nama Kegiatan</Label><Input placeholder="Contoh: Upacara Bendera" value={newEntry.activityName} onChange={e => setNewEntry({...newEntry, activityName: e.target.value})} /></div>
             ) : (
-               <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase text-primary">Mata Pelajaran</label>
-                    <Select value={newEntry.subjectId} onValueChange={v => setNewEntry({...newEntry, subjectId: v})}>
-                      <SelectTrigger><SelectValue placeholder="Pilih Mapel" /></SelectTrigger>
-                      <SelectContent>{subjects?.map(s => <SelectItem key={s.id} value={s.id}>{s.name} (G-{s.grade})</SelectItem>)}</SelectContent>
+               <>
+                 <div className="space-y-2">
+                    <Label>Pilih Penugasan Guru (Dapodik)</Label>
+                    <Select value={`${newEntry.teacherId}|${newEntry.subjectId}`} onValueChange={v => {
+                       const [tId, sId] = v.split('|');
+                       setNewEntry({...newEntry, teacherId: tId, subjectId: sId});
+                    }}>
+                       <SelectTrigger><SelectValue placeholder="Pilih Guru & Mapel" /></SelectTrigger>
+                       <SelectContent>
+                          {assignments?.filter(a => a.classId === newEntry.classId).map(a => (
+                             <SelectItem key={a.id} value={`${a.teacherId}|${a.subjectId}`}>{a.teacherName} - {a.subjectName} ({a.totalJP} JP)</SelectItem>
+                          ))}
+                       </SelectContent>
                     </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase text-primary">Guru Pengajar</label>
-                    <Select value={newEntry.teacherId} onValueChange={v => setNewEntry({...newEntry, teacherId: v})}>
-                      <SelectTrigger><SelectValue placeholder="Pilih Guru" /></SelectTrigger>
-                      <SelectContent>{teachers?.map(t => <SelectItem key={t.id} value={t.id}>{t.fullName}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-               </div>
-            )}
-
-            {!newEntry.isActivity && (
-              <div className="bg-amber-500/10 p-3 rounded-lg border border-amber-500/20 flex gap-3">
-                 <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                 <p className="text-[10px] text-amber-600 leading-relaxed italic">Sistem akan otomatis mendeteksi bentrokan jadwal guru dan ruang kelas.</p>
-              </div>
+                 </div>
+               </>
             )}
           </div>
-          <DialogFooter>
-            <Button onClick={handleAddEntry} disabled={submitting} className="w-full h-11">
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-              Plotting Sekarang
-            </Button>
-          </DialogFooter>
+          <DialogFooter><Button onClick={handleAddEntry} disabled={submitting} className="w-full">Simpan ke Roster</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

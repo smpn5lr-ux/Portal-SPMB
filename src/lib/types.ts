@@ -105,6 +105,7 @@ export interface TeacherAssignment {
   className: string;
   subjectId: string;
   subjectName: string;
+  totalJP: number;
 }
 
 export interface Journal {
