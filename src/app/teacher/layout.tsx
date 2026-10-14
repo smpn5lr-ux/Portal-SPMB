@@ -36,7 +36,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase"
 import { signOut } from "firebase/auth"
 import { doc, collection, query, where, getDocs } from "firebase/firestore"
-import { Staff, TeacherAssignment, Journal, Assessment, Applicant } from "@/lib/types"
+import { Staff, TeacherAssignment, Journal, Assessment, Applicant, Classroom } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
 import * as XLSX from 'xlsx'
 
@@ -82,7 +82,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
     const assignments = assignmentsSnap.docs.map(d => ({ id: d.id, ...d.data() } as TeacherAssignment))
     
     const assignmentIds = assignments.map(a => a.id)
-    if (assignmentIds.length === 0) return { assignments: [], journals: [], assessments: [], students: [] }
+    if (assignmentIds.length === 0) return { assignments: [], journals: [], assessments: [], allStudents: [], allClasses: [] }
 
     const journalsSnap = await getDocs(query(collection(db, 'journals'), where('assignmentId', 'in', assignmentIds)))
     const journals = journalsSnap.docs.map(d => d.data() as Journal).filter(j => j.semester === parseInt(selectedSemester))
@@ -93,12 +93,15 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
     const studentsSnap = await getDocs(query(collection(db, 'applicants'), where('admissionStatus', '==', 'accepted')))
     const allStudents = studentsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Applicant))
 
-    return { assignments, journals, assessments, allStudents }
+    const classesSnap = await getDocs(collection(db, 'classes'))
+    const allClasses = classesSnap.docs.map(d => ({ id: d.id, ...d.data() } as Classroom))
+
+    return { assignments, journals, assessments, allStudents, allClasses }
   }
 
   const handleDownloadTemplate = async () => {
     const data = [
-      ["No", "Nama Siswa", "NISN", "Absensi (%)", "Tugas 1", "Tugas 2", "Tugas 3", "Kelompok", "UTS", "UAS"]
+      ["No", "Nama Siswa", "NISN", "Absensi (%)", "Tugas 1", "Tugas 2", "Tugas 3", "Ulangan", "UTS", "UAS"]
     ]
     const ws = XLSX.utils.aoa_to_sheet(data)
     const wb = XLSX.utils.book_new()
@@ -139,12 +142,19 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
     if (!data) return
 
     const wb = XLSX.utils.book_new()
+    const processedClassIds = new Set<string>()
+
     data.assignments.forEach(asg => {
-      const classStudents = data.allStudents.filter(s => {
-        // Logika sederhana: guru biasanya mengajar rombel tertentu. 
-        // Untuk MVP ini, kita ambil data dari daftar murid aktif.
-        return true // Di sini harusnya filter by classId jika data classroom terhubung
-      })
+      // Mencegah pembuatan sheet duplikat untuk kelas yang sama
+      if (processedClassIds.has(asg.classId)) return
+      processedClassIds.add(asg.classId)
+
+      const targetClass = data.allClasses.find(c => c.id === asg.classId)
+      if (!targetClass) return
+
+      // Hanya ambil siswa yang terdaftar di rombel ini
+      const classStudents = data.allStudents.filter(s => targetClass.students?.includes(s.id))
+      
       const sheetData = classStudents.map((s, idx) => ({
         "No": idx + 1,
         "Nama": s.fullName,
@@ -152,9 +162,18 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
         "JK": s.gender,
         "Asal Sekolah": s.originSchool
       }))
+
       const ws = XLSX.utils.json_to_sheet(sheetData)
-      XLSX.utils.book_append_sheet(wb, ws, `Kelas ${asg.className}`)
+      // Excel membatasi nama sheet maksimal 31 karakter
+      const sheetName = `Kelas ${asg.className}`.substring(0, 31)
+      XLSX.utils.book_append_sheet(wb, ws, sheetName)
     })
+
+    if (processedClassIds.size === 0) {
+      toast({ variant: "destructive", title: "Tidak ada data kelas untuk diunduh" })
+      return
+    }
+
     XLSX.writeFile(wb, "Daftar_Murid_Per_Kelas.xlsx")
   }
 
@@ -170,11 +189,28 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
     XLSX.utils.book_append_sheet(wb, asgWs, "Daftar Mapel")
 
     // Sheet 2: Jurnal
-    const jurWs = XLSX.utils.json_to_sheet(data.journals.map(j => ({ "Tgl": j.date, "Materi": j.material })))
+    const jurData = data.journals.map(j => {
+      const assignment = data.assignments.find(a => a.id === j.assignmentId)
+      return { 
+        "Tgl": j.date, 
+        "Mapel": assignment?.subjectName || '-',
+        "Kelas": assignment?.className || '-',
+        "Materi": j.material 
+      }
+    })
+    const jurWs = XLSX.utils.json_to_sheet(jurData)
     XLSX.utils.book_append_sheet(wb, jurWs, "Rekap Jurnal")
 
     // Sheet 3: Nilai
-    const nilWs = XLSX.utils.json_to_sheet(data.assessments.map(a => ({ "ID Siswa": a.studentId, "Skor Akhir": a.finalScore })))
+    const nilWs = XLSX.utils.json_to_sheet(data.assessments.map(a => {
+      const student = data.allStudents.find(s => s.id === a.studentId)
+      const assignment = data.assignments.find(asg => asg.id === a.assignmentId)
+      return { 
+        "Nama Murid": student?.fullName || a.studentId, 
+        "Mapel": assignment?.subjectName || '-',
+        "Skor Akhir": a.finalScore 
+      }
+    }))
     XLSX.utils.book_append_sheet(wb, nilWs, "Rekap Nilai")
 
     XLSX.writeFile(wb, `Ekspor_Lengkap_Guru_Sem${selectedSemester}.xlsx`)
