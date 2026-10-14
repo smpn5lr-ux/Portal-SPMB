@@ -112,12 +112,18 @@ export interface Journal {
   assignmentId: string;
   meetingNumber: number;
   date: string;
+  jamKe: string;
+  jp: number;
+  learningGoal: string;
   material: string;
-  absentStudents: string[]; // array of student IDs
+  kktpAchievement: string;
+  absentStudents: string[]; // Daftar ID siswa berstatus 'A' (Alfa) untuk hitungan nilai
+  attendanceDetail: Record<string, 'H' | 'S' | 'I' | 'A'>; // Detail status per siswa
   hasTask: boolean;
   taskType: 'task1' | 'task2' | 'task3' | 'groupTask' | null;
-  taskScores?: Record<string, number>; // studentId -> score
+  taskScores?: Record<string, number>;
   semester: number;
+  notes: string;
   createdAt: string;
 }
 

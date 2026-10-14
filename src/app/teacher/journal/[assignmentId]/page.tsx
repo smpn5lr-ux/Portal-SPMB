@@ -15,7 +15,10 @@ import {
   Trash2,
   AlertCircle,
   RefreshCw,
-  Download
+  Download,
+  Clock,
+  Target,
+  FileText
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -46,7 +49,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { Checkbox } from "@/components/ui/checkbox"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { useUser, useFirestore, useMemoFirebase, useCollection, useDoc, useAuth } from "@/firebase"
 import { collection, query, where, doc, writeBatch, deleteDoc } from "firebase/firestore"
@@ -123,26 +126,47 @@ export default function TeachingJournalPage() {
   const [newJournal, setNewJournal] = useState<Partial<Journal>>({
     meetingNumber: 1,
     date: new Date().toISOString().split('T')[0],
+    jamKe: "1-2",
+    jp: 2,
+    learningGoal: "",
     material: "",
+    kktpAchievement: "",
+    attendanceDetail: {},
     absentStudents: [],
     hasTask: false,
     taskType: 'task1',
-    taskScores: {}
+    taskScores: {},
+    notes: ""
   })
 
   useEffect(() => {
     if (journals && journals.length > 0) {
       setNewJournal(prev => ({ ...prev, meetingNumber: journals.length + 1 }))
     }
-  }, [journals])
+    
+    // Inisialisasi detail kehadiran untuk semua siswa ke Hadir (H)
+    if (students.length > 0) {
+      const initialAttendance: Record<string, any> = {}
+      students.forEach(s => {
+        initialAttendance[s.id] = 'H'
+      })
+      setNewJournal(prev => ({ ...prev, attendanceDetail: initialAttendance }))
+    }
+  }, [journals, students])
 
-  const handleToggleAbsent = (studentId: string) => {
+  const handleAttendanceChange = (studentId: string, status: 'H' | 'S' | 'I' | 'A') => {
     setNewJournal(prev => {
-      const current = prev.absentStudents || []
-      const updated = current.includes(studentId) 
-        ? current.filter(id => id !== studentId)
-        : [...current, studentId]
-      return { ...prev, absentStudents: updated }
+      const updatedDetail = { ...prev.attendanceDetail, [studentId]: status }
+      // Update absentStudents (hanya yang Alfa/A yang mengurangi nilai absensi)
+      const alfas = Object.entries(updatedDetail)
+        .filter(([_, val]) => val === 'A')
+        .map(([id, _]) => id)
+      
+      return { 
+        ...prev, 
+        attendanceDetail: updatedDetail,
+        absentStudents: alfas
+      }
     })
   }
 
@@ -203,7 +227,7 @@ export default function TeachingJournalPage() {
       const totalMeetings = allJournals.length
       
       students.forEach(s => {
-        const absences = allJournals.filter(j => j.absentStudents.includes(s.id)).length
+        const absences = allJournals.filter(j => j.absentStudents?.includes(s.id)).length
         const attendancePercent = Math.round(((totalMeetings - absences) / totalMeetings) * 100)
         
         const assessmentId = `${assignmentId}_${s.id}_sem${activeSemester}`
@@ -233,52 +257,91 @@ export default function TeachingJournalPage() {
     try {
       const { default: jsPDF } = await import('jspdf')
       const { default: autoTable } = await import('jspdf-autotable')
-      // Menggunakan mode LANDSCAPE untuk ruang yang lebih luas
-      const doc = new jsPDF('l')
+      const doc = new jsPDF('l', 'mm', 'a4')
       
       const dinasName = config?.dinasName || "DINAS PENDIDIKAN"
       const schoolName = config?.schoolName || "SIS TERPADU"
       
-      // X coordinate 148.5 is center for Landscape A4
       doc.setFontSize(12).setFont("helvetica", "bold").setTextColor(67, 97, 238)
       doc.text(dinasName.toUpperCase(), 148.5, 15, { align: "center" })
       doc.text(schoolName.toUpperCase(), 148.5, 22, { align: "center" })
-      // Line length extended for Landscape
       doc.setDrawColor(67, 97, 238).setLineWidth(0.5).line(14, 26, 283, 26)
 
-      doc.setFontSize(14).setTextColor(0).text(`JURNAL MENGAJAR - SEMESTER ${activeSemester}`, 14, 38)
+      doc.setFontSize(14).setTextColor(0).text(`JURNAL MENGAJAR GURU - SEMESTER ${activeSemester}`, 14, 35)
       doc.setFontSize(10).setTextColor(100)
-      doc.text(`Mata Pelajaran: ${assignment.subjectName}`, 14, 45)
-      doc.text(`Kelas: ${assignment.className} | Guru: ${user?.displayName || '-'}`, 14, 51)
+      doc.text(`Mata Pelajaran: ${assignment.subjectName} | Kelas: ${assignment.className}`, 14, 42)
+      doc.text(`Guru Pengajar: ${user?.displayName || '-'}`, 14, 48)
       
       const tableData = journals.map((j) => {
-        const absentNames = j.absentStudents.map(id => students.find(s => s.id === id)?.fullName || 'ID:'+id).join(", ")
+        // Format Absensi Nama (S/I/A)
+        const absents = Object.entries(j.attendanceDetail || {})
+          .filter(([_, status]) => status !== 'H')
+          .map(([id, status]) => {
+            const name = students.find(s => s.id === id)?.fullName || id
+            return `${name} (${status})`
+          }).join(", ")
+
+        // Hitung rekap S, I, A
+        const sCount = Object.values(j.attendanceDetail || {}).filter(v => v === 'S').length
+        const iCount = Object.values(j.attendanceDetail || {}).filter(v => v === 'I').length
+        const aCount = Object.values(j.attendanceDetail || {}).filter(v => v === 'A').length
+
+        const dateObj = new Date(j.date)
+        const hari = dateObj.toLocaleDateString('id-ID', { weekday: 'long' })
+        const tgl = dateObj.toLocaleDateString('id-ID')
+
         return [
+          `${hari}, ${tgl}`,
+          j.jamKe || '-',
+          j.jp || '-',
           j.meetingNumber,
-          new Date(j.date).toLocaleDateString('id-ID'),
+          j.learningGoal || '-',
           j.material || '-',
-          absentNames || 'Hadir Semua',
-          '' // Kolom Keterangan kosong untuk diisi manual atau catatan tambahan
+          j.kktpAchievement || '-',
+          absents || 'Hadir Semua',
+          sCount, iCount, aCount,
+          j.notes || '-'
         ]
       })
 
       autoTable(doc, {
-        head: [['No', 'Tanggal', 'Materi Pembelajaran', 'Siswa Alfa', 'Keterangan']],
+        head: [
+          [
+            { content: 'Hari/Tanggal', rowSpan: 2 },
+            { content: 'Jam Ke', rowSpan: 2 },
+            { content: 'JP', rowSpan: 2 },
+            { content: 'Pertemuan Ke', rowSpan: 2 },
+            { content: 'Tujuan Pembelajaran', rowSpan: 2 },
+            { content: 'Materi Pembelajaran', rowSpan: 2 },
+            { content: 'Pencapaian KKTP', rowSpan: 2 },
+            { content: 'Absensi', colSpan: 4, halign: 'center' },
+            { content: 'Keterangan', rowSpan: 2 }
+          ],
+          ['Nama', 'S', 'I', 'A']
+        ],
         body: tableData,
-        startY: 58,
+        startY: 55,
         theme: 'grid',
-        headStyles: { fillColor: [67, 97, 238], textColor: [255, 255, 255] },
+        headStyles: { fillColor: [85, 107, 47], textColor: [255, 255, 255], fontSize: 8, fontStyle: 'bold' },
+        styles: { fontSize: 7, cellPadding: 2 },
         columnStyles: { 
-          0: { cellWidth: 15 }, 
-          1: { cellWidth: 30 },
-          2: { cellWidth: 100 }, 
-          3: { cellWidth: 60 },
-          4: { cellWidth: 'auto' } // Keterangan mengambil sisa ruang
+          0: { cellWidth: 25 }, 
+          1: { cellWidth: 12 },
+          2: { cellWidth: 8 }, 
+          3: { cellWidth: 15 },
+          4: { cellWidth: 40 },
+          5: { cellWidth: 40 },
+          6: { cellWidth: 30 },
+          7: { cellWidth: 40 }, // Nama
+          8: { cellWidth: 6 },  // S
+          9: { cellWidth: 6 },  // I
+          10: { cellWidth: 6 }, // A
+          11: { cellWidth: 'auto' }
         }
       })
 
-      doc.save(`Jurnal_${assignment.subjectName}_Kelas_${assignment.className}_Smt${activeSemester}.pdf`)
-      toast({ title: "Berhasil Mengunduh", description: "Jurnal telah disimpan sebagai PDF dalam format Landscape." })
+      doc.save(`Jurnal_${assignment.subjectName}_Kelas_${assignment.className}.pdf`)
+      toast({ title: "Unduhan Berhasil" })
     } catch (e) {
       toast({ variant: "destructive", title: "Gagal ekspor PDF" })
     } finally {
@@ -289,7 +352,7 @@ export default function TeachingJournalPage() {
   const handleDeleteJournal = async (id: string) => {
     if (!db) return
     await deleteDoc(doc(db, 'journals', id))
-    toast({ title: "Dihapus" })
+    toast({ title: "Jurnal Dihapus" })
   }
 
   if (userLoading || loadingA) return (
@@ -315,13 +378,13 @@ export default function TeachingJournalPage() {
         <div className="flex gap-2">
            <Button variant="outline" onClick={handleDownloadPDF} disabled={isExporting} className="gap-2 text-xs h-9">
               {isExporting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
-              Cetak Jurnal (Landscape)
+              Cetak Jurnal (Contoh Kolom)
            </Button>
            <Button variant="outline" onClick={handleRefreshSession} className="gap-2 text-xs h-9">
-              <RefreshCw className="w-3 h-3" /> Refresh Izin
+              <RefreshCw className="w-3 h-3" /> Sesi
            </Button>
            <Button onClick={() => setIsAddOpen(true)} className="gap-2 shadow-lg shadow-primary/20 h-9">
-             <Plus className="w-4 h-4" /> Tambah Pertemuan
+             <Plus className="w-4 h-4" /> Tambah Jurnal
            </Button>
         </div>
       </div>
@@ -347,12 +410,13 @@ export default function TeachingJournalPage() {
                       <div>
                         <CardTitle className="text-base font-bold">Pertemuan Ke-{j.meetingNumber}</CardTitle>
                         <CardDescription className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" /> {new Date(j.date).toLocaleDateString('id-ID', { dateStyle: 'long' })}
+                          <Calendar className="w-3 h-3" /> {new Date(j.date).toLocaleDateString('id-ID', { dateStyle: 'full' })} 
+                          <span className="mx-2">•</span>
+                          <Clock className="w-3 h-3" /> Jam: {j.jamKe} ({j.jp} JP)
                         </CardDescription>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {j.hasTask && <Badge className="bg-accent text-white uppercase text-[10px]">{j.taskType}</Badge>}
                       <Button variant="ghost" size="icon" onClick={() => handleDeleteJournal(j.id)} className="text-destructive h-8 w-8">
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -360,18 +424,42 @@ export default function TeachingJournalPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="p-4 space-y-4">
-                  <div>
-                    <Label className="text-[10px] font-bold uppercase text-muted-foreground">Materi:</Label>
-                    <p className="text-sm mt-1">{j.material || "-"}</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <div>
+                        <Label className="text-[10px] font-bold uppercase text-primary">Tujuan Pembelajaran:</Label>
+                        <p className="text-sm mt-1">{j.learningGoal || "-"}</p>
+                      </div>
+                      <div>
+                        <Label className="text-[10px] font-bold uppercase text-primary">Materi:</Label>
+                        <p className="text-sm mt-1">{j.material || "-"}</p>
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <div>
+                        <Label className="text-[10px] font-bold uppercase text-accent">Pencapaian KKTP:</Label>
+                        <p className="text-sm mt-1">{j.kktpAchievement || "-"}</p>
+                      </div>
+                      <div>
+                        <Label className="text-[10px] font-bold uppercase text-muted-foreground">Keterangan:</Label>
+                        <p className="text-sm mt-1">{j.notes || "-"}</p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-2 pt-2 border-t border-border/20">
-                    <div className="text-[10px] font-bold uppercase text-muted-foreground w-full">Absensi:</div>
-                    {j.absentStudents.length === 0 ? (
+                  
+                  <div className="flex flex-wrap gap-2 pt-4 border-t border-border/20">
+                    <div className="text-[10px] font-bold uppercase text-muted-foreground w-full mb-1">Absensi:</div>
+                    {Object.entries(j.attendanceDetail || {}).filter(([_, v]) => v !== 'H').length === 0 ? (
                       <Badge variant="outline" className="text-green-500 bg-green-500/5">Hadir Semua</Badge>
                     ) : (
-                      j.absentStudents.map(id => {
+                      Object.entries(j.attendanceDetail || {}).filter(([_, v]) => v !== 'H').map(([id, status]) => {
                         const s = students.find(st => st.id === id)
-                        return <Badge key={id} variant="destructive" className="bg-destructive/10 text-destructive border-none">{s?.fullName}</Badge>
+                        return (
+                          <Badge key={id} variant="secondary" className="gap-1.5 px-2">
+                            {s?.fullName} 
+                            <span className={`font-bold ${status === 'A' ? 'text-destructive' : 'text-amber-500'}`}>{status}</span>
+                          </Badge>
+                        )
                       })
                     )}
                   </div>
@@ -383,46 +471,104 @@ export default function TeachingJournalPage() {
       </div>
 
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Input Jurnal & Absensi</DialogTitle></DialogHeader>
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Input Jurnal & Absensi Lengkap</DialogTitle></DialogHeader>
           <div className="space-y-6 py-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="space-y-2"><Label>Pertemuan Ke-</Label><Input type="number" value={newJournal.meetingNumber} onChange={e => setNewJournal({...newJournal, meetingNumber: parseInt(e.target.value)})} /></div>
               <div className="space-y-2"><Label>Tanggal</Label><Input type="date" value={newJournal.date} onChange={e => setNewJournal({...newJournal, date: e.target.value})} /></div>
+              <div className="space-y-2"><Label>Jam Ke</Label><Input placeholder="1-2" value={newJournal.jamKe} onChange={e => setNewJournal({...newJournal, jamKe: e.target.value})} /></div>
+              <div className="space-y-2"><Label>JP</Label><Input type="number" value={newJournal.jp} onChange={e => setNewJournal({...newJournal, jp: parseInt(e.target.value)})} /></div>
             </div>
-            <div className="space-y-2"><Label>Materi</Label><Textarea placeholder="Bahasan hari ini..." value={newJournal.material} onChange={e => setNewJournal({...newJournal, material: e.target.value})} /></div>
+            
             <div className="space-y-4">
-              <div className="flex items-center justify-between"><Label className="font-bold">Kehadiran & Nilai Tugas</Label><div className="flex items-center gap-2"><Label className="text-xs">Ada Tugas?</Label><Switch checked={newJournal.hasTask} onCheckedChange={v => setNewJournal({...newJournal, hasTask: v})} /></div></div>
-              {newJournal.hasTask && (
-                <div className="bg-muted/30 p-3 rounded-lg border border-border/50 mb-2">
-                  <Select value={newJournal.taskType!} onValueChange={v => setNewJournal({...newJournal, taskType: v as any})}>
-                    <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="task1">Tugas 1</SelectItem>
-                      <SelectItem value="task2">Tugas 2</SelectItem>
-                      <SelectItem value="task3">Tugas 3</SelectItem>
-                      <SelectItem value="groupTask">Tugas Kelompok</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-              <div className="border rounded-lg overflow-hidden">
+               <div className="space-y-2"><Label>Tujuan Pembelajaran</Label><Textarea placeholder="Tujuan hari ini..." value={newJournal.learningGoal} onChange={e => setNewJournal({...newJournal, learningGoal: e.target.value})} /></div>
+               <div className="space-y-2"><Label>Materi Pembelajaran</Label><Textarea placeholder="Bahasan materi..." value={newJournal.material} onChange={e => setNewJournal({...newJournal, material: e.target.value})} /></div>
+               <div className="space-y-2"><Label>Pencapaian KKTP</Label><Input placeholder="Contoh: 80% siswa tuntas" value={newJournal.kktpAchievement} onChange={e => setNewJournal({...newJournal, kktpAchievement: e.target.value})} /></div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between border-b pb-2"><Label className="font-bold text-lg">Daftar Kehadiran</Label></div>
+              <div className="border rounded-lg overflow-hidden bg-card">
                 <Table>
-                  <TableHeader className="bg-muted/50"><TableRow><TableHead className="w-[80px] text-center">Alfa?</TableHead><TableHead>Siswa</TableHead>{newJournal.hasTask && <TableHead className="w-24 text-center">Nilai</TableHead>}</TableRow></TableHeader>
+                  <TableHeader className="bg-muted/50">
+                    <TableRow>
+                      <TableHead>Nama Siswa</TableHead>
+                      <TableHead className="w-[180px] text-center">Status Absensi</TableHead>
+                      {newJournal.hasTask && <TableHead className="w-24 text-center">Nilai Tugas</TableHead>}
+                    </TableRow>
+                  </TableHeader>
                   <TableBody>
                     {students.map(s => (
                       <TableRow key={s.id}>
-                        <TableCell className="text-center"><Checkbox checked={newJournal.absentStudents?.includes(s.id)} onCheckedChange={() => handleToggleAbsent(s.id)} /></TableCell>
                         <TableCell className="text-sm font-medium">{s.fullName}</TableCell>
-                        {newJournal.hasTask && <TableCell><Input type="number" className="h-8 text-center" placeholder="0" disabled={newJournal.absentStudents?.includes(s.id)} value={newJournal.taskScores?.[s.id] || ""} onChange={e => handleScoreChange(s.id, e.target.value)} /></TableCell>}
+                        <TableCell>
+                          <RadioGroup 
+                            defaultValue="H" 
+                            value={newJournal.attendanceDetail?.[s.id] || "H"} 
+                            onValueChange={(val: any) => handleAttendanceChange(s.id, val)}
+                            className="flex justify-between"
+                          >
+                            <div className="flex flex-col items-center gap-1">
+                              <RadioGroupItem value="H" id={`h-${s.id}`} className="text-green-500" />
+                              <Label htmlFor={`h-${s.id}`} className="text-[10px]">H</Label>
+                            </div>
+                            <div className="flex flex-col items-center gap-1">
+                              <RadioGroupItem value="S" id={`s-${s.id}`} className="text-amber-500" />
+                              <Label htmlFor={`s-${s.id}`} className="text-[10px]">S</Label>
+                            </div>
+                            <div className="flex flex-col items-center gap-1">
+                              <RadioGroupItem value="I" id={`i-${s.id}`} className="text-blue-500" />
+                              <Label htmlFor={`i-${s.id}`} className="text-[10px]">I</Label>
+                            </div>
+                            <div className="flex flex-col items-center gap-1">
+                              <RadioGroupItem value="A" id={`a-${s.id}`} className="text-destructive" />
+                              <Label htmlFor={`a-${s.id}`} className="text-[10px]">A</Label>
+                            </div>
+                          </RadioGroup>
+                        </TableCell>
+                        {newJournal.hasTask && (
+                          <TableCell>
+                            <Input 
+                              type="number" 
+                              className="h-8 text-center" 
+                              placeholder="0" 
+                              disabled={newJournal.attendanceDetail?.[s.id] !== 'H'} 
+                              value={newJournal.taskScores?.[s.id] || ""} 
+                              onChange={e => handleScoreChange(s.id, e.target.value)} 
+                            />
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
               </div>
             </div>
+
+            <div className="space-y-4 pt-4 border-t">
+               <div className="flex items-center gap-2 mb-4">
+                  <Switch checked={newJournal.hasTask} onCheckedChange={v => setNewJournal({...newJournal, hasTask: v})} />
+                  <Label>Input Nilai Tugas pada Pertemuan Ini?</Label>
+               </div>
+               {newJournal.hasTask && (
+                  <div className="grid grid-cols-1 gap-4 bg-muted/20 p-4 rounded-xl border border-border/50">
+                    <Label className="text-xs uppercase font-bold text-muted-foreground">Pilih Slot Nilai Tugas:</Label>
+                    <Select value={newJournal.taskType!} onValueChange={v => setNewJournal({...newJournal, taskType: v as any})}>
+                      <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="task1">Tugas 1</SelectItem>
+                        <SelectItem value="task2">Tugas 2</SelectItem>
+                        <SelectItem value="task3">Tugas 3</SelectItem>
+                        <SelectItem value="groupTask">Tugas Kelompok</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+               )}
+               <div className="space-y-2"><Label>Keterangan Tambahan (Opsional)</Label><Textarea placeholder="Catatan kelas..." value={newJournal.notes} onChange={e => setNewJournal({...newJournal, notes: e.target.value})} /></div>
+            </div>
           </div>
-          <DialogFooter><Button onClick={saveJournal} disabled={submitting}>{submitting ? 'Menyimpan...' : 'Simpan Jurnal'}</Button></DialogFooter>
+          <DialogFooter><Button onClick={saveJournal} disabled={submitting} className="w-full md:w-auto">{submitting ? 'Menyimpan...' : 'Simpan Jurnal & Absensi'}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
