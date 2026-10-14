@@ -215,9 +215,13 @@ export default function RosterManagementPage() {
           for (let p = 1; p <= MAX_PERIODS; p++) {
             const row: any[] = []
             
-            // Kolom HARI dengan rowSpan
+            // Kolom HARI dengan rowSpan agar hemat tempat dan tidak dobel
             if (p === 1) {
-              row.push({ content: day.toUpperCase(), rowSpan: MAX_PERIODS, styles: { halign: 'center', valign: 'middle', fontStyle: 'bold', fillColor: [240, 240, 240] } })
+              row.push({ 
+                content: day.toUpperCase(), 
+                rowSpan: MAX_PERIODS, 
+                styles: { halign: 'center', valign: 'middle', fontStyle: 'bold', fillColor: [240, 240, 240], textColor: [0, 0, 0], fontSize: 8 } 
+              })
             }
             
             row.push(p)
@@ -523,37 +527,22 @@ export default function RosterManagementPage() {
         <div className="flex gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button 
-                variant="outline" 
-                disabled={isExporting}
-                className="gap-2 border-primary/30"
-              >
+              <Button variant="outline" disabled={isExporting} className="gap-2 border-primary/30">
                 {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                 Unduh Roster <ChevronDown className="w-3 h-3" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleDownloadRoster('consolidated')}>
-                Format Matriks Terpadu (2 Halaman)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleDownloadRoster('per-class')}>
-                Format Per Kelas (Satu Halaman/Kelas)
-              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleDownloadRoster('consolidated')}>Format Matriks Terpadu</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleDownloadRoster('per-class')}>Format Per Kelas</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button 
-            variant="outline" 
-            onClick={handleAutoGenerate} 
-            disabled={isAutoGenerating}
-            className="gap-2 border-accent/30 text-accent hover:bg-accent/5"
-          >
+          <Button variant="outline" onClick={handleAutoGenerate} disabled={isAutoGenerating} className="gap-2 border-accent/30 text-accent hover:bg-accent/5">
             {isAutoGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
             Generate Otomatis
           </Button>
-          <Button onClick={() => setIsAddOpen(true)} className="gap-2 shadow-lg shadow-primary/20">
-            <Plus className="w-4 h-4" /> Plot Jadwal
-          </Button>
+          <Button onClick={() => setIsAddOpen(true)} className="gap-2 shadow-lg shadow-primary/20"><Plus className="w-4 h-4" /> Plot Jadwal</Button>
         </div>
       </div>
 
@@ -561,12 +550,9 @@ export default function RosterManagementPage() {
         <div className="lg:col-span-1 space-y-6">
           <Card className="border-border/50 bg-primary/5">
              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-bold flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-primary" /> Tracking Beban Jam
-                </CardTitle>
+                <CardTitle className="text-sm font-bold flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-primary" /> Tracking Beban Jam</CardTitle>
              </CardHeader>
              <CardContent className="space-y-4 pt-2">
-                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mb-2">Progres Plotting per Penugasan:</p>
                 <div className="max-h-[500px] overflow-y-auto space-y-4 pr-2">
                    {workloadStats.map((w, idx) => (
                       <div key={idx} className="space-y-1.5">
@@ -580,33 +566,14 @@ export default function RosterManagementPage() {
                          <Progress value={w.percent} className={`h-1.5 ${w.isMet ? 'bg-green-500/20' : 'bg-amber-500/20'}`} />
                       </div>
                    ))}
-                   {workloadStats.length === 0 && <p className="text-[10px] text-muted-foreground italic">Belum ada data penugasan.</p>}
                 </div>
-             </CardContent>
-          </Card>
-
-          <Card className="border-border/50">
-             <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-bold flex items-center gap-2"><Clock className="w-4 h-4 text-accent" /> Operasional</CardTitle>
-             </CardHeader>
-             <CardContent className="space-y-4 pt-2">
-                <div className="space-y-1">
-                   <span className="text-[10px] font-bold text-muted-foreground uppercase">Mulai Pelajaran</span>
-                   <p className="text-sm font-bold">{config.entryTime} WIB</p>
-                </div>
-                <div className="space-y-1">
-                   <span className="text-[10px] font-bold text-muted-foreground uppercase">Durasi per JP</span>
-                   <p className="text-sm font-bold">{config.jpDuration} Menit</p>
-                </div>
-                <Separator />
-                <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => setActiveTab("settings")}>Ubah Konfigurasi</Button>
              </CardContent>
           </Card>
         </div>
 
         <div className="lg:col-span-3">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="bg-muted/50 border border-border/50 p-1">
+            <TabsList className="bg-muted/50 border p-1">
               <TabsTrigger value="builder" className="gap-2"><LayoutGrid className="w-4 h-4" /> Jadwal Mingguan</TabsTrigger>
               <TabsTrigger value="settings" className="gap-2"><Settings2 className="w-4 h-4" /> Konfigurasi Waktu</TabsTrigger>
             </TabsList>
@@ -643,25 +610,14 @@ export default function RosterManagementPage() {
                                       <div className={`h-full border rounded-lg p-2.5 flex flex-col justify-center transition-all shadow-sm ${entry.isActivity ? 'bg-accent/10 border-accent/20' : 'bg-primary/10 border-primary/20'}`}>
                                         <div className="text-[10px] font-bold truncate uppercase text-foreground leading-tight">{entry.isActivity ? entry.activityName : entry.subjectName}</div>
                                         {!entry.isActivity && <div className="text-[9px] text-muted-foreground truncate mt-1 italic">{entry.teacherName}</div>}
-                                        <Button 
-                                          variant="ghost" 
-                                          size="icon" 
-                                          className="absolute top-1.5 right-1.5 h-6 w-6 opacity-0 group-hover:opacity-100 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                          onClick={() => handleDeleteEntry(entry.id)}
-                                        >
+                                        <Button variant="ghost" size="icon" className="absolute top-1.5 right-1.5 h-6 w-6 opacity-0 group-hover:opacity-100 text-destructive" onClick={() => handleDeleteEntry(entry.id)}>
                                           <Trash2 className="w-3.5 h-3.5" />
                                         </Button>
                                       </div>
                                     ) : (
-                                      <div 
-                                        className="h-full flex flex-col items-center justify-center border-2 border-dashed border-border/30 rounded-lg group-hover:border-primary/30 transition-all cursor-pointer bg-muted/5 hover:bg-primary/5" 
-                                        onClick={() => {
-                                          setNewEntry({...newEntry, day, period, classId: cls.id});
-                                          setIsAddOpen(true);
-                                        }}
-                                      >
-                                        <Plus className="w-4 h-4 text-muted-foreground opacity-20 group-hover:opacity-100 group-hover:text-primary transition-all" />
-                                        <span className="text-[8px] uppercase tracking-tighter text-muted-foreground opacity-30 group-hover:opacity-100 mt-1">Kosong</span>
+                                      <div className="h-full flex flex-col items-center justify-center border-2 border-dashed border-border/30 rounded-lg group-hover:border-primary/30 cursor-pointer bg-muted/5" onClick={() => { setNewEntry({...newEntry, day, period, classId: cls.id}); setIsAddOpen(true); }}>
+                                        <Plus className="w-4 h-4 text-muted-foreground opacity-20" />
+                                        <span className="text-[8px] uppercase tracking-tighter text-muted-foreground opacity-30">Kosong</span>
                                       </div>
                                     )}
                                   </TableCell>
@@ -683,47 +639,10 @@ export default function RosterManagementPage() {
                     <CardHeader className="border-b bg-muted/5"><CardTitle className="text-lg">Parameter Jam Sekolah</CardTitle></CardHeader>
                     <CardContent className="pt-6">
                       <form onSubmit={handleSaveConfig} className="space-y-6">
-                        <div className="grid grid-cols-1 gap-6">
-                           <div className="space-y-2">
-                             <Label className="text-xs font-bold uppercase text-muted-foreground">Jam Pelajaran Ke-1 Dimulai</Label>
-                             <Input name="entryTime" type="time" defaultValue={config.entryTime} />
-                           </div>
-                           <div className="space-y-2">
-                             <Label className="text-xs font-bold uppercase text-muted-foreground">Durasi Pelajaran (per JP) - Menit</Label>
-                             <Input name="jpDuration" type="number" defaultValue={config.jpDuration} />
-                             <p className="text-[10px] text-muted-foreground italic">Contoh: 40 menit per satu jam pelajaran.</p>
-                           </div>
-                        </div>
-                        <Button type="submit" disabled={isSaving} className="w-full h-11 gap-2">
-                          {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                          Simpan Konfigurasi
-                        </Button>
+                         <div className="space-y-2"><Label>Jam Ke-1 Mulai</Label><Input name="entryTime" type="time" defaultValue={config.entryTime} /></div>
+                         <div className="space-y-2"><Label>Durasi per JP (Menit)</Label><Input name="jpDuration" type="number" defaultValue={config.jpDuration} /></div>
+                         <Button type="submit" disabled={isSaving} className="w-full h-11 gap-2">{isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Simpan Konfigurasi</Button>
                       </form>
-                    </CardContent>
-                 </Card>
-
-                 <Card className="border-border/50">
-                    <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/5">
-                       <CardTitle className="text-lg">Jeda Istirahat</CardTitle>
-                       <Button size="sm" variant="outline" onClick={handleAddBreak} className="h-8 gap-1"><Plus className="w-3.5 h-3.5" /> Tambah</Button>
-                    </CardHeader>
-                    <CardContent className="space-y-4 pt-6">
-                       {(!config.breakTimes || config.breakTimes.length === 0) && (
-                         <div className="text-center py-10 text-muted-foreground text-sm italic">Belum ada pengaturan istirahat.</div>
-                       )}
-                       {config.breakTimes?.map((b: any, i: number) => (
-                         <div key={i} className="flex items-center gap-3 bg-muted/20 p-3 rounded-xl border border-border/50 animate-in fade-in">
-                            <div className="flex-1 space-y-1.5">
-                               <Label className="text-[10px] font-bold uppercase text-muted-foreground">Setelah Jam Ke</Label>
-                               <Input type="number" value={b.periodAfter} onChange={e => handleUpdateBreak(i, 'periodAfter', e.target.value)} className="h-9" />
-                            </div>
-                            <div className="flex-1 space-y-1.5">
-                               <Label className="text-[10px] font-bold uppercase text-muted-foreground">Durasi (Menit)</Label>
-                               <Input type="number" value={b.duration} onChange={e => handleUpdateBreak(i, 'duration', e.target.value)} className="h-9" />
-                            </div>
-                            <Button variant="ghost" size="icon" className="mt-5 text-destructive hover:bg-destructive/10" onClick={() => handleRemoveBreak(i)}><Trash2 className="w-4 h-4" /></Button>
-                         </div>
-                       ))}
                     </CardContent>
                  </Card>
                </div>
@@ -734,71 +653,23 @@ export default function RosterManagementPage() {
 
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
         <DialogContent className="sm:max-w-[450px]">
-          <DialogHeader><DialogTitle>Plot Jadwal Manual</DialogTitle><DialogDescription>Pilih hari, jam, dan penugasan yang ingin di-plot.</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle>Plot Jadwal Manual</DialogTitle></DialogHeader>
           <div className="space-y-6 py-4">
             <div className="flex items-center justify-between p-3 bg-accent/5 border border-accent/20 rounded-xl">
-               <div className="space-y-0.5">
-                  <Label className="font-bold text-sm">Mode Kegiatan Sekolah</Label>
-                  <p className="text-[10px] text-muted-foreground italic">Gunakan untuk agenda non-KBM (Upacara, Sholat, Literasi)</p>
-               </div>
+               <div><Label className="font-bold">Mode Kegiatan Sekolah</Label><p className="text-[10px] text-muted-foreground italic">Agenda non-KBM</p></div>
                <Switch checked={newEntry.isActivity} onCheckedChange={v => setNewEntry({...newEntry, isActivity: v})} />
             </div>
-
             <div className="grid grid-cols-2 gap-4">
-               <div className="space-y-2">
-                 <Label className="text-xs font-bold uppercase">Hari</Label>
-                 <Select value={newEntry.day} onValueChange={v => setNewEntry({...newEntry, day: v})}>
-                   <SelectTrigger><SelectValue /></SelectTrigger>
-                   <SelectContent>{DAYS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
-                 </Select>
-               </div>
-               <div className="space-y-2">
-                 <Label className="text-xs font-bold uppercase">Jam Ke-</Label>
-                 <Select value={newEntry.period?.toString()} onValueChange={v => setNewEntry({...newEntry, period: parseInt(v)})}>
-                   <SelectTrigger><SelectValue /></SelectTrigger>
-                   <SelectContent>{Array.from({length: MAX_PERIODS}).map((_, i) => <SelectItem key={i+1} value={(i+1).toString()}>{i+1}</SelectItem>)}</SelectContent>
-                 </Select>
-               </div>
+               <div className="space-y-2"><Label>Hari</Label><Select value={newEntry.day} onValueChange={v => setNewEntry({...newEntry, day: v})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{DAYS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent></Select></div>
+               <div className="space-y-2"><Label>Jam Ke-</Label><Select value={newEntry.period?.toString()} onValueChange={v => setNewEntry({...newEntry, period: parseInt(v)})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Array.from({length: MAX_PERIODS}).map((_, i) => <SelectItem key={i+1} value={(i+1).toString()}>{i+1}</SelectItem>)}</SelectContent></Select></div>
             </div>
-
             {newEntry.isActivity ? (
-               <div className="space-y-2">
-                 <Label className="text-xs font-bold uppercase">Nama Kegiatan</Label>
-                 <Input placeholder="Contoh: Upacara Bendera / Literasi" value={newEntry.activityName} onChange={e => setNewEntry({...newEntry, activityName: e.target.value})} />
-               </div>
+               <div className="space-y-2"><Label>Nama Kegiatan</Label><Input value={newEntry.activityName} onChange={e => setNewEntry({...newEntry, activityName: e.target.value})} /></div>
             ) : (
-               <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase text-primary">Pilih Penugasan Guru (Sesuai Rombel)</Label>
-                  <Select value={`${newEntry.teacherId}|${newEntry.subjectId}`} onValueChange={v => {
-                     const [tId, sId] = v.split('|');
-                     setNewEntry({...newEntry, teacherId: tId, subjectId: sId});
-                  }}>
-                     <SelectTrigger className="h-12">
-                       <SelectValue placeholder="Pilih Guru & Mata Pelajaran" />
-                     </SelectTrigger>
-                     <SelectContent>
-                        {assignments?.filter(a => a.classId === newEntry.classId).map(a => (
-                           <SelectItem key={a.id} value={`${a.teacherId}|${a.subjectId}`}>
-                             <div className="flex flex-col items-start text-xs py-1">
-                               <span className="font-bold">{a.teacherName}</span>
-                               <span className="text-[10px] text-muted-foreground">{a.subjectName} (Target: {a.totalJP} JP)</span>
-                             </div>
-                           </SelectItem>
-                        ))}
-                        {assignments?.filter(a => a.classId === newEntry.classId).length === 0 && (
-                          <div className="p-4 text-center text-xs text-muted-foreground italic">Belum ada penugasan guru di kelas ini.</div>
-                        )}
-                     </SelectContent>
-                  </Select>
-               </div>
+               <div className="space-y-2"><Label>Pilih Penugasan Guru</Label><Select value={`${newEntry.teacherId}|${newEntry.subjectId}`} onValueChange={v => { const [tId, sId] = v.split('|'); setNewEntry({...newEntry, teacherId: tId, subjectId: sId}); }}><SelectTrigger><SelectValue placeholder="Pilih Guru & Mapel" /></SelectTrigger><SelectContent>{assignments?.filter(a => a.classId === newEntry.classId).map(a => <SelectItem key={a.id} value={`${a.teacherId}|${a.subjectId}`}>{a.teacherName} - {a.subjectName}</SelectItem>)}</SelectContent></Select></div>
             )}
           </div>
-          <DialogFooter>
-            <Button onClick={handleAddEntry} disabled={submitting} className="w-full h-11 gap-2">
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-              Simpan ke Roster
-            </Button>
-          </DialogFooter>
+          <DialogFooter><Button onClick={handleAddEntry} disabled={submitting} className="w-full">Simpan ke Roster</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
