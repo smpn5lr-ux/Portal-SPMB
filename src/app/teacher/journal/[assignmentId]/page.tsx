@@ -110,7 +110,6 @@ export default function TeachingJournalPage() {
       .sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""))
   }, [allAcceptedStudents, classroom])
 
-  // Filter siswa untuk tampilan absensi di dialog
   const filteredStudentsForAttendance = useMemo(() => {
     return students.filter(s => 
       s.fullName.toLowerCase().includes(studentSearchTerm.toLowerCase()) || 
@@ -254,7 +253,6 @@ export default function TeachingJournalPage() {
       
       batch.set(journalRef, journalData, { merge: true })
       
-      // Update Nilai Tugas jika ada
       if (newJournal.hasTask && newJournal.taskType && newJournal.taskScores) {
         Object.entries(newJournal.taskScores).forEach(([sId, score]) => {
           const assessmentId = `${assignmentId}_${sId}_sem${activeSemester}`
@@ -269,8 +267,6 @@ export default function TeachingJournalPage() {
         })
       }
       
-      // Hitung ulang absensi untuk semua siswa
-      // Kita butuh data journal terbaru untuk kalkulasi persentase yang akurat
       const currentJournal = { ...journalData, id: journalRef.id }
       const otherJournals = journals.filter(j => j.id !== editingJournalId)
       const allJournalsForCalc = [...otherJournals, currentJournal]
@@ -325,12 +321,13 @@ export default function TeachingJournalPage() {
       doc.text(`Guru Pengajar: ${user?.displayName || '-'}`, 14, 48)
       
       const tableData = journals.map((j) => {
+        // Menggunakan "\n" sebagai pemisah agar teks tampil sejajar ke bawah dalam cell
         const absents = Object.entries(j.attendanceDetail || {})
           .filter(([_, status]) => status !== 'H')
           .map(([id, status]) => {
             const name = students.find(s => s.id === id)?.fullName || id
             return `${name} (${status})`
-          }).join(", ")
+          }).join("\n")
 
         const sCount = Object.values(j.attendanceDetail || {}).filter(v => v === 'S').length
         const iCount = Object.values(j.attendanceDetail || {}).filter(v => v === 'I').length
@@ -387,10 +384,10 @@ export default function TeachingJournalPage() {
           4: { cellWidth: 35 },
           5: { cellWidth: 35 },
           6: { cellWidth: 30 },
-          7: { cellWidth: 40 }, // Nama
-          8: { cellWidth: 7, halign: 'center' },  // S
-          9: { cellWidth: 7, halign: 'center' },  // I
-          10: { cellWidth: 7, halign: 'center' }, // A
+          7: { cellWidth: 40 }, 
+          8: { cellWidth: 7, halign: 'center' },  
+          9: { cellWidth: 7, halign: 'center' },  
+          10: { cellWidth: 7, halign: 'center' }, 
           11: { cellWidth: 'auto' }
         }
       })
