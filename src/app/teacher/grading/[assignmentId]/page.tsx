@@ -45,32 +45,32 @@ export default function GradingPage() {
   const [searchTerm, setSearchTerm] = useState('')
   
   const settingsRef = useMemoFirebase(() => {
-    if (!db || !user) return null
+    if (!db || userLoading || !user) return null
     return doc(db, 'settings', 'system')
-  }, [db, user])
+  }, [db, user, userLoading])
   
   const { data: config } = useDoc<any>(settingsRef)
 
   const activeSemester = parseInt(searchParams.get('semester') || config?.activeSemester?.toString() || "1")
 
   const assignmentRef = useMemoFirebase(() => {
-    if (!db || !assignmentId || !user) return null
+    if (!db || !assignmentId || userLoading || !user) return null
     return doc(db, 'teacherAssignments', assignmentId as string)
-  }, [db, assignmentId, user])
+  }, [db, assignmentId, user, userLoading])
   
   const { data: assignment, loading: loadingA } = useDoc<TeacherAssignment>(assignmentRef)
 
   const classRef = useMemoFirebase(() => {
-    if (!db && !assignment && !user) return null
-    return assignment ? doc(db!, 'classes', assignment.classId) : null
-  }, [db, assignment, user])
+    if (!db || !assignment || userLoading || !user) return null
+    return doc(db, 'classes', assignment.classId)
+  }, [db, assignment, user, userLoading])
   
   const { data: classroom, loading: loadingC } = useDoc<Classroom>(classRef)
 
   const studentsQuery = useMemoFirebase(() => {
-    if (!db || !user) return null 
+    if (!db || userLoading || !user) return null 
     return query(collection(db, 'applicants'), where('admissionStatus', '==', 'accepted'))
-  }, [db, user])
+  }, [db, user, userLoading])
   const { data: allAcceptedStudents, loading: loadingS } = useCollection<Applicant>(studentsQuery)
 
   const students = useMemo(() => {
@@ -82,13 +82,13 @@ export default function GradingPage() {
   }, [allAcceptedStudents, classroom, searchTerm])
 
   const assessmentsQuery = useMemoFirebase(() => {
-    if (!db || !user || !assignmentId || !activeSemester) return null
+    if (!db || userLoading || !user || !assignmentId || !activeSemester) return null
     return query(
       collection(db, 'assessments'), 
       where('assignmentId', '==', assignmentId),
       where('semester', '==', activeSemester)
     )
-  }, [db, user, assignmentId, activeSemester])
+  }, [db, user, userLoading, assignmentId, activeSemester])
   const { data: existingAssessments } = useCollection<Assessment>(assessmentsQuery)
 
   const [grades, setGrades] = useState<Record<string, Partial<Assessment>>>({})

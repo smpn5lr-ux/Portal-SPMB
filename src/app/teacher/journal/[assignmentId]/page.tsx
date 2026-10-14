@@ -65,23 +65,23 @@ export default function TeachingJournalPage() {
   const activeSemester = parseInt(searchParams.get('semester') || "1")
 
   const assignmentRef = useMemoFirebase(() => {
-    if (!db || !assignmentId || !user) return null
+    if (!db || !assignmentId || userLoading || !user) return null
     return doc(db, 'teacherAssignments', assignmentId as string)
-  }, [db, assignmentId, user])
+  }, [db, assignmentId, user, userLoading])
   
   const { data: assignment, loading: loadingA } = useDoc<TeacherAssignment>(assignmentRef)
 
   const classRef = useMemoFirebase(() => {
-    if (!db || !assignment || !user) return null
+    if (!db || !assignment || userLoading || !user) return null
     return doc(db, 'classes', assignment.classId)
-  }, [db, assignment, user])
+  }, [db, assignment, user, userLoading])
   
   const { data: classroom } = useDoc<Classroom>(classRef)
 
   const studentsQuery = useMemoFirebase(() => {
-    if (!db || !user) return null 
+    if (!db || userLoading || !user) return null 
     return query(collection(db, 'applicants'), where('admissionStatus', '==', 'accepted'))
-  }, [db, user])
+  }, [db, user, userLoading])
   const { data: allAcceptedStudents } = useCollection<Applicant>(studentsQuery)
 
   const students = useMemo(() => {
@@ -92,15 +92,15 @@ export default function TeachingJournalPage() {
   }, [allAcceptedStudents, classroom])
 
   const journalQuery = useMemoFirebase(() => {
-    // PROTEKSI: Jangan jalankan query jika user belum terdeteksi
-    if (!db || !assignmentId || !user || !user.uid) return null
+    // KRITIKAL: Jangan jalankan query jika user/db belum siap untuk mencegah FirestorePermissionError
+    if (!db || !assignmentId || userLoading || !user) return null
     return query(
       collection(db, 'journals'), 
       where('assignmentId', '==', assignmentId),
       where('semester', '==', activeSemester),
       orderBy('meetingNumber', 'asc')
     )
-  }, [db, assignmentId, activeSemester, user])
+  }, [db, assignmentId, activeSemester, user, userLoading])
   const { data: journals, loading: loadingJ } = useCollection<Journal>(journalQuery)
 
   // State untuk Journal Baru
