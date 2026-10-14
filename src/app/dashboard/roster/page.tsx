@@ -21,7 +21,8 @@ import {
   Info,
   Check,
   Zap,
-  LayoutGrid
+  LayoutGrid,
+  Download
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -62,7 +63,7 @@ import { useToast } from '@/hooks/use-toast'
 import { addMinutes, format, parse } from 'date-fns'
 
 const DAYS = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"]
-const MAX_PERIODS = 10 // Standar rata-rata jam pelajaran sekolah
+const MAX_PERIODS = 10 
 
 export default function RosterManagementPage() {
   const db = useFirestore()
@@ -72,6 +73,7 @@ export default function RosterManagementPage() {
   const [submitting, setSubmitting] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isAutoGenerating, setIsAutoGenerating] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
   
   const [newEntry, setNewEntry] = useState<Partial<RosterEntry>>({
     day: "Senin",
@@ -83,13 +85,13 @@ export default function RosterManagementPage() {
     activityName: ""
   })
 
-  // Queries
   const rosterQuery = useMemoFirebase(() => db ? collection(db, 'rosterEntries') : null, [db])
   const assignmentsQuery = useMemoFirebase(() => db ? collection(db, 'teacherAssignments') : null, [db])
   const staffQuery = useMemoFirebase(() => db ? collection(db, 'staff') : null, [db])
   const classesQuery = useMemoFirebase(() => db ? collection(db, 'classes') : null, [db])
   const subjectsQuery = useMemoFirebase(() => db ? collection(db, 'subjects') : null, [db])
   const configRef = useMemoFirebase(() => db ? doc(db, 'settings', 'roster') : null, [db])
+  const systemSettingsRef = useMemoFirebase(() => db ? doc(db, 'settings', 'system') : null, [db])
 
   const { data: rosterEntries, loading: loadingR } = useCollection<RosterEntry>(rosterQuery)
   const { data: assignments } = useCollection<TeacherAssignment>(assignmentsQuery)
@@ -97,10 +99,10 @@ export default function RosterManagementPage() {
   const { data: classes } = useCollection<Classroom>(classesQuery)
   const { data: subjects } = useCollection<Subject>(subjectsQuery)
   const { data: rosterConfig, loading: loadingC } = useDoc<any>(configRef)
+  const { data: systemSettings } = useDoc<any>(systemSettingsRef)
 
   const teachers = staff?.filter(s => s.role === 'Guru') || []
 
-  // Load Config
   const config = rosterConfig || {
     entryTime: "07:00",
     jpDuration: 40,
@@ -114,14 +116,13 @@ export default function RosterManagementPage() {
     let current = parse(config.entryTime, 'HH:mm', new Date())
     for (let i = 1; i < period; i++) {
       current = addMinutes(current, config.jpDuration)
-      const isBreak = config.breakTimes.find((b: any) => b.periodAfter === i)
+      const isBreak = config.breakTimes?.find((b: any) => b.periodAfter === i)
       if (isBreak) current = addMinutes(current, isBreak.duration)
     }
     const end = addMinutes(current, config.jpDuration)
     return `${format(current, 'HH:mm')} - ${format(end, 'HH:mm')}`
   }
 
-  // Workload tracking per assignment
   const workloadStats = useMemo(() => {
     if (!assignments || !rosterEntries) return []
     return assignments.map(a => {
@@ -138,6 +139,58 @@ export default function RosterManagementPage() {
       }
     })
   }, [assignments, rosterEntries])
+
+  const handleDownloadRoster = async () => {
+    if (!classes || !rosterEntries) return
+    setIsExporting(true)
+    try {
+      const { default: jsPDF } = await import('jspdf')
+      const { default: autoTable } = await import('jspdf-autotable')
+      const doc = new jsPDF('l', 'mm', 'a4')
+      
+      const dinasName = systemSettings?.dinasName || "DINAS PENDIDIKAN"
+      const schoolName = systemSettings?.schoolName || "SIS TERPADU"
+      
+      classes.sort((a,b) => a.name.localeCompare(b.name, undefined, { numeric: true })).forEach((cls, idx) => {
+        if (idx > 0) doc.addPage()
+        
+        doc.setFontSize(14).setFont("helvetica", "bold").setTextColor(67, 97, 238)
+        doc.text(`JADWAL PELAJARAN - KELAS ${cls.name}`, 148.5, 15, { align: "center" })
+        doc.setFontSize(10).setTextColor(100).setFont("helvetica", "normal")
+        doc.text(`${dinasName} | ${schoolName}`, 148.5, 22, { align: "center" })
+        doc.setDrawColor(67, 97, 238).setLineWidth(0.5).line(14, 26, 283, 26)
+
+        const body = Array.from({ length: MAX_PERIODS }).map((_, i) => {
+          const period = i + 1
+          return [
+            `Jam ${period}\n(${getTimeForPeriod(period)})`,
+            ...DAYS.map(day => {
+              const e = rosterEntries.find(ent => ent.day === day && ent.period === period && ent.classId === cls.id)
+              if (!e) return "-"
+              return e.isActivity ? (e.activityName || "Kegiatan") : `${e.subjectName}\n(${e.teacherName})`
+            })
+          ]
+        })
+
+        autoTable(doc, {
+          head: [['JAM / WAKTU', ...DAYS.map(d => d.toUpperCase())]],
+          body: body,
+          startY: 35,
+          theme: 'grid',
+          headStyles: { fillColor: [67, 97, 238], textColor: [255, 255, 255], halign: 'center', fontStyle: 'bold' },
+          styles: { fontSize: 7, cellPadding: 3, halign: 'center', valign: 'middle', overflow: 'linebreak' },
+          columnStyles: { 0: { cellWidth: 30, fontStyle: 'bold', fillColor: [245, 247, 255] } }
+        })
+      })
+
+      doc.save(`Roster_Lengkap_${schoolName}.pdf`)
+      toast({ title: "Unduh Berhasil", description: "Dokumen roster telah disimpan." })
+    } catch (e) {
+      toast({ variant: "destructive", title: "Gagal Mengunduh" })
+    } finally {
+      setIsExporting(false)
+    }
+  }
 
   const handleSaveConfig = async (e: any) => {
     e.preventDefault()
@@ -156,7 +209,7 @@ export default function RosterManagementPage() {
 
   const handleAddBreak = async () => {
     if (!configRef) return
-    const updatedBreaks = [...config.breakTimes, { periodAfter: 1, duration: 15 }]
+    const updatedBreaks = [...(config.breakTimes || []), { periodAfter: 1, duration: 15 }]
       .sort((a, b) => a.periodAfter - b.periodAfter)
     await setDoc(configRef, { ...config, breakTimes: updatedBreaks }, { merge: true })
   }
@@ -185,7 +238,6 @@ export default function RosterManagementPage() {
       return
     }
 
-    // Bentrokan Guru
     if (!newEntry.isActivity) {
       const teacherConflict = rosterEntries?.find(e => 
         e.day === newEntry.day && 
@@ -193,12 +245,11 @@ export default function RosterManagementPage() {
         e.teacherId === newEntry.teacherId
       )
       if (teacherConflict) {
-        toast({ variant: "destructive", title: "Guru Bentrok!", description: `Guru tersebut sudah ada jadwal di Kelas ${teacherConflict.className} pada jam ini.` })
+        toast({ variant: "destructive", title: "Guru Bentrok!", description: `Guru tersebut sudah mengajar di Kelas ${teacherConflict.className} pada jam ini.` })
         return
       }
     }
 
-    // Bentrokan Kelas
     const classConflict = rosterEntries?.find(e => e.day === newEntry.day && e.period === newEntry.period && e.classId === newEntry.classId)
     if (classConflict) {
       toast({ variant: "destructive", title: "Kelas Bentrok!", description: `Rombel ini sudah terisi ${classConflict.isActivity ? 'kegiatan' : classConflict.subjectName} pada jam ini.` })
@@ -235,7 +286,6 @@ export default function RosterManagementPage() {
     let filledCount = 0
     const localRoster = [...rosterEntries]
 
-    // Proses per assignment yang belum terpenuhi (Urutan acak agar distribusi tidak kaku)
     const unfinished = workloadStats
       .filter(w => !w.isMet)
       .sort(() => Math.random() - 0.5)
@@ -247,20 +297,14 @@ export default function RosterManagementPage() {
       const targetClass = classes.find(c => c.id === job.classId)
       if (!targetClass) continue
 
-      // Cari slot kosong di kelas target
       for (const day of DAYS) {
         for (let p = 1; p <= MAX_PERIODS; p++) {
           if (remaining <= 0) break
-
-          // 1. Cek apakah slot di KELAS ini kosong
           const isSlotTaken = localRoster.some(e => e.day === day && e.period === p && e.classId === targetClass.id)
           if (isSlotTaken) continue
-
-          // 2. Cek apakah GURU ini kosong pada jam tersebut
           const isTeacherBusy = localRoster.some(e => e.day === day && e.period === p && e.teacherId === job.teacherId)
           if (isTeacherBusy) continue
 
-          // Slot COCOK! Tambahkan ke batch
           const newRef = doc(collection(db, 'rosterEntries'))
           const entry = {
             day,
@@ -286,7 +330,7 @@ export default function RosterManagementPage() {
 
     if (filledCount > 0) {
       await batch.commit()
-      toast({ title: "Generate Berhasil", description: `${filledCount} slot jadwal berhasil diisi secara otomatis.` })
+      toast({ title: "Generate Berhasil", description: `${filledCount} slot jadwal berhasil diisi otomatis.` })
     } else {
       toast({ title: "Tidak Ada Slot Cocok", description: "Semua slot penuh atau tidak ditemukan slot bebas bentrok untuk guru yang tersisa." })
     }
@@ -309,9 +353,18 @@ export default function RosterManagementPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline font-bold">Manajemen Roster</h1>
-          <p className="text-muted-foreground mt-1">Plotting jadwal mengajar sesuai beban JP Dapodik.</p>
+          <p className="text-muted-foreground mt-1">Plotting jadwal mengajar sesuai beban JP Dapodik (Senin - Sabtu).</p>
         </div>
         <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={handleDownloadRoster} 
+            disabled={isExporting}
+            className="gap-2 border-primary/30"
+          >
+            {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            Unduh Roster
+          </Button>
           <Button 
             variant="outline" 
             onClick={handleAutoGenerate} 
@@ -382,7 +435,7 @@ export default function RosterManagementPage() {
             </TabsList>
 
             <TabsContent value="builder" className="space-y-8 mt-6">
-              {classes?.sort((a,b) => a.name.localeCompare(b.name)).map(cls => (
+              {classes?.sort((a,b) => a.name.localeCompare(b.name, undefined, { numeric: true })).map(cls => (
                 <Card key={cls.id} className="border-border/50 overflow-hidden shadow-md">
                   <CardHeader className="bg-muted/20 border-b py-3 px-6 flex flex-row items-center justify-between">
                      <CardTitle className="text-lg flex items-center gap-2 font-headline uppercase"><Users className="w-4 h-4 text-primary" /> Kelas {cls.name}</CardTitle>
@@ -478,10 +531,10 @@ export default function RosterManagementPage() {
                        <Button size="sm" variant="outline" onClick={handleAddBreak} className="h-8 gap-1"><Plus className="w-3.5 h-3.5" /> Tambah</Button>
                     </CardHeader>
                     <CardContent className="space-y-4 pt-6">
-                       {config.breakTimes.length === 0 && (
+                       {(!config.breakTimes || config.breakTimes.length === 0) && (
                          <div className="text-center py-10 text-muted-foreground text-sm italic">Belum ada pengaturan istirahat.</div>
                        )}
-                       {config.breakTimes.map((b: any, i: number) => (
+                       {config.breakTimes?.map((b: any, i: number) => (
                          <div key={i} className="flex items-center gap-3 bg-muted/20 p-3 rounded-xl border border-border/50 animate-in fade-in">
                             <div className="flex-1 space-y-1.5">
                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Setelah Jam Ke</Label>
