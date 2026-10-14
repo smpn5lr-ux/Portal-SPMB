@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { School, LogIn, Mail, Lock, Loader2, UserPlus } from "lucide-react"
+import { School, LogIn, Mail, Lock, Loader2, UserPlus, Info } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { doc, collection, query, where } from "firebase/firestore"
 import { Staff } from "@/lib/types"
@@ -73,10 +73,11 @@ export default function LoginPage() {
           title: "Akun Berhasil Dibuat",
           description: "Silakan gunakan akun Anda untuk mengelola sistem.",
         })
+        setIsLogin(true)
       }
     } catch (error: any) {
       let message = "Terjadi kesalahan. Silakan coba lagi."
-      if (error.code === 'auth/email-already-in-use') message = "Email sudah terdaftar."
+      if (error.code === 'auth/email-already-in-use') message = "Email sudah terdaftar. Silakan login."
       if (error.code === 'auth/invalid-credential') message = "Email atau sandi salah."
       if (error.code === 'auth/weak-password') message = "Sandi minimal 6 karakter."
       
@@ -85,13 +86,13 @@ export default function LoginPage() {
         title: isLogin ? "Masuk Gagal" : "Pendaftaran Gagal",
         description: message,
       })
+    } finally {
       setLoading(false)
     }
   }
 
   if (authLoading) return null
 
-  // Force renaming logic: Bersihkan teks SPMB
   const rawAppName = config?.appName || "SIS TERPADU"
   const appName = rawAppName.toUpperCase().includes("SPMB") ? "SIS TERPADU" : rawAppName
   const appLogoUrl = config?.appLogoUrl || "/icon-logo.webp"
@@ -117,28 +118,36 @@ export default function LoginPage() {
               {isLogin ? `${appName}` : "Daftar Akun Baru"}
             </CardTitle>
             <CardDescription>
-              {isLogin ? `Masuk ke portal administrasi & penilaian ${appName}.` : "Buat akun baru untuk mengelola sistem."}
+              {isLogin ? `Masuk ke portal administrasi & penilaian ${appName}.` : "Buat akun baru untuk akses sistem."}
             </CardDescription>
           </div>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor="fullName">Nama Lengkap</Label>
-                <div className="relative">
-                  <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input 
-                    id="fullName"
-                    type="text" 
-                    placeholder="Nama Lengkap Anda" 
-                    className="pl-10"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    required={!isLogin}
-                  />
+              <>
+                <div className="bg-primary/10 p-3 rounded-lg border border-primary/20 flex gap-2 mb-4">
+                  <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    <strong>PENTING:</strong> Gunakan email yang sudah didaftarkan oleh Admin sekolah agar role Anda aktif secara otomatis.
+                  </p>
                 </div>
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Nama Lengkap</Label>
+                  <div className="relative">
+                    <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input 
+                      id="fullName"
+                      type="text" 
+                      placeholder="Nama Lengkap Anda" 
+                      className="pl-10"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      required={!isLogin}
+                    />
+                  </div>
+                </div>
+              </>
             )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -156,7 +165,7 @@ export default function LoginPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Kata Sandi</Label>
+              <Label htmlFor="password">{isLogin ? "Kata Sandi" : "Buat Kata Sandi"}</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input 
@@ -169,6 +178,7 @@ export default function LoginPage() {
                   required
                 />
               </div>
+              {!isLogin && <p className="text-[10px] text-muted-foreground">Minimal 6 karakter.</p>}
             </div>
             <Button 
               type="submit" 
@@ -176,7 +186,7 @@ export default function LoginPage() {
               disabled={loading}
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (isLogin ? <LogIn className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />)}
-              {isLogin ? "Masuk Sekarang" : "Daftar Akun"}
+              {isLogin ? "Masuk Sekarang" : "Daftar & Atur Sandi"}
             </Button>
           </form>
 

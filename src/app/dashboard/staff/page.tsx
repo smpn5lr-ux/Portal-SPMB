@@ -11,7 +11,8 @@ import {
   Search, 
   Loader2,
   ShieldAlert,
-  GraduationCap
+  GraduationCap,
+  Info
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -173,7 +174,7 @@ export default function StaffManagementPage() {
             <DialogHeader>
               <DialogTitle>Pendaftaran Pegawai Baru</DialogTitle>
               <DialogDescription>
-                Daftarkan email pegawai agar mereka bisa masuk ke sistem.
+                Daftarkan email pegawai. Setelah didaftarkan, pegawai tersebut harus melakukan <strong>"Daftar Akun"</strong> di halaman login untuk mengatur kata sandi mereka.
               </DialogDescription>
             </DialogHeader>
             <Form {...form}>
@@ -216,6 +217,14 @@ export default function StaffManagementPage() {
                     <FormMessage />
                   </FormItem>
                 )} />
+
+                <div className="bg-primary/5 p-3 rounded-lg border border-primary/20 flex gap-3">
+                  <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  <p className="text-[10px] text-muted-foreground leading-relaxed italic">
+                    Staf yang baru didaftarkan tidak akan memiliki password sampai mereka mendaftar sendiri secara mandiri di halaman login utama.
+                  </p>
+                </div>
+
                 <DialogFooter className="pt-4">
                   <Button type="submit" disabled={submitting} className="w-full">
                     {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
