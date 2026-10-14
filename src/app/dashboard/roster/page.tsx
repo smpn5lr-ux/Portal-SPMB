@@ -378,7 +378,6 @@ export default function RosterManagementPage() {
       DAYS.forEach(day => {
         for (let p = 1; p <= MAX_PERIODS; p++) {
           const row: any[] = [];
-          // Selalu masukkan 'HARI' di kolom 0 untuk stabilitas indeks, didParseCell akan mengosongkannya secara visual
           row.push(p === 1 ? day : ""); 
           row.push(p);
           row.push(getTimeForPeriod(p));
@@ -403,7 +402,6 @@ export default function RosterManagementPage() {
         columnStyles: { 0: { cellWidth: 15 }, 1: { cellWidth: 8 }, 2: { cellWidth: 15 } },
         didParseCell: (data) => {
           if (data.section === 'body') {
-            // Rowspan HARI
             if (data.column.index === 0) {
               const isFirstRowOfDay = (data.row.index % MAX_PERIODS) === 0;
               if (isFirstRowOfDay) {
@@ -415,9 +413,7 @@ export default function RosterManagementPage() {
               }
             }
 
-            // Pewarnaan Jadwal & Penanganan Kebocoran Warna
             if (data.column.index >= 3) {
-              // Reset background ke putih agar tidak bocor dari sel sebelumnya
               data.cell.styles.fillColor = [255, 255, 255]; 
               
               const currentDayIdx = Math.floor(data.row.index / MAX_PERIODS);
@@ -430,7 +426,7 @@ export default function RosterManagementPage() {
                 const entry = getEntry(day, period, cls.id);
                 if (entry) {
                   if (entry.isActivity) {
-                    data.cell.styles.fillColor = [220, 220, 220]; // Abu-abu untuk rehat
+                    data.cell.styles.fillColor = [220, 220, 220]; 
                   } else {
                     const color = subjectColors.get(`${entry.teacherId}_${entry.subjectId}`);
                     if (color) data.cell.styles.fillColor = color;
@@ -450,9 +446,7 @@ export default function RosterManagementPage() {
       const uniqueTeachers = Array.from(new Set(assignments.map(a => a.teacherId)))
         .map(id => {
           const tAsgs = assignments.filter(a => a.teacherId === id);
-          // Gunakan Set untuk memastikan mata pelajaran tidak dobel tulis
           const distinctSubjects = Array.from(new Set(tAsgs.map(a => a.subjectName)));
-          // Sinkronkan urutan ID mapel dengan urutan nama mapel untuk warna silang
           const distinctSubjectIds = distinctSubjects.map(name => tAsgs.find(a => a.subjectName === name)?.subjectId).filter(Boolean) as string[];
           
           return {
@@ -478,7 +472,6 @@ export default function RosterManagementPage() {
             const t = uniqueTeachers[data.row.index];
             const padding = 1.5;
             const size = data.cell.width - (padding * 2);
-            // Posisikan kotak tepat di tengah sel secara horizontal & vertikal
             const x = data.cell.x + (data.cell.width - size) / 2;
             const y = data.cell.y + (data.cell.height - size) / 2;
             

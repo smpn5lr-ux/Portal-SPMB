@@ -71,13 +71,21 @@ export default function TeacherDashboard() {
 
   const getTimeForPeriod = (period: number) => {
     if (!rosterConfig) return "-"
-    let current = parse(rosterConfig.entryTime, 'HH:mm', new Date())
+    let current = parse(rosterConfig.entryTime || "07:00", 'HH:mm', new Date())
+    const jpDur = rosterConfig.jpDuration || 40
+    
     for (let i = 1; i < period; i++) {
-      current = addMinutes(current, rosterConfig.jpDuration)
-      const isBreak = rosterConfig.breakTimes?.find((b: any) => b.periodAfter === i)
-      if (isBreak) current = addMinutes(current, isBreak.duration)
+      let duration = jpDur
+      if (rosterConfig.break1Active && i === rosterConfig.break1Period) duration = rosterConfig.break1Duration
+      if (rosterConfig.break2Active && i === rosterConfig.break2Period) duration = rosterConfig.break2Duration
+      current = addMinutes(current, duration)
     }
-    const end = addMinutes(current, rosterConfig.jpDuration)
+    
+    let currentDuration = jpDur
+    if (rosterConfig.break1Active && period === rosterConfig.break1Period) currentDuration = rosterConfig.break1Duration
+    if (rosterConfig.break2Active && period === rosterConfig.break2Period) currentDuration = rosterConfig.break2Duration
+    
+    const end = addMinutes(current, currentDuration)
     return `${format(current, 'HH:mm')} - ${format(end, 'HH:mm')}`
   }
 
@@ -141,7 +149,7 @@ export default function TeacherDashboard() {
                 )}
                 
                 <Button asChild variant="outline" className="w-full mt-4 text-xs gap-2 border-primary/20">
-                  <Link href="/teacher?roster=all">Lihat Jadwal Mingguan <ArrowRight className="w-3 h-3" /></Link>
+                  <Link href="/teacher">Muat Ulang Dashboard <ArrowRight className="w-3 h-3" /></Link>
                 </Button>
              </CardContent>
           </Card>
