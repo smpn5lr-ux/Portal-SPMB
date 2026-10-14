@@ -2,76 +2,57 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // SINKRONISASI KEAMANAN TERPUSAT - SIS TERPADU (Update: 2024-05-22 01:00)
-    
-    function isAuthenticated() {
-      return request.auth != null;
-    }
+    // RESTRUKTURISASI KEAMANAN TOTAL - SIS TERPADU (Update: 2024-05-22 02:00)
+    // Solusi: Menggunakan izin langsung tanpa fungsi perantara untuk koleksi akademik.
 
-    // 1. Aturan Koleksi Jurnal & Absensi (Kritikal: Memisahkan root list dan document read)
+    // 1. PRIORITAS UTAMA: Jurnal & Penilaian (Izin Eksplisit)
+    match /journals/{journalId} {
+      allow read, write: if request.auth != null;
+    }
     match /journals {
-      allow read, write: if isAuthenticated();
-    }
-    match /journals/{document=**} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if request.auth != null;
     }
 
-    // 2. Aturan Koleksi Penilaian & Nilai
+    match /assessments/{assessmentId} {
+      allow read, write: if request.auth != null;
+    }
     match /assessments {
-      allow read, write: if isAuthenticated();
-    }
-    match /assessments/{document=**} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if request.auth != null;
     }
 
-    // 3. Aturan Koleksi Manajemen Akademik
-    match /classes {
-      allow read, write: if isAuthenticated();
-    }
+    // 2. Manajemen Akademik
     match /classes/{document=**} {
-      allow read, write: if isAuthenticated();
-    }
-
-    match /staff {
-      allow read, write: if isAuthenticated();
+      allow read, write: if request.auth != null;
     }
     match /staff/{document=**} {
-      allow read, write: if isAuthenticated();
-    }
-
-    match /subjects {
-      allow read, write: if isAuthenticated();
+      allow read, write: if request.auth != null;
     }
     match /subjects/{document=**} {
-      allow read, write: if isAuthenticated();
-    }
-
-    match /teacherAssignments {
-      allow read, write: if isAuthenticated();
+      allow read, write: if request.auth != null;
     }
     match /teacherAssignments/{document=**} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if request.auth != null;
     }
     
-    // 4. Aturan Spesifik Pendaftar (Read publik untuk cek status, Write harus login)
+    // 3. Pendaftar (Read publik untuk cek status)
     match /applicants/{applicantId} {
       allow read: if true;
-      allow write: if isAuthenticated();
+      allow write: if request.auth != null;
     }
     match /applicants {
       allow read: if true;
-      allow write: if isAuthenticated();
+      allow write: if request.auth != null;
     }
     
-    // 5. Aturan Pengaturan Sistem (Read publik untuk branding)
+    // 4. Pengaturan Sistem
     match /settings/{settingId} {
       allow read: if true;
-      allow write: if isAuthenticated();
+      allow write: if request.auth != null;
     }
 
-    // 6. Aturan Default (Fallback)
+    // 5. Fallback Default
     match /{document=**} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if request.auth != null;
     }
   }
 }

@@ -13,7 +13,8 @@ import {
   Users,
   CheckCircle2,
   Trash2,
-  AlertCircle
+  AlertCircle,
+  RefreshCw
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -46,7 +47,7 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import { useUser, useFirestore, useMemoFirebase, useCollection, useDoc } from "@/firebase"
+import { useUser, useFirestore, useMemoFirebase, useCollection, useDoc, useAuth } from "@/firebase"
 import { collection, query, where, doc, writeBatch, addDoc, deleteDoc, orderBy } from "firebase/firestore"
 import { TeacherAssignment, Applicant, Classroom, Journal } from "@/lib/types"
 import { useToast } from '@/hooks/use-toast'
@@ -56,33 +57,35 @@ export default function TeachingJournalPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const db = useFirestore()
+  const auth = useAuth()
   const { user, loading: userLoading } = useUser()
   const { toast } = useToast()
   
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   
   const activeSemester = parseInt(searchParams.get('semester') || "1")
 
-  // Refs stabilized with auth context
+  // Refs stabilized with strict auth guard
   const assignmentRef = useMemoFirebase(() => {
-    if (!db || !assignmentId || userLoading || !user) return null
+    if (!db || !assignmentId || !user) return null
     return doc(db, 'teacherAssignments', assignmentId as string)
-  }, [db, assignmentId, user, userLoading])
+  }, [db, assignmentId, user])
   
   const { data: assignment, loading: loadingA } = useDoc<TeacherAssignment>(assignmentRef)
 
   const classRef = useMemoFirebase(() => {
-    if (!db || !assignment || userLoading || !user) return null
+    if (!db || !assignment || !user) return null
     return doc(db, 'classes', assignment.classId)
-  }, [db, assignment, user, userLoading])
+  }, [db, assignment, user])
   
   const { data: classroom } = useDoc<Classroom>(classRef)
 
   const studentsQuery = useMemoFirebase(() => {
-    if (!db || userLoading || !user) return null 
+    if (!db || !user) return null 
     return query(collection(db, 'applicants'), where('admissionStatus', '==', 'accepted'))
-  }, [db, user, userLoading])
+  }, [db, user])
   const { data: allAcceptedStudents } = useCollection<Applicant>(studentsQuery)
 
   const students = useMemo(() => {
@@ -92,18 +95,18 @@ export default function TeachingJournalPage() {
       .sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""))
   }, [allAcceptedStudents, classroom])
 
-  // CRITICAL: Ensure query only runs when fully authenticated
+  // CRITICAL: Double guard for journal query to prevent list permission errors
   const journalQuery = useMemoFirebase(() => {
-    if (!db || !assignmentId || userLoading || !user) return null
+    if (!db || !assignmentId || !user) return null
     return query(
       collection(db, 'journals'), 
       where('assignmentId', '==', assignmentId),
       where('semester', '==', activeSemester),
       orderBy('meetingNumber', 'asc')
     )
-  }, [db, assignmentId, activeSemester, user, userLoading])
+  }, [db, assignmentId, activeSemester, user])
   
-  const { data: journals, loading: loadingJ } = useCollection<Journal>(journalQuery)
+  const { data: journals, loading: loadingJ, error } = useCollection<Journal>(journalQuery)
 
   const [newJournal, setNewJournal] = useState<Partial<Journal>>({
     meetingNumber: 1,
@@ -137,6 +140,22 @@ export default function TeachingJournalPage() {
       ...prev,
       taskScores: { ...prev.taskScores, [studentId]: val }
     }))
+  }
+
+  const handleRefreshSession = async () => {
+    setIsRefreshing(true)
+    try {
+      // Memaksa refresh token auth untuk memastikan izin terbaru terbaca oleh Firestore
+      if (auth.currentUser) {
+        await auth.currentUser.getIdToken(true)
+        toast({ title: "Izin Diperbarui", description: "Sesi database telah disegarkan." })
+        window.location.reload() // Reload untuk memicu ulang semua kueri
+      }
+    } catch (e) {
+      toast({ variant: "destructive", title: "Gagal menyegarkan sesi" })
+    } finally {
+      setIsRefreshing(false)
+    }
   }
 
   const saveJournal = async () => {
@@ -215,7 +234,21 @@ export default function TeachingJournalPage() {
   if (userLoading || loadingA || (loadingJ && !journals)) return (
     <div className="flex flex-col items-center justify-center py-24 gap-4">
       <Loader2 className="animate-spin text-primary w-8 h-8" />
-      <p className="text-sm text-muted-foreground animate-pulse">Memuat jurnal mengajar...</p>
+      <p className="text-sm text-muted-foreground animate-pulse">Menghubungkan ke database jurnal...</p>
+    </div>
+  )
+
+  if (error) return (
+    <div className="flex flex-col items-center justify-center py-24 gap-6 text-center">
+      <AlertCircle className="w-12 h-12 text-destructive" />
+      <div>
+        <h3 className="text-xl font-bold">Masalah Izin Database</h3>
+        <p className="text-muted-foreground max-w-md mt-2">Server menolak akses ke jurnal. Silakan segarkan sesi izin Anda untuk memperbaiki ini.</p>
+      </div>
+      <Button onClick={handleRefreshSession} disabled={isRefreshing} className="gap-2">
+        {isRefreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+        Refresh Sesi Izin
+      </Button>
     </div>
   )
 
@@ -232,9 +265,14 @@ export default function TeachingJournalPage() {
             <p className="text-muted-foreground text-sm font-bold text-primary">Kelas {assignment?.className}</p>
           </div>
         </div>
-        <Button onClick={() => setIsAddOpen(true)} className="gap-2 shadow-lg shadow-primary/20">
-          <Plus className="w-4 h-4" /> Catat Pertemuan Baru
-        </Button>
+        <div className="flex gap-2">
+           <Button variant="outline" onClick={handleRefreshSession} className="gap-2 text-xs h-9">
+              <RefreshCw className="w-3 h-3" /> Segarkan
+           </Button>
+           <Button onClick={() => setIsAddOpen(true)} className="gap-2 shadow-lg shadow-primary/20 h-9">
+             <Plus className="w-4 h-4" /> Catat Pertemuan
+           </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4">

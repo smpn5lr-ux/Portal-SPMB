@@ -143,10 +143,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   if (!user) return null
 
-  // FORCE SIS TERPADU BRANDING
-  const rawAppName = config?.appName || "SIS TERPADU"
-  const appName = rawAppName.toUpperCase().includes("SPMB") ? "SIS TERPADU" : rawAppName
-  
+  // FORCE SIS TERPADU BRANDING - NO DATABASE OVERRIDE FOR NAME
+  const appName = "SIS TERPADU"
   const appLogoUrl = config?.appLogoUrl || "/icon-logo.webp"
   const isSPMBEnabled = config?.enableSPMB !== false;
 
