@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo } from "react"
@@ -94,7 +93,7 @@ export default function ReportsPage() {
   const { data: systemSettings } = useDoc<any>(settingsRef)
 
   const dinasName = systemSettings?.dinasName || "DINAS PENDIDIKAN"
-  const schoolName = systemSettings?.schoolName || "PORTAL SPMB"
+  const schoolName = systemSettings?.schoolName || "SIS TERPADU"
   const academicYear = systemSettings?.academicYear || "2024/2025"
   const npsn = systemSettings?.npsn || "-"
 
@@ -368,7 +367,7 @@ export default function ReportsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="border-border/50 bg-card shadow-sm">
           <CardHeader>
-            <CardTitle className="font-headline text-lg">Distribusi Asal Sekolah Dasar</CardTitle>
+            <CardTitle className="font-headline text-lg">Asal Sekolah Dasar</CardTitle>
             <CardDescription>Semua nama sekolah asal pendaftar yang masuk ke sistem.</CardDescription>
           </CardHeader>
           <CardContent className="h-[400px]">

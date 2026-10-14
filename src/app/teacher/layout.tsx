@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -67,7 +66,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
     </div>
   )
 
-  const appName = config?.appName || "Portal SPMB"
+  const appName = config?.appName || "SIS TERPADU"
   const appLogoUrl = config?.appLogoUrl || "/icon-logo.webp"
 
   return (

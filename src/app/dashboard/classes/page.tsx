@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from 'react'
@@ -144,7 +143,7 @@ export default function ClassesPage() {
   const { data: systemSettings } = useDoc<any>(settingsRef)
 
   const dinasName = systemSettings?.dinasName || "DINAS PENDIDIKAN"
-  const schoolName = systemSettings?.schoolName || "PORTAL SPMB"
+  const schoolName = systemSettings?.schoolName || "SIS TERPADU"
 
   const form = useForm<z.infer<typeof classFormSchema>>({
     resolver: zodResolver(classFormSchema),
