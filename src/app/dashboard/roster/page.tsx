@@ -19,13 +19,16 @@ import {
   Coffee,
   Sparkles,
   Info,
-  Check
+  Check,
+  Zap,
+  LayoutGrid
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { Progress } from "@/components/ui/progress"
 import {
   Dialog,
   DialogContent,
@@ -53,13 +56,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase'
-import { collection, query, doc, setDoc, addDoc, deleteDoc } from 'firebase/firestore'
+import { collection, query, doc, setDoc, addDoc, deleteDoc, writeBatch } from 'firebase/firestore'
 import { RosterEntry, Staff, Classroom, Subject, TeacherAssignment } from '@/lib/types'
 import { useToast } from '@/hooks/use-toast'
 import { addMinutes, format, parse } from 'date-fns'
 
 const DAYS = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"]
-const MAX_PERIODS = 12
+const MAX_PERIODS = 10 // Standar rata-rata jam pelajaran sekolah
 
 export default function RosterManagementPage() {
   const db = useFirestore()
@@ -68,6 +71,7 @@ export default function RosterManagementPage() {
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [isAutoGenerating, setIsAutoGenerating] = useState(false)
   
   const [newEntry, setNewEntry] = useState<Partial<RosterEntry>>({
     day: "Senin",
@@ -129,7 +133,8 @@ export default function RosterManagementPage() {
       return {
         ...a,
         scheduled: scheduledCount,
-        isMet: scheduledCount >= (a.totalJP || 0)
+        isMet: scheduledCount >= (a.totalJP || 0),
+        percent: Math.min(100, Math.round((scheduledCount / (a.totalJP || 1)) * 100))
       }
     })
   }, [assignments, rosterEntries])
@@ -188,7 +193,7 @@ export default function RosterManagementPage() {
         e.teacherId === newEntry.teacherId
       )
       if (teacherConflict) {
-        toast({ variant: "destructive", title: "Bentrok!", description: `Guru tersebut sudah ada jadwal di kelas ${teacherConflict.className}.` })
+        toast({ variant: "destructive", title: "Guru Bentrok!", description: `Guru tersebut sudah ada jadwal di Kelas ${teacherConflict.className} pada jam ini.` })
         return
       }
     }
@@ -196,7 +201,7 @@ export default function RosterManagementPage() {
     // Bentrokan Kelas
     const classConflict = rosterEntries?.find(e => e.day === newEntry.day && e.period === newEntry.period && e.classId === newEntry.classId)
     if (classConflict) {
-      toast({ variant: "destructive", title: "Bentrok!", description: `Kelas ini sudah terisi jadwal pada jam ini.` })
+      toast({ variant: "destructive", title: "Kelas Bentrok!", description: `Rombel ini sudah terisi ${classConflict.isActivity ? 'kegiatan' : classConflict.subjectName} pada jam ini.` })
       return
     }
 
@@ -222,6 +227,72 @@ export default function RosterManagementPage() {
     }
   }
 
+  const handleAutoGenerate = async () => {
+    if (!db || !assignments || !rosterEntries || !classes) return
+    
+    setIsAutoGenerating(true)
+    const batch = writeBatch(db)
+    let filledCount = 0
+    const localRoster = [...rosterEntries]
+
+    // Proses per assignment yang belum terpenuhi (Urutan acak agar distribusi tidak kaku)
+    const unfinished = workloadStats
+      .filter(w => !w.isMet)
+      .sort(() => Math.random() - 0.5)
+
+    for (const job of unfinished) {
+      let remaining = job.totalJP - job.scheduled
+      if (remaining <= 0) continue
+
+      const targetClass = classes.find(c => c.id === job.classId)
+      if (!targetClass) continue
+
+      // Cari slot kosong di kelas target
+      for (const day of DAYS) {
+        for (let p = 1; p <= MAX_PERIODS; p++) {
+          if (remaining <= 0) break
+
+          // 1. Cek apakah slot di KELAS ini kosong
+          const isSlotTaken = localRoster.some(e => e.day === day && e.period === p && e.classId === targetClass.id)
+          if (isSlotTaken) continue
+
+          // 2. Cek apakah GURU ini kosong pada jam tersebut
+          const isTeacherBusy = localRoster.some(e => e.day === day && e.period === p && e.teacherId === job.teacherId)
+          if (isTeacherBusy) continue
+
+          // Slot COCOK! Tambahkan ke batch
+          const newRef = doc(collection(db, 'rosterEntries'))
+          const entry = {
+            day,
+            period: p,
+            classId: targetClass.id,
+            className: targetClass.name,
+            teacherId: job.teacherId,
+            teacherName: job.teacherName,
+            subjectId: job.subjectId,
+            subjectName: job.subjectName,
+            isActivity: false,
+            createdAt: new Date().toISOString()
+          }
+
+          batch.set(newRef, entry)
+          localRoster.push({ id: newRef.id, ...entry })
+          remaining--
+          filledCount++
+        }
+        if (remaining <= 0) break
+      }
+    }
+
+    if (filledCount > 0) {
+      await batch.commit()
+      toast({ title: "Generate Berhasil", description: `${filledCount} slot jadwal berhasil diisi secara otomatis.` })
+    } else {
+      toast({ title: "Tidak Ada Slot Cocok", description: "Semua slot penuh atau tidak ditemukan slot bebas bentrok untuk guru yang tersisa." })
+    }
+    setIsAutoGenerating(false)
+  }
+
   const handleDeleteEntry = async (id: string) => {
     if (!db) return
     await deleteDoc(doc(db, 'rosterEntries', id))
@@ -241,6 +312,15 @@ export default function RosterManagementPage() {
           <p className="text-muted-foreground mt-1">Plotting jadwal mengajar sesuai beban JP Dapodik.</p>
         </div>
         <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={handleAutoGenerate} 
+            disabled={isAutoGenerating}
+            className="gap-2 border-accent/30 text-accent hover:bg-accent/5"
+          >
+            {isAutoGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+            Generate Otomatis
+          </Button>
           <Button onClick={() => setIsAddOpen(true)} className="gap-2 shadow-lg shadow-primary/20">
             <Plus className="w-4 h-4" /> Plot Jadwal
           </Button>
@@ -255,21 +335,19 @@ export default function RosterManagementPage() {
                   <AlertTriangle className="w-4 h-4 text-primary" /> Tracking Beban Jam
                 </CardTitle>
              </CardHeader>
-             <CardContent className="space-y-3 pt-2">
-                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mb-2">Target Dapodik per Kelas:</p>
-                <div className="max-height-[400px] overflow-y-auto space-y-2 pr-2">
+             <CardContent className="space-y-4 pt-2">
+                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mb-2">Progres Plotting per Penugasan:</p>
+                <div className="max-h-[500px] overflow-y-auto space-y-4 pr-2">
                    {workloadStats.map((w, idx) => (
-                      <div key={idx} className={`p-2 rounded border text-[10px] ${w.isMet ? 'bg-green-500/5 border-green-500/20' : 'bg-amber-500/5 border-amber-500/20'}`}>
-                         <div className="flex justify-between items-start">
-                            <span className="font-bold text-primary truncate max-w-[120px]">{w.teacherName}</span>
-                            <Badge variant={w.isMet ? 'default' : 'outline'} className="text-[8px] h-4 scale-90">
-                               {w.scheduled} / {w.totalJP} JP
-                            </Badge>
+                      <div key={idx} className="space-y-1.5">
+                         <div className="flex justify-between items-end">
+                            <div className="flex flex-col">
+                               <span className="text-[10px] font-bold text-primary truncate max-w-[120px]">{w.teacherName}</span>
+                               <span className="text-[9px] text-muted-foreground">{w.subjectName} ({w.className})</span>
+                            </div>
+                            <span className="text-[10px] font-bold">{w.scheduled} / {w.totalJP} JP</span>
                          </div>
-                         <div className="flex justify-between mt-1 text-muted-foreground">
-                            <span>{w.subjectName}</span>
-                            <span className="font-mono">Kelas {w.className}</span>
-                         </div>
+                         <Progress value={w.percent} className={`h-1.5 ${w.isMet ? 'bg-green-500/20' : 'bg-amber-500/20'}`} />
                       </div>
                    ))}
                    {workloadStats.length === 0 && <p className="text-[10px] text-muted-foreground italic">Belum ada data penugasan.</p>}
@@ -283,11 +361,11 @@ export default function RosterManagementPage() {
              </CardHeader>
              <CardContent className="space-y-4 pt-2">
                 <div className="space-y-1">
-                   <span className="text-[10px] font-bold text-muted-foreground">MULAI PELAJARAN</span>
-                   <p className="text-sm font-bold">{config.entryTime}</p>
+                   <span className="text-[10px] font-bold text-muted-foreground uppercase">Mulai Pelajaran</span>
+                   <p className="text-sm font-bold">{config.entryTime} WIB</p>
                 </div>
                 <div className="space-y-1">
-                   <span className="text-[10px] font-bold text-muted-foreground">DURASI PER JP</span>
+                   <span className="text-[10px] font-bold text-muted-foreground uppercase">Durasi per JP</span>
                    <p className="text-sm font-bold">{config.jpDuration} Menit</p>
                 </div>
                 <Separator />
@@ -298,58 +376,62 @@ export default function RosterManagementPage() {
 
         <div className="lg:col-span-3">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="bg-muted/50 border border-border/50">
-              <TabsTrigger value="builder" className="gap-2">Jadwal Mingguan</TabsTrigger>
-              <TabsTrigger value="settings" className="gap-2">Konfigurasi Waktu</TabsTrigger>
+            <TabsList className="bg-muted/50 border border-border/50 p-1">
+              <TabsTrigger value="builder" className="gap-2"><LayoutGrid className="w-4 h-4" /> Jadwal Mingguan</TabsTrigger>
+              <TabsTrigger value="settings" className="gap-2"><Settings2 className="w-4 h-4" /> Konfigurasi Waktu</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="builder" className="space-y-6 mt-6">
+            <TabsContent value="builder" className="space-y-8 mt-6">
               {classes?.sort((a,b) => a.name.localeCompare(b.name)).map(cls => (
-                <Card key={cls.id} className="border-border/50 overflow-hidden">
-                  <CardHeader className="bg-muted/10 border-b py-3 px-6 flex flex-row items-center justify-between">
-                     <CardTitle className="text-lg flex items-center gap-2"><Users className="w-4 h-4" /> Jadwal Kelas {cls.name}</CardTitle>
-                     <Badge variant="outline">Tingkat {cls.gradeLevel}</Badge>
+                <Card key={cls.id} className="border-border/50 overflow-hidden shadow-md">
+                  <CardHeader className="bg-muted/20 border-b py-3 px-6 flex flex-row items-center justify-between">
+                     <CardTitle className="text-lg flex items-center gap-2 font-headline uppercase"><Users className="w-4 h-4 text-primary" /> Kelas {cls.name}</CardTitle>
+                     <Badge variant="outline" className="font-mono">TINGKAT {cls.gradeLevel}</Badge>
                   </CardHeader>
                   <CardContent className="p-0 overflow-x-auto">
-                    <Table>
+                    <Table className="border-collapse">
                       <TableHeader>
-                        <TableRow className="bg-muted/5">
-                          <TableHead className="w-24 border-r">Jam Ke</TableHead>
-                          {DAYS.map(day => <TableHead key={day} className="text-center min-w-[140px]">{day}</TableHead>)}
+                        <TableRow className="bg-muted/10">
+                          <TableHead className="w-24 border-r font-bold text-center">WAKTU</TableHead>
+                          {DAYS.map(day => <TableHead key={day} className="text-center min-w-[150px] font-bold border-r last:border-r-0">{day.toUpperCase()}</TableHead>)}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {Array.from({ length: MAX_PERIODS }).map((_, i) => {
                           const period = i + 1
                           return (
-                            <TableRow key={period}>
-                              <TableCell className="border-r font-medium text-[10px] bg-muted/10 text-center">
-                                 <div className="font-bold text-primary">Jam {period}</div>
-                                 <div className="text-[9px] text-muted-foreground">{getTimeForPeriod(period)}</div>
+                            <TableRow key={period} className="hover:bg-transparent">
+                              <TableCell className="border-r font-medium text-[10px] bg-muted/5 text-center p-2">
+                                 <div className="font-bold text-primary">JAM {period}</div>
+                                 <div className="text-[9px] text-muted-foreground mt-0.5">{getTimeForPeriod(period)}</div>
                               </TableCell>
                               {DAYS.map(day => {
                                 const entry = getEntry(day, period, cls.id)
                                 return (
-                                  <TableCell key={day} className="p-1 border-r last:border-r-0 h-20 group relative">
+                                  <TableCell key={day} className="p-1 border-r last:border-r-0 h-24 group relative">
                                     {entry ? (
-                                      <div className={`h-full border rounded-md p-2 flex flex-col justify-center transition-all ${entry.isActivity ? 'bg-accent/10 border-accent/20' : 'bg-primary/5 border-primary/20'}`}>
-                                        <div className="text-[10px] font-bold truncate uppercase">{entry.isActivity ? entry.activityName : entry.subjectName}</div>
-                                        {!entry.isActivity && <div className="text-[9px] text-muted-foreground truncate">{entry.teacherName}</div>}
+                                      <div className={`h-full border rounded-lg p-2.5 flex flex-col justify-center transition-all shadow-sm ${entry.isActivity ? 'bg-accent/10 border-accent/20' : 'bg-primary/10 border-primary/20'}`}>
+                                        <div className="text-[10px] font-bold truncate uppercase text-foreground leading-tight">{entry.isActivity ? entry.activityName : entry.subjectName}</div>
+                                        {!entry.isActivity && <div className="text-[9px] text-muted-foreground truncate mt-1 italic">{entry.teacherName}</div>}
                                         <Button 
                                           variant="ghost" 
                                           size="icon" 
-                                          className="absolute top-0 right-0 h-5 w-5 opacity-0 group-hover:opacity-100 text-destructive"
+                                          className="absolute top-1.5 right-1.5 h-6 w-6 opacity-0 group-hover:opacity-100 text-destructive hover:bg-destructive/10 hover:text-destructive"
                                           onClick={() => handleDeleteEntry(entry.id)}
                                         >
-                                          <Trash2 className="w-3 h-3" />
+                                          <Trash2 className="w-3.5 h-3.5" />
                                         </Button>
                                       </div>
                                     ) : (
-                                      <div className="h-full flex items-center justify-center opacity-0 group-hover:opacity-30 cursor-pointer" onClick={() => {
-                                        setNewEntry({...newEntry, day, period, classId: cls.id});
-                                        setIsAddOpen(true);
-                                      }}>
-                                        <Plus className="w-4 h-4" />
+                                      <div 
+                                        className="h-full flex flex-col items-center justify-center border-2 border-dashed border-border/30 rounded-lg group-hover:border-primary/30 transition-all cursor-pointer bg-muted/5 hover:bg-primary/5" 
+                                        onClick={() => {
+                                          setNewEntry({...newEntry, day, period, classId: cls.id});
+                                          setIsAddOpen(true);
+                                        }}
+                                      >
+                                        <Plus className="w-4 h-4 text-muted-foreground opacity-20 group-hover:opacity-100 group-hover:text-primary transition-all" />
+                                        <span className="text-[8px] uppercase tracking-tighter text-muted-foreground opacity-30 group-hover:opacity-100 mt-1">Kosong</span>
                                       </div>
                                     )}
                                   </TableCell>
@@ -367,42 +449,49 @@ export default function RosterManagementPage() {
 
             <TabsContent value="settings" className="mt-6">
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 <Card>
-                    <CardHeader><CardTitle className="text-lg">Jam Sekolah</CardTitle></CardHeader>
-                    <CardContent>
+                 <Card className="border-border/50">
+                    <CardHeader className="border-b bg-muted/5"><CardTitle className="text-lg">Parameter Jam Sekolah</CardTitle></CardHeader>
+                    <CardContent className="pt-6">
                       <form onSubmit={handleSaveConfig} className="space-y-6">
-                        <div className="space-y-4">
+                        <div className="grid grid-cols-1 gap-6">
                            <div className="space-y-2">
-                             <Label>Jam Pelajaran Ke-1 Dimulai</Label>
+                             <Label className="text-xs font-bold uppercase text-muted-foreground">Jam Pelajaran Ke-1 Dimulai</Label>
                              <Input name="entryTime" type="time" defaultValue={config.entryTime} />
                            </div>
                            <div className="space-y-2">
-                             <Label>Durasi Pelajaran (JP) - Menit</Label>
+                             <Label className="text-xs font-bold uppercase text-muted-foreground">Durasi Pelajaran (per JP) - Menit</Label>
                              <Input name="jpDuration" type="number" defaultValue={config.jpDuration} />
+                             <p className="text-[10px] text-muted-foreground italic">Contoh: 40 menit per satu jam pelajaran.</p>
                            </div>
                         </div>
-                        <Button type="submit" disabled={isSaving} className="w-full">Simpan Konfigurasi</Button>
+                        <Button type="submit" disabled={isSaving} className="w-full h-11 gap-2">
+                          {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                          Simpan Konfigurasi
+                        </Button>
                       </form>
                     </CardContent>
                  </Card>
 
-                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                       <CardTitle className="text-lg">Waktu Istirahat</CardTitle>
-                       <Button size="sm" variant="outline" onClick={handleAddBreak}><Plus className="w-3 h-3 mr-1" /> Tambah</Button>
+                 <Card className="border-border/50">
+                    <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/5">
+                       <CardTitle className="text-lg">Jeda Istirahat</CardTitle>
+                       <Button size="sm" variant="outline" onClick={handleAddBreak} className="h-8 gap-1"><Plus className="w-3.5 h-3.5" /> Tambah</Button>
                     </CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-4 pt-6">
+                       {config.breakTimes.length === 0 && (
+                         <div className="text-center py-10 text-muted-foreground text-sm italic">Belum ada pengaturan istirahat.</div>
+                       )}
                        {config.breakTimes.map((b: any, i: number) => (
-                         <div key={i} className="flex items-center gap-2 bg-muted/20 p-2 rounded-lg border">
-                            <div className="flex-1 space-y-1">
-                               <Label className="text-[10px]">Setelah Jam Ke</Label>
-                               <Input type="number" value={b.periodAfter} onChange={e => handleUpdateBreak(i, 'periodAfter', e.target.value)} className="h-8" />
+                         <div key={i} className="flex items-center gap-3 bg-muted/20 p-3 rounded-xl border border-border/50 animate-in fade-in">
+                            <div className="flex-1 space-y-1.5">
+                               <Label className="text-[10px] font-bold uppercase text-muted-foreground">Setelah Jam Ke</Label>
+                               <Input type="number" value={b.periodAfter} onChange={e => handleUpdateBreak(i, 'periodAfter', e.target.value)} className="h-9" />
                             </div>
-                            <div className="flex-1 space-y-1">
-                               <Label className="text-[10px]">Durasi (Menit)</Label>
-                               <Input type="number" value={b.duration} onChange={e => handleUpdateBreak(i, 'duration', e.target.value)} className="h-8" />
+                            <div className="flex-1 space-y-1.5">
+                               <Label className="text-[10px] font-bold uppercase text-muted-foreground">Durasi (Menit)</Label>
+                               <Input type="number" value={b.duration} onChange={e => handleUpdateBreak(i, 'duration', e.target.value)} className="h-9" />
                             </div>
-                            <Button variant="ghost" size="icon" className="mt-4 text-destructive" onClick={() => handleRemoveBreak(i)}><Trash2 className="w-4 h-4" /></Button>
+                            <Button variant="ghost" size="icon" className="mt-5 text-destructive hover:bg-destructive/10" onClick={() => handleRemoveBreak(i)}><Trash2 className="w-4 h-4" /></Button>
                          </div>
                        ))}
                     </CardContent>
@@ -415,43 +504,71 @@ export default function RosterManagementPage() {
 
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
         <DialogContent className="sm:max-w-[450px]">
-          <DialogHeader><DialogTitle>Plot Jadwal</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Plot Jadwal Manual</DialogTitle><DialogDescription>Pilih hari, jam, dan penugasan yang ingin di-plot.</DialogDescription></DialogHeader>
           <div className="space-y-6 py-4">
-            <div className="flex items-center justify-between p-3 bg-accent/5 border rounded-xl">
+            <div className="flex items-center justify-between p-3 bg-accent/5 border border-accent/20 rounded-xl">
                <div className="space-y-0.5">
-                  <Label className="font-bold">Mode Kegiatan Sekolah</Label>
-                  <p className="text-[10px] text-muted-foreground italic">Aktifkan untuk agenda non-KBM (Upacara, Sholat, dll)</p>
+                  <Label className="font-bold text-sm">Mode Kegiatan Sekolah</Label>
+                  <p className="text-[10px] text-muted-foreground italic">Gunakan untuk agenda non-KBM (Upacara, Sholat, Literasi)</p>
                </div>
                <Switch checked={newEntry.isActivity} onCheckedChange={v => setNewEntry({...newEntry, isActivity: v})} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-               <div className="space-y-2"><Label>Hari</Label><Select value={newEntry.day} onValueChange={v => setNewEntry({...newEntry, day: v})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{DAYS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent></Select></div>
-               <div className="space-y-2"><Label>Jam Ke-</Label><Select value={newEntry.period?.toString()} onValueChange={v => setNewEntry({...newEntry, period: parseInt(v)})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Array.from({length: MAX_PERIODS}).map((_, i) => <SelectItem key={i+1} value={(i+1).toString()}>{i+1}</SelectItem>)}</SelectContent></Select></div>
+               <div className="space-y-2">
+                 <Label className="text-xs font-bold uppercase">Hari</Label>
+                 <Select value={newEntry.day} onValueChange={v => setNewEntry({...newEntry, day: v})}>
+                   <SelectTrigger><SelectValue /></SelectTrigger>
+                   <SelectContent>{DAYS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+                 </Select>
+               </div>
+               <div className="space-y-2">
+                 <Label className="text-xs font-bold uppercase">Jam Ke-</Label>
+                 <Select value={newEntry.period?.toString()} onValueChange={v => setNewEntry({...newEntry, period: parseInt(v)})}>
+                   <SelectTrigger><SelectValue /></SelectTrigger>
+                   <SelectContent>{Array.from({length: MAX_PERIODS}).map((_, i) => <SelectItem key={i+1} value={(i+1).toString()}>{i+1}</SelectItem>)}</SelectContent>
+                 </Select>
+               </div>
             </div>
 
             {newEntry.isActivity ? (
-               <div className="space-y-2"><Label>Nama Kegiatan</Label><Input placeholder="Contoh: Upacara Bendera" value={newEntry.activityName} onChange={e => setNewEntry({...newEntry, activityName: e.target.value})} /></div>
+               <div className="space-y-2">
+                 <Label className="text-xs font-bold uppercase">Nama Kegiatan</Label>
+                 <Input placeholder="Contoh: Upacara Bendera / Literasi" value={newEntry.activityName} onChange={e => setNewEntry({...newEntry, activityName: e.target.value})} />
+               </div>
             ) : (
-               <>
-                 <div className="space-y-2">
-                    <Label>Pilih Penugasan Guru (Dapodik)</Label>
-                    <Select value={`${newEntry.teacherId}|${newEntry.subjectId}`} onValueChange={v => {
-                       const [tId, sId] = v.split('|');
-                       setNewEntry({...newEntry, teacherId: tId, subjectId: sId});
-                    }}>
-                       <SelectTrigger><SelectValue placeholder="Pilih Guru & Mapel" /></SelectTrigger>
-                       <SelectContent>
-                          {assignments?.filter(a => a.classId === newEntry.classId).map(a => (
-                             <SelectItem key={a.id} value={`${a.teacherId}|${a.subjectId}`}>{a.teacherName} - {a.subjectName} ({a.totalJP} JP)</SelectItem>
-                          ))}
-                       </SelectContent>
-                    </Select>
-                 </div>
-               </>
+               <div className="space-y-2">
+                  <Label className="text-xs font-bold uppercase text-primary">Pilih Penugasan Guru (Sesuai Rombel)</Label>
+                  <Select value={`${newEntry.teacherId}|${newEntry.subjectId}`} onValueChange={v => {
+                     const [tId, sId] = v.split('|');
+                     setNewEntry({...newEntry, teacherId: tId, subjectId: sId});
+                  }}>
+                     <SelectTrigger className="h-12">
+                       <SelectValue placeholder="Pilih Guru & Mata Pelajaran" />
+                     </SelectTrigger>
+                     <SelectContent>
+                        {assignments?.filter(a => a.classId === newEntry.classId).map(a => (
+                           <SelectItem key={a.id} value={`${a.teacherId}|${a.subjectId}`}>
+                             <div className="flex flex-col items-start text-xs py-1">
+                               <span className="font-bold">{a.teacherName}</span>
+                               <span className="text-[10px] text-muted-foreground">{a.subjectName} (Target: {a.totalJP} JP)</span>
+                             </div>
+                           </SelectItem>
+                        ))}
+                        {assignments?.filter(a => a.classId === newEntry.classId).length === 0 && (
+                          <div className="p-4 text-center text-xs text-muted-foreground italic">Belum ada penugasan guru di kelas ini.</div>
+                        )}
+                     </SelectContent>
+                  </Select>
+               </div>
             )}
           </div>
-          <DialogFooter><Button onClick={handleAddEntry} disabled={submitting} className="w-full">Simpan ke Roster</Button></DialogFooter>
+          <DialogFooter>
+            <Button onClick={handleAddEntry} disabled={submitting} className="w-full h-11 gap-2">
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+              Simpan ke Roster
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
