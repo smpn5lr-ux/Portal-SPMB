@@ -11,7 +11,8 @@ import {
   AlertCircle,
   Users,
   Info,
-  Search
+  Search,
+  Calendar
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -40,6 +41,11 @@ export default function GradingPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   
+  // Ambil Pengaturan Sistem untuk Semester Aktif
+  const settingsRef = useMemoFirebase(() => db ? doc(db, 'settings', 'system') : null, [db])
+  const { data: config } = useDoc<any>(settingsRef)
+  const activeSemester = config?.activeSemester || 1
+
   // Ambil Data Assignment
   const assignmentRef = useMemoFirebase(() => db ? doc(db, 'teacherAssignments', assignmentId as string) : null, [db, assignmentId])
   const { data: assignment, loading: loadingA } = useDoc<TeacherAssignment>(assignmentRef)
@@ -50,7 +56,7 @@ export default function GradingPage() {
 
   // Ambil Semua Murid yang diterima
   const studentsQuery = useMemoFirebase(() => {
-    if (!db || !user) return null // Tunggu user terautentikasi
+    if (!db || !user) return null 
     return query(collection(db, 'applicants'), where('admissionStatus', '==', 'accepted'))
   }, [db, user])
   const { data: allAcceptedStudents, loading: loadingS } = useCollection<Applicant>(studentsQuery)
@@ -64,11 +70,15 @@ export default function GradingPage() {
       .sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""))
   }, [allAcceptedStudents, classroom, searchTerm])
 
-  // Ambil Nilai yang Sudah Ada
+  // Ambil Nilai yang Sudah Ada (Berdasarkan Semester Aktif)
   const assessmentsQuery = useMemoFirebase(() => {
-    if (!db || !user || !assignmentId) return null
-    return query(collection(db, 'assessments'), where('assignmentId', '==', assignmentId))
-  }, [db, user, assignmentId])
+    if (!db || !user || !assignmentId || !activeSemester) return null
+    return query(
+      collection(db, 'assessments'), 
+      where('assignmentId', '==', assignmentId),
+      where('semester', '==', activeSemester)
+    )
+  }, [db, user, assignmentId, activeSemester])
   const { data: existingAssessments } = useCollection<Assessment>(assessmentsQuery)
 
   // Local State untuk Form Nilai
@@ -87,7 +97,7 @@ export default function GradingPage() {
   const handleGradeChange = (studentId: string, field: keyof Assessment, value: string) => {
     const numValue = Math.min(100, Math.max(0, parseInt(value) || 0))
     setGrades(prev => {
-      const current = prev[studentId] || { studentId, assignmentId: assignmentId as string }
+      const current = prev[studentId] || { studentId, assignmentId: assignmentId as string, semester: activeSemester }
       const updated = { ...current, [field]: numValue }
       
       // Hitung Nilai Akhir Otomatis: Absen (10%), Tugas (20%), UTS (30%), UAS (40%)
@@ -102,24 +112,26 @@ export default function GradingPage() {
   }
 
   const saveAllGrades = async () => {
-    if (!db) return
+    if (!db || !activeSemester) return
     setIsSaving(true)
     const batch = writeBatch(db)
     
     try {
       Object.entries(grades).forEach(([studentId, data]) => {
-        const docId = `${assignmentId}_${studentId}`
+        // ID Dokumen unik per assignment, student, dan SEMESTER
+        const docId = `${assignmentId}_${studentId}_sem${activeSemester}`
         const ref = doc(db, 'assessments', docId)
         batch.set(ref, {
           ...data,
           studentId,
           assignmentId,
+          semester: activeSemester,
           updatedAt: new Date().toISOString()
         }, { merge: true })
       })
       
       await batch.commit()
-      toast({ title: "Nilai Berhasil Simpan", description: "Seluruh data nilai murid telah diperbarui." })
+      toast({ title: "Nilai Berhasil Simpan", description: `Data nilai Semester ${activeSemester} telah diperbarui.` })
     } catch (e) {
       toast({ variant: "destructive", title: "Gagal menyimpan nilai" })
     } finally {
@@ -140,7 +152,12 @@ export default function GradingPage() {
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full border"><ArrowLeft className="w-4 h-4" /></Button>
           <div>
-            <h1 className="text-2xl font-bold">{assignment?.subjectName || "Mata Pelajaran"}</h1>
+            <div className="flex items-center gap-2">
+               <h1 className="text-2xl font-bold">{assignment?.subjectName || "Mata Pelajaran"}</h1>
+               <Badge variant="secondary" className="gap-1 bg-accent/20 text-accent border-accent/20">
+                 <Calendar className="w-3 h-3" /> SEMESTER {activeSemester}
+               </Badge>
+            </div>
             <p className="text-muted-foreground text-sm font-bold uppercase tracking-widest text-primary flex items-center gap-2">
               Kelas {classroom?.name || "-"} <span className="text-xs text-muted-foreground/50">|</span> <Users className="w-3 h-3" /> {students.length} Siswa
             </p>
@@ -158,7 +175,7 @@ export default function GradingPage() {
           </div>
           <Button onClick={saveAllGrades} disabled={isSaving} className="gap-2 shadow-lg shadow-primary/20">
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Simpan Semua Nilai
+            Simpan Nilai Semester {activeSemester}
           </Button>
         </div>
       </div>
@@ -227,7 +244,7 @@ export default function GradingPage() {
               <div className="flex justify-between border-b border-primary/10 pb-1"><span>Tugas / Harian</span><span className="font-bold text-primary">20%</span></div>
               <div className="flex justify-between border-b border-primary/10 pb-1"><span>UTS (Tengah Semester)</span><span className="font-bold text-primary">30%</span></div>
               <div className="flex justify-between border-b border-primary/10 pb-1"><span>UAS (Akhir Semester)</span><span className="font-bold text-primary">40%</span></div>
-              <p className="mt-4 text-muted-foreground italic">Sistem menghitung Nilai Akhir secara otomatis saat Anda mengetik.</p>
+              <p className="mt-4 text-muted-foreground italic">Input nilai ini akan tercatat untuk **Semester {activeSemester}**.</p>
               <div className="pt-2">
                 <Badge variant="outline" className="text-green-500 border-green-500/20 bg-green-500/5 w-full justify-center py-1.5 font-bold">STANDAR KKM: 75</Badge>
               </div>
@@ -236,7 +253,7 @@ export default function GradingPage() {
           
           <Card className="border-border/50">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-bold">Statistik Kelas</CardTitle>
+              <CardTitle className="text-sm font-bold">Statistik Kelas (Sem {activeSemester})</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between text-sm">

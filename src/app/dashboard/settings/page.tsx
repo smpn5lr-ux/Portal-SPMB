@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useRef } from "react"
@@ -23,7 +24,8 @@ import {
   Upload,
   Fingerprint,
   ShieldAlert,
-  Power
+  Power,
+  Calendar
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -33,6 +35,13 @@ import { Separator } from "@/components/ui/separator"
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -79,6 +88,7 @@ export default function SettingsPage() {
     dinasName: "DINAS PENDIDIKAN",
     npsn: "00000000",
     academicYear: "2024/2025",
+    activeSemester: "1",
     totalQuota: 250,
     quotaZonasi: 50,
     quotaPrestasi: 30,
@@ -94,7 +104,6 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (config) {
-      // Force filter nama lama jika datang dari database
       const filteredAppName = config.appName === "PORTAL SPMB" ? "SIS TERPADU" : (config.appName || "SIS TERPADU");
       setLocalConfig({
         ...localConfig,
@@ -219,7 +228,7 @@ export default function SettingsPage() {
     setDoc(schoolsRef, { list }, { merge: true })
       .catch(async () => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: schoolsRef.list,
+          path: 'settings/schools',
           operation: 'write',
           requestResourceData: { list }
         }))
@@ -238,7 +247,7 @@ export default function SettingsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline font-bold">Pengaturan Sistem</h1>
-          <p className="text-muted-foreground mt-1">Konfigurasi global untuk identitas sekolah dan mode operasional.</p>
+          <p className="text-muted-foreground mt-1">Konfigurasi global untuk identitas sekolah dan periode aktif.</p>
         </div>
         <Button 
           onClick={handleSaveConfig} 
@@ -252,7 +261,6 @@ export default function SettingsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          {/* Mode Kontrol */}
           <Card className="border-primary/20 bg-primary/5">
             <CardHeader>
               <div className="flex items-center gap-2">
@@ -265,7 +273,7 @@ export default function SettingsPage() {
                <div className="flex items-center justify-between p-4 bg-card border rounded-xl">
                   <div className="space-y-0.5">
                     <Label className="text-base font-bold">Fitur Pendaftaran (PPDB)</Label>
-                    <p className="text-xs text-muted-foreground">Jika nonaktif, menu pendaftaran, verifikasi, dan seleksi akan disembunyikan.</p>
+                    <p className="text-xs text-muted-foreground">Jika nonaktif, menu pendaftaran akan disembunyikan.</p>
                   </div>
                   <Switch 
                     checked={localConfig.enableSPMB} 
@@ -278,10 +286,47 @@ export default function SettingsPage() {
           <Card className="border-border/50">
             <CardHeader>
               <div className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-accent" />
+                <CardTitle className="font-headline text-lg">Periode Akademik Aktif</CardTitle>
+              </div>
+              <CardDescription>Tentukan tahun ajaran dan semester yang berlaku saat ini.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Tahun Ajaran</label>
+                  <Input 
+                    value={localConfig.academicYear}
+                    onChange={(e) => setLocalConfig({...localConfig, academicYear: e.target.value})}
+                    placeholder="Contoh: 2024/2025" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Semester Aktif</label>
+                  <Select 
+                    value={localConfig.activeSemester?.toString()} 
+                    onValueChange={(v) => setLocalConfig({...localConfig, activeSemester: parseInt(v)})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pilih Semester" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">Semester 1 (Ganjil)</SelectItem>
+                      <SelectItem value="2">Semester 2 (Genap)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/50">
+            <CardHeader>
+              <div className="flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-primary" />
                 <CardTitle className="font-headline text-lg">Branding Aplikasi</CardTitle>
               </div>
-              <CardDescription>Sesuaikan nama dan logo aplikasi untuk Login & Dashboard.</CardDescription>
+              <CardDescription>Sesuaikan nama dan logo aplikasi sistem.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -300,19 +345,13 @@ export default function SettingsPage() {
                     <ImageIcon className="w-3 h-3" /> Logo Aplikasi
                   </label>
                   <div className="flex gap-2">
-                    <Input 
-                      value={localConfig.appLogoUrl.startsWith('data:') ? 'Terunggah dari lokal' : localConfig.appLogoUrl}
-                      onChange={(e) => setLocalConfig({...localConfig, appLogoUrl: e.target.value})}
-                      placeholder="URL Gambar atau Unggah..." 
-                      className="flex-1"
-                    />
                     <Button 
                       type="button" 
                       variant="outline" 
                       onClick={() => logoInputRef.current?.click()}
-                      className="shrink-0 gap-2 border-primary/20 text-primary hover:bg-primary/5"
+                      className="shrink-0 gap-2 border-primary/20 text-primary hover:bg-primary/5 w-full"
                     >
-                      <Upload className="w-4 h-4" /> Unggah
+                      <Upload className="w-4 h-4" /> Unggah Logo
                     </Button>
                     <input 
                       type="file" 
@@ -322,18 +361,8 @@ export default function SettingsPage() {
                       className="hidden" 
                     />
                   </div>
-                  <p className="text-[10px] text-muted-foreground">Mendukung JPG, PNG, WEBP, SVG (Maks. 500KB).</p>
                 </div>
               </div>
-              {localConfig.appLogoUrl && (
-                <div className="mt-2 p-6 border rounded-xl bg-muted/20 flex flex-col items-center justify-center border-dashed">
-                  <span className="text-[10px] uppercase font-bold text-muted-foreground mb-4 tracking-widest">Pratinjau Branding</span>
-                  <div className="flex items-center gap-4 bg-card p-4 rounded-lg shadow-sm border border-border/50">
-                    <img src={localConfig.appLogoUrl} alt="Logo Preview" className="h-10 w-10 object-contain" />
-                    <span className="font-headline font-bold text-lg">{localConfig.appName}</span>
-                  </div>
-                </div>
-              )}
             </CardContent>
           </Card>
 
@@ -341,20 +370,17 @@ export default function SettingsPage() {
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Building2 className="w-5 h-5 text-primary" />
-                <CardTitle className="font-headline text-lg">Identitas & Kapasitas Sekolah</CardTitle>
+                <CardTitle className="font-headline text-lg">Identitas Sekolah</CardTitle>
               </div>
-              <CardDescription>Informasi dasar sekolah dan total daya tampung siswa.</CardDescription>
+              <CardDescription>Informasi resmi sekolah untuk laporan.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2 space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1">
-                    <Map className="w-3 h-3" /> Dinas Pendidikan
-                  </label>
+                  <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Dinas Pendidikan</label>
                   <Input 
                     value={localConfig.dinasName}
                     onChange={(e) => setLocalConfig({...localConfig, dinasName: e.target.value})}
-                    placeholder="Contoh: DINAS PENDIDIKAN" 
                   />
                 </div>
                 <div className="space-y-2">
@@ -362,7 +388,6 @@ export default function SettingsPage() {
                   <Input 
                     value={localConfig.schoolName}
                     onChange={(e) => setLocalConfig({...localConfig, schoolName: e.target.value})}
-                    placeholder="Contoh: SMP Negeri 5 LR" 
                   />
                 </div>
                 <div className="space-y-2">
@@ -370,153 +395,22 @@ export default function SettingsPage() {
                   <Input 
                     value={localConfig.npsn}
                     onChange={(e) => setLocalConfig({...localConfig, npsn: e.target.value})}
-                    placeholder="Contoh: 20123456" 
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1">
-                    <CalendarDays className="w-3 h-3" /> Tahun Ajaran
-                  </label>
-                  <Input 
-                    value={localConfig.academicYear}
-                    onChange={(e) => setLocalConfig({...localConfig, academicYear: e.target.value})}
-                    placeholder="Contoh: 2024/2025" 
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1">
-                    <Hash className="w-3 h-3" /> Total Kuota Pendaftar
-                  </label>
-                  <Input 
-                    type="number"
-                    value={localConfig.totalQuota}
-                    onChange={(e) => setLocalConfig({...localConfig, totalQuota: parseInt(e.target.value) || 0})}
-                    placeholder="Contoh: 250" 
                   />
                 </div>
               </div>
             </CardContent>
           </Card>
-
-          {localConfig.enableSPMB && (
-            <>
-              <Card className="border-border/50">
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <Fingerprint className="w-5 h-5 text-primary" />
-                    <CardTitle className="font-headline text-lg">Format Nomor Registrasi</CardTitle>
-                  </div>
-                  <CardDescription>Sesuaikan prefiks untuk penomoran otomatis pendaftar.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Prefiks Registrasi</label>
-                    <Input 
-                      value={localConfig.regPrefix}
-                      onChange={(e) => setLocalConfig({...localConfig, regPrefix: e.target.value})}
-                      placeholder="Contoh: REG-2026-" 
-                    />
-                    <p className="text-[10px] text-muted-foreground italic">
-                      Contoh Hasil: <strong>{localConfig.regPrefix || ''}01</strong>, <strong>{localConfig.regPrefix || ''}02</strong>, dst.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/50">
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <School className="w-5 h-5 text-accent" />
-                    <CardTitle className="font-headline text-lg">Daftar Sekolah Zonasi (SD/MI)</CardTitle>
-                  </div>
-                  <CardDescription>Kelola daftar sekolah yang dianggap berada di dalam zonasi sekolah ini.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex gap-2">
-                    <Input 
-                      value={newSchool}
-                      onChange={(e) => setNewSchool(e.target.value)}
-                      placeholder="Masukkan nama sekolah zonasi..."
-                      className="flex-1"
-                    />
-                    <Button onClick={handleAddSchool} variant="outline" className="gap-2">
-                      <Plus className="w-4 h-4" /> Tambah
-                    </Button>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[300px] overflow-y-auto p-2 border rounded-lg bg-muted/20">
-                    {localSchools.map((school) => (
-                      <div key={school} className="flex items-center justify-between p-2 rounded bg-card border group">
-                        <span className="text-sm truncate mr-2">{school}</span>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => handleRemoveSchoolConfirm(school)}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    ))}
-                    {localSchools.length === 0 && (
-                      <p className="col-span-full text-center py-8 text-muted-foreground text-sm italic">Belum ada sekolah zonasi yang ditambahkan.</p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </>
-          )}
         </div>
 
         <div className="space-y-6">
-          {localConfig.enableSPMB && (
-            <Card className="border-border/50">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <Percent className="w-5 h-5 text-accent" />
-                  <CardTitle className="font-headline text-lg">Distribusi Kuota</CardTitle>
-                  <CardDescription>Total distribusi harus 100%.</CardDescription>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                 {[
-                    { label: "Zonasi (%)", key: "quotaZonasi", icon: MapPin },
-                    { label: "Prestasi (%)", key: "quotaPrestasi", icon: Trophy },
-                    { label: "Afirmasi (%)", key: "quotaAfirmasi", icon: Users },
-                    { label: "Pindahan (%)", key: "quotaPerpindahan", icon: School },
-                  ].map((item) => (
-                    <div key={item.key} className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{item.label}</label>
-                        <span className="text-sm font-bold text-primary">{localConfig[item.key]}%</span>
-                      </div>
-                      <Slider 
-                        value={[localConfig[item.key]]} 
-                        max={100} 
-                        step={1}
-                        onValueChange={([v]) => handleQuotaChange(item.key, v)}
-                      />
-                    </div>
-                  ))}
-                  <div className="pt-4 border-t">
-                     <div className="flex justify-between items-center">
-                       <span className="text-xs font-bold uppercase text-muted-foreground">Total Kuota</span>
-                       <Badge variant={Object.keys(localConfig).filter(k => k.startsWith('quota')).reduce((s, k) => s + localConfig[k], 0) === 100 ? "default" : "destructive"} className="font-mono">
-                          {Object.keys(localConfig).filter(k => k.startsWith('quota')).reduce((s, k) => s + localConfig[k], 0)}%
-                       </Badge>
-                     </div>
-                  </div>
-              </CardContent>
-            </Card>
-          )}
-
           <Card className="border-border/50 bg-primary/5">
             <CardContent className="p-6">
               <div className="flex items-start gap-4">
                 <ShieldCheck className="w-6 h-6 text-primary mt-1" />
                 <div>
-                  <h4 className="font-bold text-sm">Validitas Data</h4>
+                  <h4 className="font-bold text-sm">Penting: Semester Aktif</h4>
                   <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    Sistem akan otomatis menyeimbangkan kuota lain saat Anda mengubah satu parameter untuk menjaga total tetap 100%.
+                    Mengubah **Semester Aktif** akan mengarahkan semua input nilai guru ke buku nilai semester tersebut. Pastikan Anda mengubahnya hanya saat pergantian semester resmi.
                   </p>
                 </div>
               </div>

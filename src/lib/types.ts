@@ -111,6 +111,7 @@ export interface Assessment {
   id: string;
   studentId: string;
   assignmentId: string;
+  semester: number;
   attendance: number;
   homework: number;
   midExam: number;

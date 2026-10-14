@@ -122,11 +122,12 @@
     },
     "Assessment": {
       "title": "Assessment",
-      "description": "Student grades for a specific subject and class.",
+      "description": "Student grades for a specific subject and class per semester.",
       "type": "object",
       "properties": {
         "studentId": { "type": "string" },
         "assignmentId": { "type": "string" },
+        "semester": { "type": "number", "enum": [1, 2] },
         "attendance": { "type": "number" },
         "homework": { "type": "number" },
         "midExam": { "type": "number" },
