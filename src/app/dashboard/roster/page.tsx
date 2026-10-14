@@ -378,15 +378,14 @@ export default function RosterManagementPage() {
       DAYS.forEach(day => {
         for (let p = 1; p <= MAX_PERIODS; p++) {
           const row: any[] = [];
-          if (p === 1) {
-            row.push({ content: day, rowSpan: MAX_PERIODS, styles: { fillColor: [240, 240, 240], fontStyle: 'bold', halign: 'center', valign: 'middle' } });
-          }
+          // Selalu masukkan 'HARI' di kolom 0 untuk stabilitas indeks, didParseCell akan mengosongkannya secara visual
+          row.push(p === 1 ? day : ""); 
           row.push(p);
           row.push(getTimeForPeriod(p));
           sortedClasses.forEach(cls => {
             const entry = getEntry(day, p, cls.id);
             if (entry) {
-              if (entry.isActivity) row.push("REHAT");
+              if (entry.isActivity) row.push(entry.activityName || "REHAT");
               else row.push(teacherMap.get(entry.teacherId) || "?");
             } else row.push("");
           });
@@ -403,22 +402,41 @@ export default function RosterManagementPage() {
         headStyles: { fillColor: [67, 97, 238], textColor: [255, 255, 255], fontSize: 7, fontStyle: 'bold' },
         columnStyles: { 0: { cellWidth: 15 }, 1: { cellWidth: 8 }, 2: { cellWidth: 15 } },
         didParseCell: (data) => {
-          const isFirstRowOfDay = (data.row.index % MAX_PERIODS) === 0;
-          const classColumnOffset = isFirstRowOfDay ? 3 : 2;
-          if (data.section === 'body' && data.column.index >= classColumnOffset) {
-            const currentDayIdx = Math.floor(data.row.index / MAX_PERIODS);
-            const day = DAYS[currentDayIdx];
-            const period = (data.row.index % MAX_PERIODS) + 1;
-            const clsIdx = data.column.index - classColumnOffset;
-            const cls = sortedClasses[clsIdx];
-            if (cls) {
-              const entry = getEntry(day, period, cls.id);
-              if (entry) {
-                if (entry.isActivity) data.cell.styles.fillColor = [220, 220, 220];
-                else {
-                  const color = subjectColors.get(`${entry.teacherId}_${entry.subjectId}`);
-                  if (color) data.cell.styles.fillColor = color;
-                  data.cell.styles.fontStyle = 'bold';
+          if (data.section === 'body') {
+            // Rowspan HARI
+            if (data.column.index === 0) {
+              const isFirstRowOfDay = (data.row.index % MAX_PERIODS) === 0;
+              if (isFirstRowOfDay) {
+                data.cell.rowSpan = MAX_PERIODS;
+                data.cell.styles.fillColor = [240, 240, 240];
+                data.cell.styles.fontStyle = 'bold';
+                data.cell.styles.halign = 'center';
+                data.cell.styles.valign = 'middle';
+              }
+            }
+
+            // Pewarnaan Jadwal & Penanganan Kebocoran Warna
+            if (data.column.index >= 3) {
+              // Reset background ke putih agar tidak bocor dari sel sebelumnya
+              data.cell.styles.fillColor = [255, 255, 255]; 
+              
+              const currentDayIdx = Math.floor(data.row.index / MAX_PERIODS);
+              const day = DAYS[currentDayIdx];
+              const period = (data.row.index % MAX_PERIODS) + 1;
+              const clsIdx = data.column.index - 3;
+              const cls = sortedClasses[clsIdx];
+              
+              if (cls) {
+                const entry = getEntry(day, period, cls.id);
+                if (entry) {
+                  if (entry.isActivity) {
+                    data.cell.styles.fillColor = [220, 220, 220]; // Abu-abu untuk rehat
+                  } else {
+                    const color = subjectColors.get(`${entry.teacherId}_${entry.subjectId}`);
+                    if (color) data.cell.styles.fillColor = color;
+                    data.cell.styles.fontStyle = 'bold';
+                    data.cell.styles.textColor = [0, 0, 0];
+                  }
                 }
               }
             }
@@ -432,8 +450,11 @@ export default function RosterManagementPage() {
       const uniqueTeachers = Array.from(new Set(assignments.map(a => a.teacherId)))
         .map(id => {
           const tAsgs = assignments.filter(a => a.teacherId === id);
+          // Gunakan Set untuk memastikan mata pelajaran tidak dobel tulis
           const distinctSubjects = Array.from(new Set(tAsgs.map(a => a.subjectName)));
-          const distinctSubjectIds = Array.from(new Set(tAsgs.map(a => a.subjectId)));
+          // Sinkronkan urutan ID mapel dengan urutan nama mapel untuk warna silang
+          const distinctSubjectIds = distinctSubjects.map(name => tAsgs.find(a => a.subjectName === name)?.subjectId).filter(Boolean) as string[];
+          
           return {
             id,
             name: tAsgs[0].teacherName,
@@ -456,9 +477,10 @@ export default function RosterManagementPage() {
           if (data.section === 'body' && data.column.index === 0) {
             const t = uniqueTeachers[data.row.index];
             const padding = 1.5;
-            const x = data.cell.x + padding;
-            const y = data.cell.y + padding;
             const size = data.cell.width - (padding * 2);
+            // Posisikan kotak tepat di tengah sel secara horizontal & vertikal
+            const x = data.cell.x + (data.cell.width - size) / 2;
+            const y = data.cell.y + (data.cell.height - size) / 2;
             
             if (t.subjectIds.length >= 2) {
               const color1 = subjectColors.get(`${t.id}_${t.subjectIds[0]}`);
@@ -609,7 +631,7 @@ export default function RosterManagementPage() {
               <CardContent className="pt-6 space-y-4">
                 <div className="space-y-2">
                   <Label>Jam Masuk Sekolah (Jam Ke-1)</Label>
-                  <Input type="time" value={config.entryTime || "07:00"} onChange={e => setDoc(configRef!, { ...config, entryTime: e.target.value }, { merge: true })} />
+                  <Input type="time" value={config.entryTime || "07:00"} onChange={e => setDoc(configRef!, { ...config, entryTime: e.target.value || "07:00" }, { merge: true })} />
                 </div>
                 <div className="space-y-2">
                   <Label>Durasi 1 JP (Menit)</Label>
