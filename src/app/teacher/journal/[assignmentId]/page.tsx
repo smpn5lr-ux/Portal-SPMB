@@ -233,15 +233,18 @@ export default function TeachingJournalPage() {
     try {
       const { default: jsPDF } = await import('jspdf')
       const { default: autoTable } = await import('jspdf-autotable')
-      const doc = new jsPDF()
+      // Menggunakan mode LANDSCAPE untuk ruang yang lebih luas
+      const doc = new jsPDF('l')
       
       const dinasName = config?.dinasName || "DINAS PENDIDIKAN"
       const schoolName = config?.schoolName || "SIS TERPADU"
       
+      // X coordinate 148.5 is center for Landscape A4
       doc.setFontSize(12).setFont("helvetica", "bold").setTextColor(67, 97, 238)
-      doc.text(dinasName.toUpperCase(), 105, 15, { align: "center" })
-      doc.text(schoolName.toUpperCase(), 105, 22, { align: "center" })
-      doc.setDrawColor(67, 97, 238).setLineWidth(0.5).line(14, 26, 196, 26)
+      doc.text(dinasName.toUpperCase(), 148.5, 15, { align: "center" })
+      doc.text(schoolName.toUpperCase(), 148.5, 22, { align: "center" })
+      // Line length extended for Landscape
+      doc.setDrawColor(67, 97, 238).setLineWidth(0.5).line(14, 26, 283, 26)
 
       doc.setFontSize(14).setTextColor(0).text(`JURNAL MENGAJAR - SEMESTER ${activeSemester}`, 14, 38)
       doc.setFontSize(10).setTextColor(100)
@@ -254,21 +257,28 @@ export default function TeachingJournalPage() {
           j.meetingNumber,
           new Date(j.date).toLocaleDateString('id-ID'),
           j.material || '-',
-          absentNames || 'Hadir Semua'
+          absentNames || 'Hadir Semua',
+          '' // Kolom Keterangan kosong untuk diisi manual atau catatan tambahan
         ]
       })
 
       autoTable(doc, {
-        head: [['No', 'Tanggal', 'Materi Pembelajaran', 'Siswa Alfa']],
+        head: [['No', 'Tanggal', 'Materi Pembelajaran', 'Siswa Alfa', 'Keterangan']],
         body: tableData,
         startY: 58,
         theme: 'grid',
         headStyles: { fillColor: [67, 97, 238], textColor: [255, 255, 255] },
-        columnStyles: { 2: { cellWidth: 80 }, 3: { cellWidth: 50 } }
+        columnStyles: { 
+          0: { cellWidth: 15 }, 
+          1: { cellWidth: 30 },
+          2: { cellWidth: 100 }, 
+          3: { cellWidth: 60 },
+          4: { cellWidth: 'auto' } // Keterangan mengambil sisa ruang
+        }
       })
 
       doc.save(`Jurnal_${assignment.subjectName}_Kelas_${assignment.className}_Smt${activeSemester}.pdf`)
-      toast({ title: "Berhasil Mengunduh", description: "Jurnal telah disimpan sebagai PDF." })
+      toast({ title: "Berhasil Mengunduh", description: "Jurnal telah disimpan sebagai PDF dalam format Landscape." })
     } catch (e) {
       toast({ variant: "destructive", title: "Gagal ekspor PDF" })
     } finally {
@@ -305,7 +315,7 @@ export default function TeachingJournalPage() {
         <div className="flex gap-2">
            <Button variant="outline" onClick={handleDownloadPDF} disabled={isExporting} className="gap-2 text-xs h-9">
               {isExporting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
-              Cetak Jurnal
+              Cetak Jurnal (Landscape)
            </Button>
            <Button variant="outline" onClick={handleRefreshSession} className="gap-2 text-xs h-9">
               <RefreshCw className="w-3 h-3" /> Refresh Izin
