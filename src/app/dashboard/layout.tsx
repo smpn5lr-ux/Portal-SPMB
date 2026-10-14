@@ -144,7 +144,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   if (!user) return null
 
-  const appName = config?.appName || "SIS Terpadu"
+  const appName = config?.appName || "SIS TERPADU"
   const appLogoUrl = config?.appLogoUrl || "/icon-logo.webp"
   const isSPMBEnabled = config?.enableSPMB !== false; // Default true if not set
 

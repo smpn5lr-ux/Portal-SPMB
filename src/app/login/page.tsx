@@ -92,7 +92,7 @@ export default function LoginPage() {
 
   if (authLoading) return null
 
-  const appName = config?.appName || "Portal SPMB"
+  const appName = config?.appName || "SIS TERPADU"
   const appLogoUrl = config?.appLogoUrl || "/icon-logo.webp"
 
   return (
@@ -191,7 +191,7 @@ export default function LoginPage() {
         </CardContent>
         <CardFooter className="flex flex-col gap-2">
           <p className="text-[10px] text-center text-muted-foreground uppercase tracking-widest font-bold">
-            {appName} • Sistem Informasi Terpadu
+            {appName} • SISTEM INFORMASI TERPADU
           </p>
         </CardFooter>
       </Card>

@@ -16,8 +16,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'Portal SPMB | Sistem Pendaftaran Murid Baru',
-  description: 'Sistem informasi manajemen pendaftaran murid baru (PPDB/SPMB) modern berbasis standar Dapodik.',
+  title: 'SIS TERPADU | Sistem Informasi Sekolah Terpadu',
+  description: 'Sistem informasi manajemen sekolah terpadu modern berbasis standar Dapodik.',
   manifest: '/manifest',
   icons: {
     icon: [
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Portal SPMB',
+    title: 'SIS TERPADU',
   },
 };
 
@@ -46,7 +46,7 @@ export default function RootLayout({
   return (
     <html lang="id" className="dark">
       <head>
-        {/* Explicit override: Memaksa browser menggunakan logo Portal SPMB di atas cache favicon.ico lama */}
+        {/* Explicit override: Memaksa browser menggunakan logo SIS TERPADU di atas cache favicon.ico lama */}
         <link rel="icon" href={ICON_URL} />
         <link rel="shortcut icon" href={ICON_URL} />
         <link rel="apple-touch-icon" href={ICON_URL} />

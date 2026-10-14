@@ -74,11 +74,11 @@ export default function SettingsPage() {
   const { data: schoolsData, loading: loadingSchools } = useDoc<any>(schoolsRef)
 
   const [localConfig, setLocalConfig] = useState<any>({
-    appName: "SISTEM INFORMASI SEKOLAH",
+    appName: "SIS TERPADU",
     appLogoUrl: "",
-    schoolName: "SMP Negeri 1 Jakarta",
-    dinasName: "DINAS PENDIDIKAN PROVINSI DKI JAKARTA",
-    npsn: "20123456",
+    schoolName: "SMP Negeri 5 LR",
+    dinasName: "DINAS PENDIDIKAN",
+    npsn: "00000000",
     academicYear: "2024/2025",
     totalQuota: 250,
     quotaZonasi: 50,
@@ -290,7 +290,7 @@ export default function SettingsPage() {
                   <Input 
                     value={localConfig.appName}
                     onChange={(e) => setLocalConfig({...localConfig, appName: e.target.value})}
-                    placeholder="Contoh: PORTAL SPMB" 
+                    placeholder="Contoh: SIS TERPADU" 
                   />
                 </div>
                 <div className="space-y-2">
@@ -352,7 +352,7 @@ export default function SettingsPage() {
                   <Input 
                     value={localConfig.dinasName}
                     onChange={(e) => setLocalConfig({...localConfig, dinasName: e.target.value})}
-                    placeholder="Contoh: DINAS PENDIDIKAN PROVINSI DKI JAKARTA" 
+                    placeholder="Contoh: DINAS PENDIDIKAN" 
                   />
                 </div>
                 <div className="space-y-2">
@@ -360,7 +360,7 @@ export default function SettingsPage() {
                   <Input 
                     value={localConfig.schoolName}
                     onChange={(e) => setLocalConfig({...localConfig, schoolName: e.target.value})}
-                    placeholder="Contoh: SMP Negeri 1 Jakarta" 
+                    placeholder="Contoh: SMP Negeri 5 LR" 
                   />
                 </div>
                 <div className="space-y-2">
