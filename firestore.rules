@@ -2,56 +2,50 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Sinkronisasi Izin Terpusat - Update: 2024-05-21 17:00
+    // Sinkronisasi Izin Terpusat - Update Terakhir: 2024-05-21 23:59 (CRITICAL FIX)
+    // Memastikan akses penuh untuk staf/guru yang terautentikasi.
     
-    // Fungsi pembantu untuk memverifikasi autentikasi pengguna
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Aturan eksplisit untuk koleksi journals (Mencegah FirestorePermissionError: list)
+    // 1. Aturan Koleksi Jurnal (Penting untuk Guru)
     match /journals/{document=**} {
       allow read, write: if isAuthenticated();
     }
 
-    // Aturan eksplisit untuk koleksi assessments
+    // 2. Aturan Koleksi Penilaian & Nilai
     match /assessments/{document=**} {
       allow read, write: if isAuthenticated();
     }
 
-    // Aturan eksplisit untuk koleksi teacherAssignments
-    match /teacherAssignments/{document=**} {
-      allow read, write: if isAuthenticated();
-    }
-
-    // Aturan eksplisit untuk koleksi classes
+    // 3. Aturan Koleksi Manajemen Akademik
     match /classes/{document=**} {
       allow read, write: if isAuthenticated();
     }
-
-    // Aturan eksplisit untuk koleksi staff
     match /staff/{document=**} {
       allow read, write: if isAuthenticated();
     }
-
-    // Aturan eksplisit untuk koleksi subjects
     match /subjects/{document=**} {
       allow read, write: if isAuthenticated();
     }
+    match /teacherAssignments/{document=**} {
+      allow read, write: if isAuthenticated();
+    }
     
-    // Aturan spesifik untuk koleksi applicants (Read publik untuk cek status, Write harus login)
+    // 4. Aturan Spesifik Pendaftar (Read publik untuk status, Write harus login)
     match /applicants/{applicantId} {
       allow read: if true;
       allow write: if isAuthenticated();
     }
     
-    // Aturan spesifik untuk pengaturan sistem (Read publik untuk branding aplikasi)
+    // 5. Aturan Pengaturan Sistem (Read publik untuk branding)
     match /settings/{settingId} {
       allow read: if true;
       allow write: if isAuthenticated();
     }
 
-    // Aturan default: akses penuh jika terautentikasi (Administrator/Staf/Guru)
+    // 6. Aturan Default (Fallback)
     match /{document=**} {
       allow read, write: if isAuthenticated();
     }

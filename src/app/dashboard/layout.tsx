@@ -75,7 +75,6 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   const { data: config } = useDoc<any>(settingsRef)
 
-  // Cek Role Guru untuk redirect balik jika nyasar
   const staffQuery = useMemoFirebase(() => {
     if (!db || !user?.email) return null
     return query(collection(db, 'staff'), where('email', '==', user.email))
@@ -144,12 +143,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   if (!user) return null
 
-  // Force renaming: Ganti PORTAL SPMB dengan SIS TERPADU secara permanen
-  const appName = (config?.appName && config.appName.toUpperCase() !== "PORTAL SPMB") ? config.appName : "SIS TERPADU"
+  // Force renaming: Bersihkan teks SPMB jika ada di database
+  const rawAppName = config?.appName || "SIS TERPADU"
+  const appName = rawAppName.toUpperCase().includes("SPMB") ? "SIS TERPADU" : rawAppName
+  
   const appLogoUrl = config?.appLogoUrl || "/icon-logo.webp"
   const isSPMBEnabled = config?.enableSPMB !== false;
 
-  // Grouped Navigation
   const academicNav = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Manajemen Kelas', href: '/dashboard/classes', icon: School },

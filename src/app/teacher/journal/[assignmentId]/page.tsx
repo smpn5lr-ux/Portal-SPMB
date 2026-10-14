@@ -92,7 +92,7 @@ export default function TeachingJournalPage() {
   }, [allAcceptedStudents, classroom])
 
   const journalQuery = useMemoFirebase(() => {
-    // KRITIKAL: Guard query agar tidak dijalankan sebelum user terautentikasi (Mencegah Permission Error)
+    // KRITIKAL: Cegah kueri berjalan jika user belum siap (Mencegah Permission Error)
     if (!db || !assignmentId || userLoading || !user) return null
     return query(
       collection(db, 'journals'), 
@@ -101,9 +101,9 @@ export default function TeachingJournalPage() {
       orderBy('meetingNumber', 'asc')
     )
   }, [db, assignmentId, activeSemester, user, userLoading])
+  
   const { data: journals, loading: loadingJ } = useCollection<Journal>(journalQuery)
 
-  // State untuk Journal Baru
   const [newJournal, setNewJournal] = useState<Partial<Journal>>({
     meetingNumber: 1,
     date: new Date().toISOString().split('T')[0],
@@ -151,12 +151,9 @@ export default function TeachingJournalPage() {
       }
       
       const batch = writeBatch(db)
-      
-      // 1. Simpan Jurnal
       const journalRef = doc(collection(db, 'journals'))
       batch.set(journalRef, journalData)
       
-      // 2. Jika ada tugas, sinkronkan ke Assessment
       if (newJournal.hasTask && newJournal.taskType && newJournal.taskScores) {
         Object.entries(newJournal.taskScores).forEach(([sId, score]) => {
           const assessmentId = `${assignmentId}_${sId}_sem${activeSemester}`
@@ -171,7 +168,6 @@ export default function TeachingJournalPage() {
         })
       }
       
-      // 3. Update Kehadiran di Assessment secara otomatis
       const allJournals = [...(journals || []), journalData as Journal]
       const totalMeetings = allJournals.length
       
@@ -191,7 +187,7 @@ export default function TeachingJournalPage() {
       })
 
       await batch.commit()
-      toast({ title: "Jurnal Berhasil Simpan", description: `Pertemuan ke-${newJournal.meetingNumber} telah dicatat.` })
+      toast({ title: "Jurnal Tersimpan", description: `Pertemuan ke-${newJournal.meetingNumber} telah dicatat.` })
       setIsAddOpen(false)
       setNewJournal({
         meetingNumber: (journals?.length || 0) + 2,
@@ -350,7 +346,7 @@ export default function TeachingJournalPage() {
                 <Table>
                   <TableHeader className="bg-muted/50">
                     <TableRow>
-                      <TableHead className="w-12 text-center">Absen</TableHead>
+                      <TableHead className="w-[80px] text-center">Alfa?</TableHead>
                       <TableHead>Nama Siswa</TableHead>
                       {newJournal.hasTask && <TableHead className="w-24 text-center">Nilai</TableHead>}
                     </TableRow>

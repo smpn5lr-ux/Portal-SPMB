@@ -52,7 +52,6 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
 
   const { data: staffData, loading: staffLoading } = useCollection<Staff>(staffQuery)
 
-  // Ambil semester dari URL atau default dari sistem
   const selectedSemester = searchParams.get('semester') || config?.activeSemester?.toString() || "1"
 
   React.useEffect(() => {
@@ -73,8 +72,9 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
     </div>
   )
 
-  // Force renaming logic
-  const appName = (config?.appName && config.appName.toUpperCase() !== "PORTAL SPMB") ? config.appName : "SIS TERPADU"
+  // Force renaming logic: Bersihkan identitas SPMB
+  const rawAppName = config?.appName || "SIS TERPADU"
+  const appName = rawAppName.toUpperCase().includes("SPMB") ? "SIS TERPADU" : rawAppName
   const appLogoUrl = config?.appLogoUrl || "/icon-logo.webp"
 
   return (

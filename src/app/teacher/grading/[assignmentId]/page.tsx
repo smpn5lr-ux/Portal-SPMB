@@ -82,13 +82,14 @@ export default function GradingPage() {
   }, [allAcceptedStudents, classroom, searchTerm])
 
   const assessmentsQuery = useMemoFirebase(() => {
-    if (!db || userLoading || !user || !assignmentId || !activeSemester) return null
+    if (!db || userLoading || !user || !assignmentId) return null
     return query(
       collection(db, 'assessments'), 
       where('assignmentId', '==', assignmentId),
       where('semester', '==', activeSemester)
     )
   }, [db, user, userLoading, assignmentId, activeSemester])
+  
   const { data: existingAssessments } = useCollection<Assessment>(assessmentsQuery)
 
   const [grades, setGrades] = useState<Record<string, Partial<Assessment>>>({})
@@ -100,8 +101,6 @@ export default function GradingPage() {
         gMap[a.studentId] = a
       })
       setGrades(gMap)
-    } else {
-      setGrades({})
     }
   }, [existingAssessments])
 
@@ -270,13 +269,13 @@ export default function GradingPage() {
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">Tuntas (KKM 75)</span>
-                <span className="font-bold text-green-500">{Object.values(grades).filter(g => (g.finalScore || 0) >= 75).length}</span>
+                <span className="font-bold text-green-500">{Object.values(grades).filter(g => (g.finalScore || 0) >= 75 && students.some(s => s.id === g.studentId)).length}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2 text-destructive">
                   <AlertCircle className="w-4 h-4" /> <span>Remedial (&lt;75)</span>
                 </div>
-                <span className="font-bold">{Object.values(grades).filter(g => (g.finalScore || 0) < 75 && g.finalScore !== undefined).length}</span>
+                <span className="font-bold">{Object.values(grades).filter(g => (g.finalScore || 0) < 75 && g.finalScore !== undefined && students.some(s => s.id === g.studentId)).length}</span>
               </div>
             </CardContent>
           </Card>

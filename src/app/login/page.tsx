@@ -38,7 +38,6 @@ export default function LoginPage() {
 
   const { data: config } = useDoc<any>(settingsRef)
 
-  // Query check role
   const staffQuery = useMemoFirebase(() => {
     if (!db || !user?.email) return null
     return query(collection(db, 'staff'), where('email', '==', user.email))
@@ -92,8 +91,9 @@ export default function LoginPage() {
 
   if (authLoading) return null
 
-  // Force renaming logic
-  const appName = (config?.appName && config.appName.toUpperCase() !== "PORTAL SPMB") ? config.appName : "SIS TERPADU"
+  // Force renaming logic: Bersihkan teks SPMB
+  const rawAppName = config?.appName || "SIS TERPADU"
+  const appName = rawAppName.toUpperCase().includes("SPMB") ? "SIS TERPADU" : rawAppName
   const appLogoUrl = config?.appLogoUrl || "/icon-logo.webp"
 
   return (
