@@ -18,7 +18,9 @@ import {
   Download,
   Clock,
   Target,
-  FileText
+  FileText,
+  Pencil,
+  Search
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -52,7 +54,7 @@ import { Switch } from "@/components/ui/switch"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { useUser, useFirestore, useMemoFirebase, useCollection, useDoc, useAuth } from "@/firebase"
-import { collection, query, where, doc, writeBatch, deleteDoc } from "firebase/firestore"
+import { collection, query, where, doc, writeBatch, deleteDoc, updateDoc } from "firebase/firestore"
 import { TeacherAssignment, Applicant, Classroom, Journal } from "@/lib/types"
 import { useToast } from '@/hooks/use-toast'
 
@@ -69,6 +71,8 @@ export default function TeachingJournalPage() {
   const [submitting, setSubmitting] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
+  const [editingJournalId, setEditingJournalId] = useState<string | null>(null)
+  const [studentSearchTerm, setStudentSearchTerm] = useState('')
   
   const activeSemester = parseInt(searchParams.get('semester') || "1")
 
@@ -106,6 +110,14 @@ export default function TeachingJournalPage() {
       .sort((a, b) => (a.fullName || "").localeCompare(b.fullName || ""))
   }, [allAcceptedStudents, classroom])
 
+  // Filter siswa untuk tampilan absensi di dialog
+  const filteredStudentsForAttendance = useMemo(() => {
+    return students.filter(s => 
+      s.fullName.toLowerCase().includes(studentSearchTerm.toLowerCase()) || 
+      (s.NISN || "").includes(studentSearchTerm)
+    )
+  }, [students, studentSearchTerm])
+
   const journalQuery = useMemoFirebase(() => {
     if (!db || !assignmentId || !user) return null
     return query(
@@ -140,18 +152,18 @@ export default function TeachingJournalPage() {
   })
 
   useEffect(() => {
-    if (journals && journals.length > 0) {
+    if (!editingJournalId && journals && journals.length > 0) {
       setNewJournal(prev => ({ ...prev, meetingNumber: journals.length + 1 }))
     }
     
-    if (students.length > 0) {
+    if (!editingJournalId && students.length > 0 && Object.keys(newJournal.attendanceDetail || {}).length === 0) {
       const initialAttendance: Record<string, any> = {}
       students.forEach(s => {
         initialAttendance[s.id] = 'H'
       })
       setNewJournal(prev => ({ ...prev, attendanceDetail: initialAttendance }))
     }
-  }, [journals, students])
+  }, [journals, students, editingJournalId, newJournal.attendanceDetail])
 
   const handleAttendanceChange = (studentId: string, status: 'H' | 'S' | 'I' | 'A') => {
     setNewJournal(prev => {
@@ -191,22 +203,58 @@ export default function TeachingJournalPage() {
     }
   }
 
+  const handleEditJournal = (journal: Journal) => {
+    setEditingJournalId(journal.id)
+    setNewJournal({
+      ...journal,
+      taskScores: journal.taskScores || {},
+      attendanceDetail: journal.attendanceDetail || {}
+    })
+    setIsAddOpen(true)
+  }
+
+  const handleAddNew = () => {
+    setEditingJournalId(null)
+    setNewJournal({
+      meetingNumber: journals.length + 1,
+      date: new Date().toISOString().split('T')[0],
+      jamKe: "1-2",
+      jp: 2,
+      learningGoal: "",
+      material: "",
+      kktpAchievement: "",
+      attendanceDetail: students.reduce((acc, s) => ({ ...acc, [s.id]: 'H' }), {}),
+      absentStudents: [],
+      hasTask: false,
+      taskType: 'task1',
+      taskScores: {},
+      notes: ""
+    })
+    setIsAddOpen(true)
+  }
+
   const saveJournal = async () => {
     if (!db || !assignmentId || !user) return
     setSubmitting(true)
     
     try {
-      const journalData = {
+      const journalData: any = {
         ...newJournal,
         assignmentId,
         semester: activeSemester,
-        createdAt: new Date().toISOString()
+        updatedAt: new Date().toISOString()
+      }
+      
+      if (!editingJournalId) {
+        journalData.createdAt = new Date().toISOString()
       }
       
       const batch = writeBatch(db)
-      const journalRef = doc(collection(db, 'journals'))
-      batch.set(journalRef, journalData)
+      const journalRef = editingJournalId ? doc(db, 'journals', editingJournalId) : doc(collection(db, 'journals'))
       
+      batch.set(journalRef, journalData, { merge: true })
+      
+      // Update Nilai Tugas jika ada
       if (newJournal.hasTask && newJournal.taskType && newJournal.taskScores) {
         Object.entries(newJournal.taskScores).forEach(([sId, score]) => {
           const assessmentId = `${assignmentId}_${sId}_sem${activeSemester}`
@@ -221,11 +269,15 @@ export default function TeachingJournalPage() {
         })
       }
       
-      const allJournals = [...(journals || []), journalData as Journal]
-      const totalMeetings = allJournals.length
+      // Hitung ulang absensi untuk semua siswa
+      // Kita butuh data journal terbaru untuk kalkulasi persentase yang akurat
+      const currentJournal = { ...journalData, id: journalRef.id }
+      const otherJournals = journals.filter(j => j.id !== editingJournalId)
+      const allJournalsForCalc = [...otherJournals, currentJournal]
+      const totalMeetings = allJournalsForCalc.length
       
       students.forEach(s => {
-        const absences = allJournals.filter(j => j.absentStudents?.includes(s.id)).length
+        const absences = allJournalsForCalc.filter(j => j.absentStudents?.includes(s.id)).length
         const attendancePercent = Math.round(((totalMeetings - absences) / totalMeetings) * 100)
         
         const assessmentId = `${assignmentId}_${s.id}_sem${activeSemester}`
@@ -240,8 +292,9 @@ export default function TeachingJournalPage() {
       })
 
       await batch.commit()
-      toast({ title: "Berhasil", description: "Jurnal telah disimpan." })
+      toast({ title: "Berhasil", description: editingJournalId ? "Jurnal telah diperbarui." : "Jurnal telah disimpan." })
       setIsAddOpen(false)
+      setEditingJournalId(null)
     } catch (e) {
       toast({ variant: "destructive", title: "Gagal menyimpan" })
     } finally {
@@ -385,7 +438,7 @@ export default function TeachingJournalPage() {
            <Button variant="outline" onClick={handleRefreshSession} className="gap-2 text-xs h-9">
               <RefreshCw className="w-3 h-3" /> Sesi
            </Button>
-           <Button onClick={() => setIsAddOpen(true)} className="gap-2 shadow-lg shadow-primary/20 h-9">
+           <Button onClick={handleAddNew} className="gap-2 shadow-lg shadow-primary/20 h-9">
              <Plus className="w-4 h-4" /> Tambah Jurnal
            </Button>
         </div>
@@ -419,6 +472,9 @@ export default function TeachingJournalPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="icon" onClick={() => handleEditJournal(j)} className="h-8 w-8 hover:text-primary">
+                        <Pencil className="w-4 h-4" />
+                      </Button>
                       <Button variant="ghost" size="icon" onClick={() => handleDeleteJournal(j.id)} className="text-destructive h-8 w-8">
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -472,9 +528,9 @@ export default function TeachingJournalPage() {
         )}
       </div>
 
-      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Input Jurnal & Absensi Lengkap</DialogTitle></DialogHeader>
+      <Dialog open={isAddOpen} onOpenChange={(val) => { setIsAddOpen(val); if(!val) { setEditingJournalId(null); setStudentSearchTerm(''); } }}>
+        <DialogContent className="sm:max-w-[850px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{editingJournalId ? 'Edit Jurnal & Absensi' : 'Input Jurnal & Absensi Lengkap'}</DialogTitle></DialogHeader>
           <div className="space-y-6 py-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="space-y-2"><Label>Pertemuan Ke-</Label><Input type="number" value={newJournal.meetingNumber} onChange={e => setNewJournal({...newJournal, meetingNumber: parseInt(e.target.value)})} /></div>
@@ -490,7 +546,18 @@ export default function TeachingJournalPage() {
             </div>
 
             <div className="space-y-4">
-              <div className="flex items-center justify-between border-b pb-2"><Label className="font-bold text-lg">Daftar Kehadiran</Label></div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-2">
+                <Label className="font-bold text-lg">Daftar Kehadiran & Tugas</Label>
+                <div className="relative w-full sm:w-64">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input 
+                    placeholder="Cari nama siswa..." 
+                    value={studentSearchTerm}
+                    onChange={(e) => setStudentSearchTerm(e.target.value)}
+                    className="h-8 pl-8 text-xs bg-muted/20"
+                  />
+                </div>
+              </div>
               <div className="border rounded-lg overflow-hidden bg-card">
                 <Table>
                   <TableHeader className="bg-muted/50">
@@ -501,9 +568,12 @@ export default function TeachingJournalPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {students.map(s => (
+                    {filteredStudentsForAttendance.map(s => (
                       <TableRow key={s.id}>
-                        <TableCell className="text-sm font-medium">{s.fullName}</TableCell>
+                        <TableCell className="text-sm font-medium">
+                          <div>{s.fullName}</div>
+                          <div className="text-[10px] text-muted-foreground font-mono">{s.NISN}</div>
+                        </TableCell>
                         <TableCell>
                           <RadioGroup 
                             defaultValue="H" 
@@ -543,6 +613,13 @@ export default function TeachingJournalPage() {
                         )}
                       </TableRow>
                     ))}
+                    {filteredStudentsForAttendance.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={newJournal.hasTask ? 3 : 2} className="text-center py-6 text-muted-foreground italic text-xs">
+                          Tidak ada siswa yang sesuai pencarian.
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </div>
@@ -570,7 +647,7 @@ export default function TeachingJournalPage() {
                <div className="space-y-2"><Label>Keterangan Tambahan (Opsional)</Label><Textarea placeholder="Catatan kelas..." value={newJournal.notes} onChange={e => setNewJournal({...newJournal, notes: e.target.value})} /></div>
             </div>
           </div>
-          <DialogFooter><Button onClick={saveJournal} disabled={submitting} className="w-full md:w-auto">{submitting ? 'Menyimpan...' : 'Simpan Jurnal & Absensi'}</Button></DialogFooter>
+          <DialogFooter><Button onClick={saveJournal} disabled={submitting} className="w-full md:w-auto">{submitting ? 'Menyimpan...' : (editingJournalId ? 'Perbarui Jurnal' : 'Simpan Jurnal & Absensi')}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
